@@ -3,6 +3,7 @@
 // Protocol engine, DNS leak prevention, MTU clamping, uTLS fingerprinting
 
 #![warn(missing_docs)]
+#![allow(dead_code)]
 
 pub mod config;
 pub mod dns;

@@ -3,7 +3,7 @@
 
 use crate::SecularResult;
 use std::net::IpAddr;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// TUN interface wrapper
 pub struct TunInterface {
@@ -82,7 +82,7 @@ impl TunInterface {
     }
 
     /// Read a packet from the TUN interface
-    pub fn read_packet(&self, buf: &mut [u8]) -> SecularResult<usize> {
+    pub fn read_packet(&self, _buf: &mut [u8]) -> SecularResult<usize> {
         if !self.is_up {
             return Err(anyhow::anyhow!("TUN interface is not up"));
         }

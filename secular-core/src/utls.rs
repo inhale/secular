@@ -4,7 +4,6 @@
 // TLS fingerprinting (JA3/JA4) identifies clients by their ClientHello message.
 // uTLS mimics real browser fingerprints to blend in with normal traffic.
 
-use rustls::client::ClientHello;
 use tracing::debug;
 
 /// Known browser fingerprint profiles

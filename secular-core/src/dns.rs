@@ -52,6 +52,10 @@ impl DnsGuard {
                         info!("DNS proxy at {} is healthy", self.proxy_addr);
                         true
                     }
+                    Ok(Ok(_)) => {
+                        warn!("DNS proxy returned empty response");
+                        false
+                    }
                     Ok(Err(e)) => {
                         warn!("DNS proxy receive failed: {e}");
                         false

@@ -5,7 +5,7 @@ use crate::config::SecularConfig;
 use crate::SecularResult;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// Connection state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
