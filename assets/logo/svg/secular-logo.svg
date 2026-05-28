@@ -1,22 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="96" fill="#0D0F12"/>
-  <!-- Two interlocking S-shaped waves forming S through negative space -->
-  <!-- Top wave — left to right, curving down then up -->
-  <path d="M 120 100 
-           C 200 100, 260 160, 260 200 
-           C 260 240, 200 280, 160 280 
-           C 120 280, 80 300, 80 340 
-           C 80 380, 140 420, 220 420" 
-        stroke="#00F5D4" stroke-width="32" fill="none" stroke-linecap="round"/>
-  <!-- Bottom wave — right to left, curving up then down (interlocking) -->
-  <path d="M 392 100 
-           C 312 100, 252 160, 252 200 
-           C 252 240, 312 280, 352 280 
-           C 392 280, 432 300, 432 340 
-           C 432 380, 372 420, 292 420" 
-        stroke="#00F5D4" stroke-width="32" fill="none" stroke-linecap="round"/>
-  <!-- Top accent dot -->
-  <circle cx="120" cy="100" r="24" fill="#00F5D4"/>
-  <!-- Bottom accent dot -->
-  <circle cx="292" cy="420" r="24" fill="#00F5D4"/>
+  <rect width="512" height="512" rx="96" fill="#F5F7FA"/>
+  <!-- Secular logo: two intertwined S-curves with intersection dot -->
+  <!-- Top-left to center-right stroke -->
+  <path d="M 80 80
+           C 160 80, 280 140, 320 220
+           C 360 300, 340 380, 260 432"
+        stroke="#242424" stroke-width="32" fill="none" stroke-linecap="round"/>
+  <!-- Top-right to center-left stroke, mirrors the first -->
+  <path d="M 432 80
+           C 352 80, 232 140, 192 220
+           C 152 300, 172 380, 252 432"
+        stroke="#242424" stroke-width="32" fill="none" stroke-linecap="round"/>
+  <!-- Intersection/accent dots -->
+  <circle cx="80" cy="80" r="16" fill="#d02b57"/>
+  <circle cx="432" cy="432" r="16" fill="#d02b57"/>
 </svg>

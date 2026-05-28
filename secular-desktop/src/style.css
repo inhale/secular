@@ -1,16 +1,25 @@
-/* Secular — Design System */
-/* Palette: BG #0D0F12 | Surface #16191E | Text #FFFFFF | Secondary #7A869A | Accent #00F5D4 | Alert #FF3B30 */
+/* Secular — Design System (from design image) */
+/* Palette: BG #F5F7FA | Surface #FFFFFF | Text Primary #242424 | Secondary #a8a8a8 */
+/* Accent Red #d02b57 | Connecting Blue #147cc4 | Connecting Yellow #deb052 */
+/* Error #f57f76 | Service Gray #b7b7b7 */
 
 :root {
-  --bg: #0D0F12;
-  --surface: #16191E;
-  --text: #FFFFFF;
-  --text-secondary: #7A869A;
-  --accent: #00F5D4;
-  --accent-dim: rgba(0, 245, 212, 0.15);
-  --alert: #FF3B30;
-  --alert-dim: rgba(255, 59, 48, 0.15);
-  --radius: 12px;
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --surface-alt: #f0f0f0;
+  --text: #242424;
+  --text-secondary: #a8a8a8;
+  --text-muted: #b7b7b7;
+  --accent: #d02b57;
+  --accent-dim: rgba(208, 43, 87, 0.1);
+  --connecting-blue: #147cc4;
+  --connecting-yellow: #deb052;
+  --error: #f57f76;
+  --error-dim: rgba(245, 127, 118, 0.1);
+  --divider: #e0e0e0;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -35,37 +44,39 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--surface);
 }
 
 /* Logo */
 .logo-container {
   display: flex;
   justify-content: center;
-  padding: 32px 0 16px;
+  padding: 28px 0 12px;
 }
 
 .logo {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
 }
 
 /* Status */
 .status-section {
   text-align: center;
-  padding: 16px 24px;
+  padding: 12px 24px;
 }
 
 .status-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-weight: 600;
 }
 
 .status-value {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .status-value.connected {
@@ -76,60 +87,64 @@ body {
   color: var(--text-secondary);
 }
 
-/* Connect Button */
+.status-value.connecting {
+  color: var(--connecting-blue);
+}
+
+/* Connect Button — pill shape */
 .connect-section {
   display: flex;
   justify-content: center;
-  padding: 16px 0;
+  padding: 12px 24px;
 }
 
 .connect-btn {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  border: 3px solid var(--accent);
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-size: 18px;
-  font-weight: 600;
+  width: 100%;
+  padding: 14px 32px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--accent);
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .connect-btn:hover {
-  background: rgba(0, 245, 212, 0.25);
-  transform: scale(1.03);
+  background: #ba2450;
+  transform: scale(1.01);
 }
 
 .connect-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
-.connect-btn.connected {
-  border-color: var(--alert);
-  background: var(--alert-dim);
-  color: var(--alert);
+.connect-btn.connecting {
+  background: linear-gradient(135deg, var(--connecting-blue), var(--connecting-yellow));
+}
+
+.connect-btn.disconnected {
+  background: var(--text-muted);
 }
 
 /* Server Info */
 .server-section {
-  padding: 12px 24px;
+  padding: 8px 24px;
 }
 
 .server-card {
-  background: var(--surface);
+  background: var(--surface-alt);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--divider);
 }
 
 .server-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .server-row-label {
@@ -151,14 +166,15 @@ body {
 
 .stat-card {
   flex: 1;
-  background: var(--surface);
+  background: var(--surface-alt);
   border-radius: var(--radius);
   padding: 12px;
   text-align: center;
+  border: 1px solid var(--divider);
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--accent);
 }
@@ -171,7 +187,7 @@ body {
 
 /* Settings */
 .settings-section {
-  padding: 12px 24px;
+  padding: 8px 24px;
   flex: 1;
   overflow-y: auto;
 }
@@ -181,25 +197,45 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(122, 134, 154, 0.15);
+  border-bottom: 1px solid var(--divider);
 }
 
 .settings-label {
   font-size: 14px;
+  color: var(--text);
 }
 
 .settings-input {
-  background: var(--surface);
-  border: 1px solid rgba(122, 134, 154, 0.3);
-  border-radius: 8px;
+  background: var(--surface-alt);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius);
   color: var(--text);
   padding: 6px 10px;
   font-size: 13px;
   width: 160px;
   outline: none;
+  font-family: var(--font);
 }
 
 .settings-input:focus {
+  border-color: var(--accent);
+}
+
+.settings-select {
+  background: var(--surface-alt);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 13px;
+  width: 160px;
+  outline: none;
+  font-family: var(--font);
+  appearance: none;
+  cursor: pointer;
+}
+
+.settings-select:focus {
   border-color: var(--accent);
 }
 
@@ -208,16 +244,15 @@ body {
   width: 44px;
   height: 24px;
   border-radius: 12px;
-  background: var(--surface);
-  border: 1px solid rgba(122, 134, 154, 0.3);
+  background: var(--text-muted);
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
+  border: none;
 }
 
 .toggle.active {
   background: var(--accent);
-  border-color: var(--accent);
 }
 
 .toggle::after {
@@ -226,21 +261,49 @@ body {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--text);
-  top: 2px;
-  left: 2px;
+  background: #FFFFFF;
+  top: 3px;
+  left: 3px;
   transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .toggle.active::after {
-  left: 22px;
+  left: 23px;
 }
 
-/* Footer */
+/* Tabs / Footer */
 .footer {
-  padding: 12px 24px;
+  display: flex;
+  border-top: 1px solid var(--divider);
+  background: var(--surface);
+}
+
+.footer-tab {
+  flex: 1;
+  padding: 12px;
   text-align: center;
   font-size: 11px;
   color: var(--text-secondary);
-  opacity: 0.5;
+  cursor: pointer;
+  transition: color 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.footer-tab.active {
+  color: var(--accent);
+}
+
+.footer-tab:hover {
+  color: var(--text);
+}
+
+/* Version footer */
+.version-footer {
+  padding: 8px 24px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
 }
