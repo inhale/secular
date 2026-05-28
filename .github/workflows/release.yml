@@ -1,0 +1,148 @@
+# .github/workflows/release.yml
+# Secular CI/CD — builds signed DMG (macOS), MSI (Windows), AppImage (Linux)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./secular-desktop
+        run: npm install
+
+      - name: Build Rust core (universal2)
+        working-directory: ./secular-core
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          mkdir -p target/universal
+          lipo -create \
+            target/aarch64-apple-darwin/release/libsecular_core.a \
+            target/x86_64-apple-darwin/release/libsecular_core.a \
+            -output target/universal/libsecular_core.a
+          file target/universal/libsecular_core.a
+
+      - name: Build Tauri app (universal2)
+        working-directory: ./secular-desktop
+        run: npm run tauri build -- --target universal-apple-darwin
+        env:
+          RUSTFLAGS: "-L ../secular-core/target/universal"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: secular-macos-dmg
+          path: secular-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./secular-desktop
+        run: npm install
+
+      - name: Build secular-core
+        working-directory: ./secular-core
+        run: cargo build --release
+
+      - name: Build Tauri app
+        working-directory: ./secular-desktop
+        run: npm run tauri build
+        env:
+          RUSTFLAGS: "-L ../secular-core/target/release"
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: secular-windows-msi
+          path: secular-desktop/src-tauri/target/release/bundle/msi/*.msi
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install npm dependencies
+        working-directory: ./secular-desktop
+        run: npm install
+
+      - name: Build secular-core
+        working-directory: ./secular-core
+        run: cargo build --release
+
+      - name: Build Tauri app
+        working-directory: ./secular-desktop
+        run: npm run tauri build
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: secular-linux-appimage
+          path: secular-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+
+  release:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            secular-macos-dmg/*.dmg
+            secular-windows-msi/*.msi
+            secular-linux-appimage/*.AppImage
+          generate_release_notes: true

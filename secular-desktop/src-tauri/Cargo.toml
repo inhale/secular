@@ -1,0 +1,20 @@
+[package]
+name = "secular-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Secular VPN — cross-platform desktop client"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+secular-core = { path = "../secular-core" }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

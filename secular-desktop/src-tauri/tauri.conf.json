@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/dev/.schema/config.schema.json",
+  "productName": "Secular",
+  "version": "0.1.0",
+  "identifier": "com.secular.vpn",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "title": "Secular",
+    "windows": [
+      {
+        "title": "Secular",
+        "width": 360,
+        "height": 520,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/256x256.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "infoPlist": "",
+      "minimumSystemVersion": "11.0"
+    },
+    "targets": ["dmg", "app"]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

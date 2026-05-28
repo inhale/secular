@@ -1,0 +1,43 @@
+[package]
+name = "secular-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["inhale"]
+description = "Secular VPN core library — protocol, DNS leak prevention, MTU clamping, uTLS"
+
+[lib]
+name = "secular_core"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = ["std"]
+std = []
+uniffi = ["dep:uniffi"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+bytes = "1"
+rand = "0.8"
+ring = "0.17"
+rustls = { version = "0.23", features = ["ring"] }
+webpki-roots = "0.26"
+h2 = "0.4"
+quinn = "0.11"
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+parking_lot = "0.12"
+thiserror = "1"
+anyhow = "1"
+uniffi = { version = "0.28", optional = true }
+libc = "0.2"
+socket2 = "0.5"
+
+[build-dependencies]
+uniffi = { version = "0.28", features = ["build"], optional = true }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

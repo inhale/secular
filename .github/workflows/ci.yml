@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build secular-core
+        working-directory: ./secular-core
+        run: cargo build --all-features
+      - name: Test secular-core
+        working-directory: ./secular-core
+        run: cargo test --all-features
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Format check
+        working-directory: ./secular-core
+        run: cargo fmt -- --check
+      - name: Clippy lint
+        working-directory: ./secular-core
+        run: cargo clippy --all-features -- -D warnings
