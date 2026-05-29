@@ -39,7 +39,7 @@
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "11.0"
     },
-    "targets": ["all"]
+    "targets": ["app", "dmg", "deb", "appimage", "msi", "nsis"]
   },
   "plugins": {
     "shell": {
