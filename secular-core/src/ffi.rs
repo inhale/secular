@@ -2,8 +2,14 @@
 // UniFFI exports for Swift (iOS) and Android (Kotlin) bindings
 
 use crate::config::SecularConfig;
-use crate::protocol::{ConnectionState, SecularEngine};
+use crate::protocol::SecularEngine;
+
+// Used by full FFI implementation (UniFFI bindings)
+#[allow(unused_imports)]
+use crate::protocol::ConnectionState;
+#[allow(unused_imports)]
 use parking_lot::Mutex;
+#[allow(unused_imports)]
 use std::sync::Arc;
 
 /// opaque handle to SecularEngine for FFI

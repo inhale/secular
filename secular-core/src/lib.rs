@@ -2,8 +2,8 @@
 // Secular VPN Core Library
 // Protocol engine, DNS leak prevention, MTU clamping, uTLS fingerprinting
 
-#![warn(missing_docs)]
 #![allow(dead_code)]
+#![allow(missing_docs)]
 
 pub mod config;
 pub mod dns;
