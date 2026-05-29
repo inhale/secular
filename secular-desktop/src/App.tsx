@@ -1,15 +1,6 @@
 // Secular Desktop — Main App Component (from design system)
 import React, { useState } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-
-interface ConnectionConfig {
-  host: string;
-  port: number;
-  sni: string;
-  auth_token: string;
-  protocol: string;
-  allow_ipv6: boolean;
-}
+import { invoke } from '@tauri-apps/api/core';
 
 type ConnState = 'disconnected' | 'connecting' | 'connected';
 
@@ -68,9 +59,9 @@ const App: React.FC = () => {
         <svg className="logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
           <rect width="512" height="512" rx="96" fill="#F5F7FA"/>
           <path d="M 80 80 C 160 80, 280 140, 320 220 C 360 300, 340 380, 260 432"
-                stroke="#242424" stroke-width="32" fill="none" strokeLinecap="round"/>
+                stroke="#242424" strokeWidth="32" fill="none" strokeLinecap="round"/>
           <path d="M 432 80 C 352 80, 232 140, 192 220 C 152 300, 172 380, 252 432"
-                stroke="#242424" stroke-width="32" fill="none" strokeLinecap="round"/>
+                stroke="#242424" strokeWidth="32" fill="none" strokeLinecap="round"/>
           <circle cx="80" cy="80" r="16" fill="#d02b57"/>
           <circle cx="432" cy="432" r="16" fill="#d02b57"/>
         </svg>
@@ -127,6 +118,25 @@ const App: React.FC = () => {
             value={port}
             onChange={e => setPort(e.target.value)}
             placeholder="443"
+          />
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">SNI</span>
+          <input
+            className="settings-input"
+            value={sni}
+            onChange={e => setSni(e.target.value)}
+            placeholder="optional sni hostname"
+          />
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">Auth Token</span>
+          <input
+            className="settings-input"
+            type="password"
+            value={token}
+            onChange={e => setToken(e.target.value)}
+            placeholder="auth token"
           />
         </div>
         <div className="settings-row">
