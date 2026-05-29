@@ -25,8 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -35,26 +33,50 @@ jobs:
         run: npm install
         working-directory: ./secular-desktop
 
-      - name: Build Tauri (macOS aarch64)
+      - name: Build Tauri (macOS)
+        shell: bash
         run: |
+          set +e
           cd secular-desktop/src-tauri
-          npx tauri build -- --target aarch64-apple-darwin
-          echo "=== Bundle contents ==="
-          find target/aarch64-apple-darwin/release/bundle -type f -o -type d | sort
-          echo "=== Zipping .app ==="
-          cd target/aarch64-apple-darwin/release/bundle/macos
-          zip -r ../../../secular-macos-aarch64.zip *.app
-          echo "=== Zip contents ==="
-          ls -la ../../../secular-macos-aarch64.zip
+
+          echo "=== Pre-build checks ==="
+          ls -la icons/
+          ls -la entitlements.plist
+
+          echo "=== Running tauri build ==="
+          npx tauri build 2>&1
+          BUILD_EXIT=$?
+          echo "tauri build exit code: $BUILD_EXIT"
+
+          echo "=== Post-build debug ==="
+          find target -maxdepth 4 -type f \( -name "*.app" -o -name "secular-desktop" \) 2>/dev/null
+          find target -maxdepth 3 -type d 2>/dev/null | sort
+
+          echo "=== Zipping ==="
+          BUNDLE_MACOS=""
+          if [ -d "target/release/bundle/macos" ]; then
+            BUNDLE_MACOS="target/release/bundle/macos"
+          elif [ -d "target/aarch64-apple-darwin/release/bundle/macos" ]; then
+            BUNDLE_MACOS="target/aarch64-apple-darwin/release/bundle/macos"
+          fi
+          if [ -n "$BUNDLE_MACOS" ]; then
+            cd "$BUNDLE_MACOS"
+            zip -rv ../../../secular-macos-aarch64.zip *.app
+            ls -la ../../../secular-macos-aarch64.zip
+          else
+            echo "ERROR: No macOS bundle directory found"
+            exit 1
+          fi
         env:
           TAURI_PRIVATE_KEY: ""
           TAURI_KEY_PASSWORD: ""
 
       - name: Upload macOS App
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: secular-macos
-          path: secular-desktop/src-tauri/target/aarch64-apple-darwin/release/secular-macos-aarch64.zip
+          path: secular-desktop/src-tauri/target/release/secular-macos-aarch64.zip
           retention-days: 30
 
   build-windows:
