@@ -59,8 +59,6 @@ jobs:
       - name: Build Tauri desktop app (macOS universal2)
         working-directory: ./secular-desktop
         run: npm run tauri build -- --target universal-apple-darwin
-        env:
-          RUSTFLAGS: "-L ../secular-core/target/universal"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -97,8 +95,6 @@ jobs:
       - name: Build Tauri desktop app (Windows)
         working-directory: ./secular-desktop
         run: npm run tauri build
-        env:
-          RUSTFLAGS: "-L ../secular-core/target/release"
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
@@ -213,9 +209,6 @@ jobs:
         run: |
           npx tauri ios init || true
           npx tauri ios build --debug
-        env:
-          RUSTFLAGS: "-L ../secular-core/target/aarch64-apple-ios/release"
-          IOS_BUNDLE_ID: "com.secular.vpn"
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
