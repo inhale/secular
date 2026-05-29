@@ -10,7 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "title": "Secular",
     "windows": [
       {
         "title": "Secular",
@@ -36,7 +35,6 @@
     ],
     "macOS": {
       "entitlements": "entitlements.plist",
-      "infoPlist": "",
       "minimumSystemVersion": "11.0"
     },
     "targets": ["dmg", "app"]
