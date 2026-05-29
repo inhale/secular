@@ -7,7 +7,6 @@ use crate::SecularResult;
 use bytes::Bytes;
 use rustls::pki_types::ServerName;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_rustls::TlsConnector;
@@ -278,7 +277,7 @@ impl SecularEngine {
     }
 
     /// Receive a raw IP packet from the tunnel
-    pub async fn recv_packet(&self, buf: &mut [u8]) -> SecularResult<usize> {
+    pub async fn recv_packet(&self, _buf: &mut [u8]) -> SecularResult<usize> {
         let tunnel = self.tunnel.lock().await;
         match tunnel.as_ref() {
             Some(_t) => {
