@@ -113,9 +113,15 @@ impl SecularEngine {
 
         // Phase 2c: HTTP/2 handshake via ALPN (h2 should already be negotiated)
         debug!("Starting HTTP/2 preface...");
-        let mut h2_client = h2::client::handshake(tls_stream)
+        let (mut h2_client, h2_conn) = h2::client::handshake(tls_stream)
             .await
             .map_err(|e| anyhow::anyhow!("HTTP/2 handshake failed: {e}"))?;
+        // Spawn the h2 connection driver in the background
+        tokio::spawn(async move {
+            if let Err(e) = h2_conn.await {
+                warn!("h2 connection error: {e}");
+            }
+        });
         info!("HTTP/2 connection established");
 
         // Phase 3: Authenticate — POST /auth with token
@@ -210,9 +216,12 @@ impl SecularEngine {
             .body(())
             .map_err(|e| anyhow::anyhow!("Failed to build auth request: {e}"))?;
 
-        let (response, _send) = h2
+        let (response, mut send) = h2
             .send_request(request, false)
             .map_err(|e| anyhow::anyhow!("Auth request send failed: {e}"))?;
+        // Send the body
+        send.send_data(body_bytes, true)
+            .map_err(|e| anyhow::anyhow!("Auth body send failed: {e}"))?;
 
         let response = response
             .await
