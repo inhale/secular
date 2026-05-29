@@ -15,7 +15,7 @@ tauri-plugin-shell = "2"
 secular-core = { path = "../../secular-core" }
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.11" }
 
 [features]
 default = ["custom-protocol"]

@@ -6,7 +6,7 @@ use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
 use tauri::Manager;
 
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let tray = TrayIconBuilder::with_id("main-tray")
+    let _tray = TrayIconBuilder::with_id("main-tray")
         .tooltip("Secular — Disconnected")
         .icon_as_template(true) // macOS template icon (auto-inverts)
         .on_tray_icon_event(|tray, event| {
