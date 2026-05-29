@@ -39,10 +39,6 @@ jobs:
           set +e
           cd secular-desktop/src-tauri
 
-          echo "=== Pre-build checks ==="
-          ls -la icons/
-          ls -la entitlements.plist
-
           echo "=== Running tauri build ==="
           npx tauri build 2>&1
           BUILD_EXIT=$?
@@ -61,8 +57,11 @@ jobs:
           fi
           if [ -n "$BUNDLE_MACOS" ]; then
             cd "$BUNDLE_MACOS"
+            ls -la *.app
             zip -rv ../../../secular-macos-aarch64.zip *.app
             ls -la ../../../secular-macos-aarch64.zip
+            # Also copy to workspace root for reliable artifact upload
+            cp ../../../secular-macos-aarch64.zip /Users/runner/work/secular/secular/secular-macos-aarch64.zip 2>/dev/null || true
           else
             echo "ERROR: No macOS bundle directory found"
             exit 1
@@ -76,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: secular-macos
-          path: secular-desktop/src-tauri/target/release/secular-macos-aarch64.zip
+          path: secular-macos-aarch64.zip
           retention-days: 30
 
   build-windows:
