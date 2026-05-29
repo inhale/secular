@@ -1,7 +1,5 @@
 # .github/workflows/release.yml
 # Secular CI/CD — builds all platforms on tag push
-# Desktop: macOS (DMG universal2), Windows (MSI), Linux (AppImage)
-# Mobile: iOS (IPA), Android (APK)
 
 name: Release
 
@@ -17,256 +15,118 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
 
-  # ──────────────────────────────────────────────
-  # DESKTOP: macOS universal2 (aarch64 + x86_64 via lipo)
-  # ──────────────────────────────────────────────
   build-macos:
     runs-on: macos-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin, x86_64-apple-darwin
-
-      - name: Install Node
-        uses: actions/setup-node@v4
+          targets: aarch64-apple-darwin
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install npm dependencies
-        working-directory: ./secular-desktop
+      - name: Install dependencies
         run: npm install
+        working-directory: ./secular-desktop
 
       - name: Build Tauri (macOS aarch64)
-        working-directory: ./secular-desktop
-        run: npx tauri build -- --target aarch64-apple-darwin
-
-      - name: Build Tauri (macOS x86_64)
-        working-directory: ./secular-desktop
-        run: npx tauri build -- --target x86_64-apple-darwin
-        env:
-          TAURI_SKIP_DETECT_LATEST_XCODE: "1"
-
-      - name: Merge macOS binaries (lipo)
         run: |
-          mkdir -p secular-desktop/src-tauri/target/release/bundle/macosSecular.app/Contents/MacOS
-          lipo -create \
-            secular-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Secular.app/Contents/MacOS/secular-desktop \
-            secular-desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Secular.app/Contents/MacOS/secular-desktop \
-            -output secular-desktop/src-tauri/target/release/bundle/macos/Secular.app/Contents/MacOS/secular-desktop
-          echo "Universal2 binary:"
-          file secular-desktop/src-tauri/target/release/bundle/macos/Secular.app/Contents/MacOS/secular-desktop
+          cd secular-desktop/src-tauri
+          npx tauri build -- --target aarch64-apple-darwin
+        env:
+          TAURI_PRIVATE_KEY: ""
+          TAURI_KEY_PASSWORD: ""
 
-      - name: Upload macOS app artifact
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: secular-macos-app
-          path: secular-desktop/src-tauri/target/release/bundle/macos/Secular.app
+          name: secular-macos
+          path: secular-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # DESKTOP: Windows MSI
-  # ──────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install npm dependencies
-        working-directory: ./secular-desktop
+      - name: Install dependencies
         run: npm install
-
-      - name: Build Tauri app (Windows)
         working-directory: ./secular-desktop
-        run: npx tauri build
 
-      - name: Upload MSI artifact
+      - name: Build Tauri (Windows)
+        run: |
+          cd secular-desktop/src-tauri
+          npx tauri build
+
+      - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
           name: secular-windows-msi
           path: secular-desktop/src-tauri/target/release/bundle/msi/*.msi
           retention-days: 30
 
-      - name: Upload NSIS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-windows-nsis
-          path: secular-desktop/src-tauri/target/release/bundle/nsis/*.exe
-          retention-days: 30
-
-  # ──────────────────────────────────────────────
-  # DESKTOP: Linux AppImage
-  # ──────────────────────────────────────────────
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            libwebkit2gtk-4.1-dev
+            libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
+            libssl-dev libwebkit2gtk-4.1-dev
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Node
-        uses: actions/setup-node@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install npm dependencies
-        working-directory: ./secular-desktop
+      - name: Install dependencies
         run: npm install
-
-      - name: Build Tauri app (Linux)
         working-directory: ./secular-desktop
-        run: npx tauri build
 
-      - name: Upload AppImage artifact
+      - name: Build Tauri (Linux)
+        run: |
+          cd secular-desktop/src-tauri
+          npx tauri build
+
+      - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
           name: secular-linux-appimage
           path: secular-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
           retention-days: 30
 
-      - name: Upload DEB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-linux-deb
-          path: secular-desktop/src-tauri/target/release/bundle/deb/*.deb
-          retention-days: 30
-
-  # ──────────────────────────────────────────────
-  # MOBILE: iOS
-  # ──────────────────────────────────────────────
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios
-
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install npm dependencies
-        working-directory: ./secular-desktop
-        run: npm install
-
-      - name: Build Tauri iOS app (debug)
-        working-directory: ./secular-desktop
-        run: npx tauri ios build
-
-      - name: Upload iOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-ios-app
-          path: secular-desktop/src-tauri/target/aarch64-apple-ios/debug/bundle/**/*.ipa
-          retention-days: 30
-
-  # ──────────────────────────────────────────────
-  # MOBILE: Android  
-  # ──────────────────────────────────────────────
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK
-        run: sdkmanager --install "ndk;27.0.12077973"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install npm dependencies
-        working-directory: ./secular-desktop
-        run: npm install
-
-      - name: Build Tauri Android (debug)
-        working-directory: ./secular-desktop
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        run: npx tauri android build --debug
-
-      - name: Upload Android APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-android-apk
-          path: secular-desktop/src-tauri/target/aarch64-linux-android/debug/apk/**/*.apk
-          retention-days: 30
-
-  # ──────────────────────────────────────────────
-  # RELEASE: Collect all artifacts, create GitHub Release
-  # ──────────────────────────────────────────────
   release:
-    needs: [build-macos, build-windows, build-linux, build-ios, build-android]
+    needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: List downloaded artifacts
+      - name: List artifacts
         run: find ./artifacts -type f | sort
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            secular-macos-app/**/*
+            secular-macos/**/*
             secular-windows-msi/*.msi
-            secular-windows-nsis/*.exe
             secular-linux-appimage/*.AppImage
-            secular-linux-deb/*.deb
-            secular-ios-app/**/*
-            secular-android-apk/**/*
           generate_release_notes: true
-          draft: false
           prerelease: true
