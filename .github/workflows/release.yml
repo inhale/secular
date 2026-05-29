@@ -107,7 +107,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: secular-windows-msi
+          name: secular-windows
           path: |
             secular-desktop/src-tauri/target/release/bundle/msi/*.msi
             secular-desktop/src-tauri/target/release/bundle/nsis/*.exe
@@ -152,7 +152,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: secular-linux-appimage
+          name: secular-linux
           path: |
             secular-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
             secular-desktop/src-tauri/target/release/bundle/deb/*.deb
@@ -176,7 +176,9 @@ jobs:
         with:
           files: |
             artifacts/secular-macos/*.zip
-            artifacts/secular-windows-msi/*.msi
-            artifacts/secular-linux-appimage/*.AppImage
+            artifacts/secular-windows/*.msi
+            artifacts/secular-windows/*.exe
+            artifacts/secular-linux/*.AppImage
+            artifacts/secular-linux/*.deb
           generate_release_notes: true
           prerelease: true
