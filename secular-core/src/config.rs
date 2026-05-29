@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Server endpoint configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ServerConfig {
     /// Server IP address or hostname
     pub host: String,
