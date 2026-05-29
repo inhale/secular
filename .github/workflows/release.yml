@@ -39,15 +39,22 @@ jobs:
         run: |
           cd secular-desktop/src-tauri
           npx tauri build -- --target aarch64-apple-darwin
+          echo "=== Bundle contents ==="
+          find target/aarch64-apple-darwin/release/bundle -type f -o -type d | sort
+          echo "=== Zipping .app ==="
+          cd target/aarch64-apple-darwin/release/bundle/macos
+          zip -r ../../../secular-macos-aarch64.zip *.app
+          echo "=== Zip contents ==="
+          ls -la ../../../secular-macos-aarch64.zip
         env:
           TAURI_PRIVATE_KEY: ""
           TAURI_KEY_PASSWORD: ""
 
-      - name: Upload macOS DMG
+      - name: Upload macOS App
         uses: actions/upload-artifact@v4
         with:
           name: secular-macos
-          path: secular-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          path: secular-desktop/src-tauri/target/aarch64-apple-darwin/release/secular-macos-aarch64.zip
           retention-days: 30
 
   build-windows:
@@ -125,7 +132,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            secular-macos/**/*
+            secular-macos/*.zip
             secular-windows-msi/*.msi
             secular-linux-appimage/*.AppImage
           generate_release_notes: true
