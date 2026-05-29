@@ -248,7 +248,10 @@ impl TunInterface {
     pub fn close(&mut self) -> SecularResult<()> {
         info!("Closing TUN interface: {}", self.name);
         self.is_up = false;
-        self.fd = None;
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        {
+            self.fd = None;
+        }
         Ok(())
     }
 }
