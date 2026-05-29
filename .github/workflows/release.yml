@@ -153,8 +153,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            secular-macos/*.zip
-            secular-windows-msi/*.msi
-            secular-linux-appimage/*.AppImage
+            artifacts/secular-macos/*.zip
+            artifacts/secular-windows-msi/*.msi
+            artifacts/secular-linux-appimage/*.AppImage
           generate_release_notes: true
           prerelease: true
