@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/drawable/connect_btn_bg.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#d02b57" />
+    <corners android:radius="24dp" />
+</shape>

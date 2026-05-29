@@ -1,3 +1,7 @@
+# .github/workflows/ci.yml
+# Secular CI — runs on every push to main and every PR
+# Tests Rust core, lints all code, checks mobile build files
+
 name: CI
 
 on:
@@ -6,29 +10,165 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+
+  # ──────────────────────────────────────────────
+  # Rust core: build + test + lint
+  # ──────────────────────────────────────────────
   test-core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build secular-core
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            secular-core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('secular-core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build secular-core (all features)
         working-directory: ./secular-core
         run: cargo build --all-features
+
       - name: Test secular-core
         working-directory: ./secular-core
         run: cargo test --all-features
 
-  lint:
+  lint-rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            secular-core/target
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('secular-core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-lint-
+
       - name: Format check
         working-directory: ./secular-core
         run: cargo fmt -- --check
+
       - name: Clippy lint
         working-directory: ./secular-core
         run: cargo clippy --all-features -- -D warnings
+
+  # ──────────────────────────────────────────────
+  # TypeScript / frontend lint
+  # ──────────────────────────────────────────────
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./secular-desktop
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: ./secular-desktop
+        run: npx tsc --noEmit
+
+  # ──────────────────────────────────────────────
+  # Android: Gradle build check
+  # ──────────────────────────────────────────────
+  check-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Check Android project structure
+        run: |
+          test -f secular-android/settings.gradle.kts || test -f secular-android/settings.gradle
+          test -f secular-android/build.gradle.kts || test -f secular-android/build.gradle
+          test -f secular-android/app/build.gradle.kts || test -f secular-android/app/build.gradle
+          test -f secular-android/app/src/main/AndroidManifest.xml
+          echo "✓ Android project structure OK"
+
+      - name: Validate AndroidManifest.xml
+        run: |
+          grep -q "SecularVpnService" secular-android/app/src/main/AndroidManifest.xml
+          grep -q "android.permission.BIND_VPN_SERVICE" secular-android/app/src/main/AndroidManifest.xml
+          echo "✓ AndroidManifest.xml validated"
+
+  # ──────────────────────────────────────────────
+  # iOS: project structure check
+  # ──────────────────────────────────────────────
+  check-ios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check iOS project structure
+        run: |
+          test -f secular-ios/Secular/Extensions/PacketTunnelProvider.swift
+          test -f secular-ios/Secular/SecularApp.swift
+          test -f secular-ios/Secular/Info.plist
+          test -f secular-ios/Secular/Entitlements.plist
+          echo "✓ iOS project structure OK"
+
+      - name: Validate PacketTunnelProvider
+        run: |
+          grep -q "NEPacketTunnelProvider" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
+          grep -q "startTunnel" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
+          grep -q "stopTunnel" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
+          echo "✓ PacketTunnelProvider.swift validated"
+
+  # ──────────────────────────────────────────────
+  # Workflow files: validate YAML syntax
+  # ──────────────────────────────────────────────
+  check-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate workflow YAML
+        run: |
+          python3 -c "
+          import yaml, sys, glob
+          for f in glob.glob('.github/workflows/*.yml'):
+              with open(f) as fh:
+                  try:
+                      yaml.safe_load(fh)
+                      print(f'  ✓ {f}')
+                  except yaml.YAMLError as e:
+                      print(f'  ✗ {f}: {e}')
+                      sys.exit(1)
+          print('All workflow files valid')
+          "

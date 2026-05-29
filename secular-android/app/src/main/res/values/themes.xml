@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/values/themes.xml -->
+<resources>
+    <style name="Theme.Secular" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#d02b57</item>
+        <item name="colorPrimaryDark">#a02045</item>
+        <item name="colorAccent">#147cc4</item>
+        <item name="android:windowBackground">#F5F7FA</item>
+        <item name="android:statusBarColor">#F5F7FA</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

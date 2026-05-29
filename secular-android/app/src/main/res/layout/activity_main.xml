@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/layout/activity_main.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <!-- Logo area -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="48dp"
+        android:text="§"
+        android:textColor="#242424"
+        android:textSize="72sp"
+        android:textStyle="bold" />
+
+    <!-- Status -->
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:text="Disconnected"
+        android:textColor="#7A869A"
+        android:textSize="16sp" />
+
+    <!-- Connect Button (pill shape) -->
+    <Button
+        android:id="@+id/connect_button"
+        android:layout_width="200dp"
+        android:layout_height="48dp"
+        android:background="@drawable/connect_btn_bg"
+        android:text="Connect"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+
+</LinearLayout>

@@ -1,0 +1,18 @@
+# secular-android/.gitignore
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build
+/app/.cxx
+/app/src/main/jniLibs
+*.apk
+*.aab
+*.ap_
+*.dex

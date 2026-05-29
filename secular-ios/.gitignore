@@ -1,0 +1,15 @@
+# secular-ios/.gitignore
+.DS_Store
+*.xcuserstate
+*.xcuserdata
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+*.mode1v3
+*.mode2v3
