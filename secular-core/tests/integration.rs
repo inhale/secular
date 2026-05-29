@@ -90,7 +90,7 @@ fn test_version() {
 #[test]
 fn test_mtu_defaults() {
     use secular_core::mtu::{MtuClamper, DEFAULT_MTU, SAFE_MTU};
-    
+
     let m = MtuClamper::new();
     assert_eq!(m.current(), DEFAULT_MTU);
     assert_eq!(m.safe_mtu(), SAFE_MTU);
@@ -99,15 +99,15 @@ fn test_mtu_defaults() {
 #[test]
 fn test_dns_guard_creation() {
     use secular_core::dns::DnsGuard;
-    
-    let guard = DnsGuard::new(5353, "9.9.9.9", true);
+
+    let guard = DnsGuard::new(5353, "9.9.9.9:53", true);
     assert!(guard.is_ok());
 }
 
 #[test]
 fn test_ipv6_blackhole() {
     use secular_core::network::Ipv6Blackhole;
-    
+
     // Should not panic (stub implementation)
     assert!(Ipv6Blackhole::enable().is_ok());
     assert!(Ipv6Blackhole::disable().is_ok());
