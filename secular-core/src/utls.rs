@@ -35,7 +35,9 @@ impl UtlsEngine {
             FingerprintProfile::Safari,
             FingerprintProfile::Edge,
         ];
-        let profile = *profiles.choose(&mut rand::thread_rng()).unwrap_or(&FingerprintProfile::Chrome);
+        let profile = *profiles
+            .choose(&mut rand::thread_rng())
+            .unwrap_or(&FingerprintProfile::Chrome);
         debug!("uTLS selected profile: {:?}", profile);
         Self { profile }
     }

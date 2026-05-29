@@ -61,7 +61,10 @@ impl DnsGuard {
                         false
                     }
                     Err(_) => {
-                        warn!("DNS proxy probe timed out — using fallback {}", self.fallback_dns);
+                        warn!(
+                            "DNS proxy probe timed out — using fallback {}",
+                            self.fallback_dns
+                        );
                         false
                     }
                 }

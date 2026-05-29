@@ -72,7 +72,12 @@ impl TunInterface {
     }
 
     /// Configure the interface with IP addresses
-    pub fn configure(&mut self, local_ip: IpAddr, remote_ip: IpAddr, mtu: u16) -> SecularResult<()> {
+    pub fn configure(
+        &mut self,
+        local_ip: IpAddr,
+        remote_ip: IpAddr,
+        mtu: u16,
+    ) -> SecularResult<()> {
         info!(
             "Configuring {}: local={} remote={} mtu={}",
             self.name, local_ip, remote_ip, mtu

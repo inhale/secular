@@ -1,0 +1,8 @@
+# .cargo/config.toml
+# Workspace-level Cargo configuration
+
+[target.aarch64-apple-darwin]
+rustflags = ["--recursion-limit", "256"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["--recursion-limit", "256"]

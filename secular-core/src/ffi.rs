@@ -3,8 +3,8 @@
 
 use crate::config::SecularConfig;
 use crate::protocol::{ConnectionState, SecularEngine};
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// opaque handle to SecularEngine for FFI
 pub struct SecularHandle {
@@ -12,13 +12,13 @@ pub struct SecularHandle {
 }
 
 /// Create a new Secular engine
-/// 
+///
 /// # Safety
 /// `config_json` must be a valid null-terminated UTF-8 string.
 #[export_name = "secular_create"]
 pub unsafe extern "C" fn secular_create(config_json: *const u8, len: usize) -> *mut SecularHandle {
-    let config_str = std::str::from_utf8(std::slice::from_raw_parts(config_json, len))
-        .unwrap_or("");
+    let config_str =
+        std::str::from_utf8(std::slice::from_raw_parts(config_json, len)).unwrap_or("");
     let config: SecularConfig = match serde_json::from_str(config_str) {
         Ok(c) => c,
         Err(_) => return std::ptr::null_mut(),
