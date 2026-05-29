@@ -3,6 +3,7 @@
 // Switches between tray-active.png (solid white) and tray-inactive.png (35% opacity)
 
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
+use tauri::Manager;
 
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let tray = TrayIconBuilder::with_id("main-tray")

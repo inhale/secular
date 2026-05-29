@@ -3,8 +3,7 @@
 
 use crate::SecularResult;
 use std::net::IpAddr;
-use std::os::fd::AsRawFd;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// Raw TUN interface file descriptor wrapper (Linux)
 #[cfg(target_os = "linux")]
@@ -139,7 +138,6 @@ impl TunInterface {
 
     #[cfg(target_os = "linux")]
     fn create_linux(name: &str) -> SecularResult<Self> {
-        use std::io::Write;
         use std::os::fd::AsRawFd;
 
         // Open the TUN device
