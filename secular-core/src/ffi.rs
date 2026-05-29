@@ -48,6 +48,9 @@ pub unsafe extern "C" fn secular_destroy(handle: *mut SecularHandle) {
 
 /// Get connection state as integer
 /// 0 = Disconnected, 1 = Handshaking, 2 = Connected, 3 = Failed
+///
+/// # Safety
+/// `handle` must be a valid pointer returned by `secular_create`.
 #[export_name = "secular_state"]
 pub unsafe extern "C" fn secular_state(handle: *const SecularHandle) -> i32 {
     if handle.is_null() {
