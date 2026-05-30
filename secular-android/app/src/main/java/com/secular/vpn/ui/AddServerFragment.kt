@@ -76,10 +76,13 @@ class AddServerFragment : Fragment() {
 
         // Bottom nav
         view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
-            findNavController().popBackStack()
+            try { findNavController().popBackStack() } catch (_: Exception) {}
         }
         view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
-            findNavController().popBackStack()
+            try { findNavController().popBackStack() } catch (_: Exception) {}
+        }
+        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
+            try { findNavController().navigate(R.id.action_addServer_to_log) } catch (_: Exception) {}
         }
     }
 
@@ -91,14 +94,17 @@ class AddServerFragment : Fragment() {
             return
         }
 
+        SecularVpnService.addLog("Parsing link: ${link.take(60)}...")
         val profile = DeepLinkParser.parse(link)
         if (profile != null) {
+            SecularVpnService.addLog("Link parsed OK: name=${profile.name} host=${profile.hostname} addr=${profile.addresses}")
             lifecycleScope.launch {
                 repository.addServer(profile)
-                findNavController().navigate(R.id.action_addServer_to_dashboard)
+                findNavController().popBackStack()
             }
         } else {
-            Toast.makeText(requireContext(), "Invalid link format", Toast.LENGTH_LONG).show()
+            SecularVpnService.addLog("Link parse FAILED for: ${link.take(80)}")
+            Toast.makeText(requireContext(), "Invalid link format. Check Log for details.", Toast.LENGTH_LONG).show()
         }
     }
 

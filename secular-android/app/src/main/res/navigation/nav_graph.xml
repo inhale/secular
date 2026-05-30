@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- secular-android/app/src/main/res/navigation/nav_graph.xml -->
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -27,6 +26,14 @@
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_dashboard_to_log"
+            app:destination="@id/logFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
@@ -34,14 +41,6 @@
         android:name="com.secular.vpn.ui.ServerListFragment"
         android:label="My Servers"
         tools:layout="@layout/fragment_server_list">
-
-        <action
-            android:id="@+id/action_serverList_to_dashboard"
-            app:destination="@id/dashboardFragment"
-            app:enterAnim="@anim/slide_in_left"
-            app:exitAnim="@anim/slide_out_right"
-            app:popEnterAnim="@anim/slide_in_left"
-            app:popExitAnim="@anim/slide_out_right" />
 
         <action
             android:id="@+id/action_serverList_to_serverConfig"
@@ -54,6 +53,14 @@
         <action
             android:id="@+id/action_serverList_to_addServer"
             app:destination="@id/addServerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_serverList_to_log"
+            app:destination="@id/logFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
@@ -87,16 +94,31 @@
         tools:layout="@layout/fragment_add_server">
 
         <action
-            android:id="@+id/action_addServer_to_dashboard"
-            app:destination="@id/dashboardFragment"
-            app:enterAnim="@anim/slide_in_left"
-            app:exitAnim="@anim/slide_out_right"
+            android:id="@+id/action_addServer_to_serverConfig"
+            app:destination="@id/serverConfigFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
 
         <action
-            android:id="@+id/action_addServer_to_serverConfig"
-            app:destination="@id/serverConfigFragment"
+            android:id="@+id/action_addServer_to_log"
+            app:destination="@id/logFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/logFragment"
+        android:name="com.secular.vpn.ui.LogFragment"
+        android:label="Log"
+        tools:layout="@layout/fragment_log">
+
+        <action
+            android:id="@+id/action_logFragment_to_addServer"
+            app:destination="@id/addServerFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"

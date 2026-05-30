@@ -1,6 +1,6 @@
 // secular-android/app/src/main/java/com/secular/vpn/data/DeepLinkParser.kt
 // Parse tt:// deep-link URIs into ServerProfile
-// Supports 3 formats (same as macOS config.py):
+// Supports 3 formats:
 //   1. Base64-encoded TOML
 //   2. TrustTunnel native binary TLV
 //   3. URL-encoded key=value pairs
@@ -14,8 +14,8 @@ object DeepLinkParser {
 
     fun parse(uriString: String): ServerProfile? {
         val trimmed = uriString.trim()
+        if (trimmed.isEmpty()) return null
 
-        // Accept tt:// and tl:// prefixes
         val qs: String
         when {
             trimmed.startsWith("tt://?") -> qs = trimmed.removePrefix("tt://?")
@@ -26,63 +26,50 @@ object DeepLinkParser {
 
         if (qs.isEmpty()) return null
 
-        // Format 1: base64-encoded TOML
+        // Try all 3 formats in order
         parseBase64Toml(qs)?.let { return it }
-
-        // Format 2: TrustTunnel native binary TLV
         parseTlv(qs)?.let { return it }
-
-        // Format 3: URL-encoded key=value
         parseUrlEncoded(qs)?.let { return it }
 
         return null
     }
 
-    private fun parseBase64Toml(qs: String): ServerProfile? {
-        return try {
-            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
-            val tomlStr = String(Base64.decode(padded, Base64.DEFAULT))
-            // Simple TOML parsing - extract key=value pairs
-            val fields = parseTomlFields(tomlStr)
-            buildProfileFromFields(fields, tomlStr)
-        } catch (e: Exception) {
-            null
-        }
-    }
+    // ── Format 1: base64-encoded TOML ──
+    private fun parseBase64Toml(qs: String): ServerProfile? = try {
+        val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
+        val tomlStr = String(Base64.decode(padded, Base64.DEFAULT))
+        val fields = parseTomlFields(tomlStr)
+        buildProfileFromFields(fields)
+    } catch (_: Exception) { null }
 
     private fun parseTomlFields(toml: String): Map<String, String> {
         val fields = mutableMapOf<String, String>()
-        val lines = toml.lines()
         var currentSection = ""
-
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                currentSection = trimmed.substring(1, trimmed.length - 1)
+        for (line in toml.lines()) {
+            val t = line.trim()
+            if (t.isEmpty() || t.startsWith("#")) continue
+            if (t.startsWith("[") && t.endsWith("]")) {
+                currentSection = t.substring(1, t.length - 1)
                 continue
             }
-            val eqIdx = trimmed.indexOf('=')
-            if (eqIdx > 0) {
-                val key = trimmed.substring(0, eqIdx).trim()
-                val value = trimmed.substring(eqIdx + 1).trim()
-                    .trim('"').trim('\'')
+            val eq = t.indexOf('=')
+            if (eq > 0) {
+                val key = t.substring(0, eq).trim()
+                val value = t.substring(eq + 1).trim().trim('"').trim('\'')
                 val fullKey = if (currentSection.isNotEmpty()) "$currentSection.$key" else key
                 fields[fullKey] = value
-                // Also store without section for convenience
-                fields[key] = value
+                fields[key] = value // also store without section prefix
             }
         }
         return fields
     }
 
-    private fun buildProfileFromFields(fields: Map<String, String>, raw: String): ServerProfile? {
+    private fun buildProfileFromFields(fields: Map<String, String>): ServerProfile? {
         val hostname = fields["hostname"]
-            ?: fields["endpoint.hostname"]
-            ?: fields["endpoints.hostname"] ?: return null
-        val addresses = parseAddresses(
-            fields["addresses"]
-                ?: fields["endpoint.addresses"]
-                ?: fields["addresses.0"]
+            ?: fields["endpoint.hostname"] ?: fields["endpoints.hostname"]
+            ?: return null
+        val addresses = parseList(
+            fields["addresses"] ?: fields["endpoint.addresses"]
                 ?: fields["endpoints.addresses"] ?: ""
         )
         val username = fields["username"] ?: fields["endpoint.username"]
@@ -90,154 +77,140 @@ object DeepLinkParser {
         val password = fields["password"] ?: fields["endpoint.password"]
             ?: fields["endpoints.password"] ?: ""
         val name = fields["name"] ?: hostname
-        val hasIpv6 = parseBoolean(
-            fields["has_ipv6"] ?: fields["endpoint.has_ipv6"]
-                ?: fields["endpoints.has_ipv6"], true
-        )
-        val clientRandom = fields["client_random"]
-            ?: fields["client_random_prefix"]
-            ?: fields["endpoint.client_random"]
-            ?: fields["endpoints.client_random"] ?: ""
-        val skipVerification = parseBoolean(
-            fields["skip_verification"] ?: fields["endpoint.skip_verification"]
-                ?: fields["endpoints.skip_verification"], false
-        )
-        val certificate = fields["certificate"] ?: fields["endpoint.certificate"]
-            ?: fields["endpoints.certificate"] ?: ""
-        val upstreamProtocol = fields["upstream_protocol"]
-            ?: fields["endpoint.upstream_protocol"]
-            ?: fields["endpoints.upstream_protocol"] ?: "http2"
-        val antiDpi = parseBoolean(
-            fields["anti_dpi"] ?: fields["endpoint.anti_dpi"]
-                ?: fields["endpoints.anti_dpi"], false
-        )
-        val dnsUpstreams = parseDnsUpstreams(
-            fields["dns_upstreams"] ?: fields["endpoint.dns_upstreams"]
-                ?: fields["endpoints.dns_upstreams"] ?: ""
-        )
-
         return ServerProfile(
-            name = name,
-            hostname = hostname,
-            addresses = addresses,
+            name = name, hostname = hostname, addresses = addresses,
+            username = username, password = password,
+            hasIpv6 = parseBool(
+                fields["has_ipv6"] ?: fields["endpoint.has_ipv6"]
+                    ?: fields["endpoints.has_ipv6"], true
+            ),
+            clientRandom = fields["client_random"] ?: fields["client_random_prefix"]
+                ?: fields["endpoint.client_random"]
+                ?: fields["endpoints.client_random"] ?: "",
+            skipVerification = parseBool(
+                fields["skip_verification"] ?: fields["endpoint.skip_verification"]
+                    ?: fields["endpoints.skip_verification"], false
+            ),
+            certificate = fields["certificate"] ?: fields["endpoint.certificate"]
+                ?: fields["endpoints.certificate"] ?: "",
+            upstreamProtocol = fields["upstream_protocol"]
+                ?: fields["endpoint.upstream_protocol"]
+                ?: fields["endpoints.upstream_protocol"] ?: "http2",
+            antiDpi = parseBool(
+                fields["anti_dpi"] ?: fields["endpoint.anti_dpi"]
+                    ?: fields["endpoints.anti_dpi"], false
+            ),
+            dnsUpstreams = parseList(
+                fields["dns_upstreams"] ?: fields["endpoint.dns_upstreams"]
+                    ?: fields["endpoints.dns_upstreams"] ?: ""
+            )
+        )
+    }
+
+    // ── Format 2: TrustTunnel binary TLV ──
+    // Wire format: sequence of [tag:1][len:1][value:N]
+    // Tag 0x00 = version byte (1 byte value)
+    // Tag 0x01 = name/hostname
+    // Tag 0x02 = address (ip:port)
+    // Tag 0x05 = username
+    // Tag 0x06 = password
+    // Tag 0x08+ = certificate PEM chunks (binary) — concatenated into certificate field
+    // Tag 0x0c = display name suffix
+    private fun parseTlv(qs: String): ServerProfile? = try {
+        val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
+        val data = Base64.decode(padded, Base64.DEFAULT)
+        if (data.size < 4) return null
+
+        val fields = mutableMapOf<Int, ByteArray>()
+        var pos = 0
+        while (pos + 2 <= data.size) {
+            val tag = data[pos].toInt() and 0xFF
+            val vlen = data[pos + 1].toInt() and 0xFF
+            pos += 2
+            if (pos + vlen > data.size) break
+            fields[tag] = data.copyOfRange(pos, pos + vlen)
+            pos += vlen
+        }
+
+        // Map fields
+        // Tag 0x01 = name/hostname (may be just a hostname like "localhost")
+        // Tag 0x0c = display name suffix (e.g. "TrustTunnel Server")
+        val nameBytes = fields[0x01] ?: return null
+        val name = String(nameBytes, Charsets.UTF_8).replace("\u0000", "")
+        if (name.isEmpty()) return null
+
+        val suffixBytes = fields[0x0c]
+        val suffix = if (suffixBytes != null) String(suffixBytes, Charsets.UTF_8).replace("\u0000", "") else ""
+        val displayName = if (suffix.isNotEmpty()) "$name $suffix" else name
+
+        val addressBytes = fields[0x02] ?: return null
+        val address = String(addressBytes, Charsets.UTF_8).replace("\u0000", "")
+        if (address.isEmpty()) return null
+
+        val usernameBytes = fields[0x05] ?: return null
+        val username = String(usernameBytes, Charsets.UTF_8).replace("\u0000", "")
+
+        val passwordBytes = fields[0x06] ?: return null
+        val password = String(passwordBytes, Charsets.UTF_8).replace("\u0000", "")
+
+        // Certificate: concatenate all binary chunks (tags 0x08, 0x1b, etc.)
+        val certBuilder = StringBuilder()
+        for ((tag, bytes) in fields) {
+            if (tag >= 0x08 && tag != 0x0c) {
+                // Try to decode as PEM text, otherwise skip binary
+                try {
+                    val s = String(bytes, Charsets.UTF_8)
+                    if (s.contains("-----BEGIN") || s.contains("MII")) {
+                        certBuilder.append(s.replace("\u0000", ""))
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+
+        ServerProfile(
+            name = displayName,
+            hostname = name,
+            addresses = listOf(address),
             username = username,
             password = password,
-            hasIpv6 = hasIpv6,
-            clientRandom = clientRandom,
-            skipVerification = skipVerification,
-            certificate = certificate,
-            upstreamProtocol = upstreamProtocol,
-            antiDpi = antiDpi,
-            dnsUpstreams = dnsUpstreams
+            hasIpv6 = true,
+            skipVerification = true,
+            certificate = certBuilder.toString(),
+            upstreamProtocol = "http2",
+            dnsUpstreams = emptyList()
         )
-    }
+    } catch (_: Exception) { null }
 
-    private fun parseAddresses(raw: String): List<String> {
+    // ── Format 3: URL-encoded key=value ──
+    private fun parseUrlEncoded(qs: String): ServerProfile? = try {
+        val uri = Uri.parse("http://localhost?$qs")
+        val hostname = uri.getQueryParameter("hostname") ?: return null
+        val addresses = parseList(uri.getQueryParameter("addresses") ?: "")
+        val name = uri.getQueryParameter("name") ?: hostname
+        ServerProfile(
+            name = name, hostname = hostname, addresses = addresses,
+            username = uri.getQueryParameter("username") ?: "",
+            password = uri.getQueryParameter("password") ?: "",
+            hasIpv6 = uri.getQueryParameter("has_ipv6")?.lowercase() != "false",
+            clientRandom = uri.getQueryParameter("client_random") ?: "",
+            certificate = uri.getQueryParameter("certificate") ?: "",
+            skipVerification = uri.getQueryParameter("skip_verification")?.lowercase() == "true",
+            upstreamProtocol = uri.getQueryParameter("upstream_protocol") ?: "http2",
+            antiDpi = uri.getQueryParameter("anti_dpi")?.lowercase() == "true",
+            dnsUpstreams = uri.getQueryParameters("dns_upstream").ifEmpty { emptyList() }
+        )
+    } catch (_: Exception) { null }
+
+    // ── Helpers ──
+    private fun parseList(raw: String): List<String> {
         if (raw.isEmpty()) return emptyList()
-        // Handle both comma-separated and TOML array syntax
-        val cleaned = raw.removePrefix("[").removeSuffix("]")
+        return raw.removePrefix("[").removeSuffix("]")
             .replace("\"", "").replace("'", "")
-        return cleaned.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
-    private fun parseDnsUpstreams(raw: String): List<String> {
-        if (raw.isEmpty()) return emptyList()
-        val cleaned = raw.removePrefix("[").removeSuffix("]")
-            .replace("\"", "").replace("'", "")
-        return cleaned.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-    }
-
-    private fun parseBoolean(value: String?, default: Boolean): Boolean {
+    private fun parseBool(value: String?, default: Boolean): Boolean {
         if (value == null) return default
         return value.lowercase() == "true" || value == "1"
-    }
-
-    private fun parseTlv(qs: String): ServerProfile? {
-        return try {
-            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
-            val data = Base64.decode(padded, Base64.DEFAULT)
-            if (data.size < 5) return null
-
-            // Skip 4-byte header, first field is implicit hostname
-            var pos = 4
-            if (pos >= data.size) return null
-            val hostnameLen = data[pos].toInt() and 0xFF
-            pos += 1
-            if (pos + hostnameLen > data.size) return null
-            val hostname = String(data, pos, hostnameLen)
-            pos += hostnameLen
-
-            // Build field map: tag 9 = hostname
-            val fields = mutableMapOf<Int, String>()
-            fields[9] = hostname
-
-            // Parse remaining TLV fields: [tag:1][len:1][value:N]
-            while (pos + 2 <= data.size) {
-                val tag = data[pos].toInt() and 0xFF
-                val vlen = data[pos + 1].toInt() and 0xFF
-                pos += 2
-                if (pos + vlen > data.size) break
-                val value = String(data, pos, vlen).replace("\u0000", "")
-                fields[tag] = value
-                pos += vlen
-            }
-
-            // tag mapping: 2=address, 5=username, 6=password, 7=client_random
-            if (fields[5].isNullOrEmpty() || fields[6].isNullOrEmpty()) return null
-
-            ServerProfile(
-                name = fields[9] ?: "TrustTunnel Server",
-                hostname = fields[9] ?: "",
-                addresses = fields[2]?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
-                    ?: emptyList(),
-                username = fields[5] ?: "",
-                password = fields[6] ?: "",
-                clientRandom = fields[7] ?: "",
-                skipVerification = true,
-                certificate = "",
-                upstreamProtocol = "http2",
-                dnsUpstreams = emptyList()
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun parseUrlEncoded(qs: String): ServerProfile? {
-        return try {
-            val uri = Uri.parse("http://localhost?$qs")
-            val hostname = uri.getQueryParameter("hostname") ?: return null
-            val addressesRaw = uri.getQueryParameter("addresses") ?: ""
-            val addresses = addressesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val name = uri.getQueryParameter("name") ?: hostname
-            val username = uri.getQueryParameter("username") ?: ""
-            val password = uri.getQueryParameter("password") ?: ""
-            val clientRandom = uri.getQueryParameter("client_random") ?: ""
-            val certificate = uri.getQueryParameter("certificate") ?: ""
-            val skipVerification = uri.getQueryParameter("skip_verification").let {
-                it?.lowercase() == "true"
-            }
-            val upstreamProtocol = uri.getQueryParameter("upstream_protocol") ?: "http2"
-            val antiDpi = uri.getQueryParameter("anti_dpi").let { it?.lowercase() == "true" }
-            val dnsUpstreams = uri.getQueryParameters("dns_upstream")
-            val hasIpv6 = uri.getQueryParameter("has_ipv6")?.lowercase() != "false"
-
-            ServerProfile(
-                name = name,
-                hostname = hostname,
-                addresses = addresses,
-                username = username,
-                password = password,
-                hasIpv6 = hasIpv6,
-                clientRandom = clientRandom,
-                skipVerification = skipVerification,
-                certificate = certificate,
-                upstreamProtocol = upstreamProtocol,
-                antiDpi = antiDpi,
-                dnsUpstreams = dnsUpstreams.ifEmpty { emptyList() }
-            )
-        } catch (e: Exception) {
-            null
-        }
     }
 }

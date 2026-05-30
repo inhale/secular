@@ -300,6 +300,18 @@
             android:scaleType="centerInside"
             android:tint="@color/accent"
             android:contentDescription="Add server" />
+
+        <!-- Log button -->
+        <ImageButton
+            android:id="@+id/nav_log"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_log"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Log" />
     </LinearLayout>
 
 </LinearLayout>

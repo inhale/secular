@@ -1,10 +1,16 @@
 // Android VpnService implementation
 package com.secular.vpn
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
@@ -19,21 +25,37 @@ class SecularVpnService : VpnService() {
         const val TAG = "SecularVPN"
         const val ACTION_CONNECT = "com.secular.vpn.CONNECT"
         const val ACTION_DISCONNECT = "com.secular.vpn.DISCONNECT"
+        const val CHANNEL_ID = "secular_vpn_channel"
+        const val NOTIFICATION_ID = 1001
 
-        // Observable state for UI
         @Volatile var isTunnelUp = false
             private set
         @Volatile var lastError: String? = null
             private set
+        @Volatile var isConnecting = false
+            private set
         val bytesDownloaded = AtomicLong(0)
         val bytesUploaded = AtomicLong(0)
+
+        // Log buffer for UI
+        val logBuffer = mutableListOf<String>()
+        fun addLog(msg: String) {
+            val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+            synchronized(logBuffer) {
+                logBuffer.add("[$ts] $msg")
+                if (logBuffer.size > 500) logBuffer.removeAt(0)
+            }
+            Log.d(TAG, msg)
+        }
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
-    private var job: Job? = null
+    private var vpnJob: Job? = null
     private var serverSocket: Socket? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private data class ServerConfig(
+        @SerializedName("name") val name: String = "",
         @SerializedName("hostname") val hostname: String = "",
         @SerializedName("addresses") val addresses: List<String> = emptyList(),
         @SerializedName("username") val username: String = "",
@@ -47,7 +69,14 @@ class SecularVpnService : VpnService() {
         @SerializedName("client_random") val clientRandom: String = ""
     )
 
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        addLog("Service created")
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        addLog("onStartCommand: action=${intent?.action}")
         return when (intent?.action) {
             ACTION_CONNECT -> {
                 val serverJson = intent.getStringExtra("server_json")
@@ -58,49 +87,59 @@ class SecularVpnService : VpnService() {
                 disconnect()
                 START_NOT_STICKY
             }
-            else -> START_NOT_STICKY
+            else -> {
+                addLog("Unknown action: ${intent?.action}")
+                START_NOT_STICKY
+            }
         }
     }
 
     private fun connect(serverJson: String?) {
-        Log.d(TAG, "Connecting... server=${serverJson != null}")
+        addLog("connect() called, serverJson=${serverJson != null}")
 
         // Parse server config
         val config = try {
-            if (serverJson != null) Gson().fromJson(serverJson, ServerConfig::class.java) else null
+            if (serverJson != null) {
+                Gson().fromJson(serverJson, ServerConfig::class.java).also {
+                    addLog("Parsed config: name=${it.name} host=${it.hostname} addr=${it.addresses}")
+                }
+            } else {
+                addLog("No server JSON provided")
+                null
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse server config: ${e.message}")
-            lastError = "Invalid server config"
+            addLog("Parse error: ${e.message}")
+            lastError = "Invalid config: ${e.message}"
             return
         }
 
         if (config == null) {
-            lastError = "No server config provided"
+            lastError = "No server config"
             return
         }
 
         val address = config.addresses.firstOrNull()
         if (address.isNullOrEmpty()) {
+            addLog("No address in config")
             lastError = "No server address"
             return
         }
 
         // Build VPN interface
+        addLog("Establishing VPN interface...")
         val builder = Builder()
-            .setSession("Secular")
+            .setSession("Secular VPN")
             .setMtu(1380)
             .addAddress("10.0.0.2", 32)
             .addRoute("0.0.0.0", 0)
             .setBlocking(true)
 
-        // DNS
         if (config.dnsUpstreams.isNotEmpty()) {
             config.dnsUpstreams.forEach { dns ->
                 try {
                     builder.addDnsServer(java.net.InetAddress.getByName(dns))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Invalid DNS: $dns")
-                }
+                    addLog("Added DNS: $dns")
+                } catch (e: Exception) { addLog("Bad DNS: $dns") }
             }
         } else {
             builder.addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
@@ -108,12 +147,20 @@ class SecularVpnService : VpnService() {
 
         vpnInterface = builder.establish()
         if (vpnInterface == null) {
-            Log.e(TAG, "Failed to establish VPN interface")
-            lastError = "VPN permission denied"
+            addLog("builder.establish() returned null — VPN not prepared?")
+            lastError = "VPN permission not granted. Accept the system VPN dialog first."
             return
         }
 
-        Log.d(TAG, "VPN interface established: fd=${vpnInterface!!.fd}")
+        addLog("VPN interface established: fd=${vpnInterface!!.fd}")
+
+        // Start as foreground service so Android doesn't kill us
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
+            addLog("Foreground notification started")
+        } catch (e: Exception) {
+            addLog("Foreground start failed: ${e.message}")
+        }
 
         // Connect to remote server
         connectToServer(config, address)
@@ -123,97 +170,142 @@ class SecularVpnService : VpnService() {
         val host = address.substringBefore(":")
         val port = address.substringAfter(":", "443").toIntOrNull() ?: 443
 
-        Log.d(TAG, "Connecting to $host:$port hostname=${config.hostname}")
+        addLog("Connecting TCP to $host:$port")
 
-        job = CoroutineScope(Dispatchers.IO).launch {
+        vpnJob = serviceScope.launch {
             try {
-                val socket = Socket()
-                socket.connect(InetSocketAddress(host, port), 15000)
-                socket.tcpNoDelay = true
-                serverSocket = socket
-                Log.d(TAG, "TCP connected to $host:${socket.port}")
-                isTunnelUp = true
+                isConnecting = true
+                isTunnelUp = false
                 lastError = null
                 bytesDownloaded.set(0)
                 bytesUploaded.set(0)
 
-                // Forward packets between VPN interface and server socket
-                val vpn = vpnInterface ?: run {
+                val socket = Socket()
+                addLog("Opening socket to $host:$port with 15s timeout...")
+                withContext(Dispatchers.IO) {
+                    socket.connect(InetSocketAddress(host, port), 15000)
+                }
+                socket.tcpNoDelay = true
+                serverSocket = socket
+                addLog("TCP connected: remote=${socket.inetAddress}:${socket.port}")
+                isTunnelUp = true
+                isConnecting = false
+
+                updateNotification("Connected to $host")
+
+                val vpn = vpnInterface
+                if (vpn == null) {
+                    addLog("VPN interface null, cancelling")
                     lastError = "VPN interface lost"
                     isTunnelUp = false
                     return@launch
                 }
+
+                addLog("Starting packet forwarding: fd=${vpn.fd}")
                 forwardPackets(vpn, socket)
+            } catch (e: CancellationException) {
+                addLog("Connection cancelled")
+                // normal on disconnect
             } catch (e: Exception) {
-                Log.e(TAG, "Server connection failed: ${e.message}")
+                addLog("Server connection failed: ${e.javaClass.simpleName}: ${e.message}")
                 lastError = "Connection failed: ${e.message}"
                 isTunnelUp = false
+                isConnecting = false
             }
         }
     }
 
     private suspend fun forwardPackets(vpn: ParcelFileDescriptor, socket: Socket) {
-        Log.d(TAG, "Packet forwarding started: fd=${vpn.fd}")
-
         val vpnInput = ParcelFileDescriptor.AutoCloseInputStream(vpn)
         val vpnOutput = ParcelFileDescriptor.AutoCloseOutputStream(vpn)
         val sockInput: InputStream = socket.getInputStream()
         val sockOutput: OutputStream = socket.getOutputStream()
+        addLog("Packet forwarding started")
 
-        // VPN -> Server (upload)
-        val vpnToServer = CoroutineScope(Dispatchers.IO).launch {
+        val vpnToServer = serviceScope.launch(Dispatchers.IO) {
             try {
-                val buffer = ByteArray(32767)
+                val buf = ByteArray(32767)
                 while (isActive && !socket.isClosed) {
-                    val length = vpnInput.read(buffer)
-                    if (length > 0) {
-                        sockOutput.write(buffer, 0, length)
+                    val len = vpnInput.read(buf)
+                    if (len > 0) {
+                        sockOutput.write(buf, 0, len)
                         sockOutput.flush()
-                        bytesUploaded.addAndGet(length.toLong())
-                    } else if (length < 0) break
+                        bytesUploaded.addAndGet(len.toLong())
+                    } else if (len < 0) break
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "VPN→Server error: ${e.message}")
-            }
+            } catch (_: Exception) {}
         }
 
-        // Server -> VPN (download)
-        val serverToVpn = CoroutineScope(Dispatchers.IO).launch {
+        val serverToVpn = serviceScope.launch(Dispatchers.IO) {
             try {
-                val buffer = ByteArray(32767)
+                val buf = ByteArray(32767)
                 while (isActive && !socket.isClosed) {
-                    val length = sockInput.read(buffer)
-                    if (length > 0) {
-                        vpnOutput.write(buffer, 0, length)
+                    val len = sockInput.read(buf)
+                    if (len > 0) {
+                        vpnOutput.write(buf, 0, len)
                         vpnOutput.flush()
-                        bytesDownloaded.addAndGet(length.toLong())
-                    } else if (length < 0) break
+                        bytesDownloaded.addAndGet(len.toLong())
+                    } else if (len < 0) break
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Server→VPN error: ${e.message}")
-            }
+            } catch (_: Exception) {}
         }
 
         joinAll(vpnToServer, serverToVpn)
-        Log.d(TAG, "Packet forwarding ended")
+        addLog("Packet forwarding ended")
         isTunnelUp = false
     }
 
     private fun disconnect() {
-        Log.d(TAG, "Disconnecting...")
+        addLog("disconnect() called")
         isTunnelUp = false
-        lastError = null
-        job?.cancel()
+        isConnecting = false
+        vpnJob?.cancel()
+        vpnJob = null
+
         try { serverSocket?.close() } catch (_: Exception) {}
         serverSocket = null
+
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
+
         bytesDownloaded.set(0)
         bytesUploaded.set(0)
+
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
+        stopSelf()
+    }
+
+    // ── Notifications ──
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java)
+            nm?.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "VPN", NotificationManager.IMPORTANCE_LOW)
+            )
+        }
+    }
+
+    private fun buildNotification(text: String): Notification {
+        val intent = Intent(this, com.secular.vpn.MainActivity::class.java)
+        val pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Secular VPN")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_lock_lock) // use any available icon; TODO: proper icon
+            .setContentIntent(pi)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun updateNotification(text: String) {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm?.notify(NOTIFICATION_ID, buildNotification(text))
     }
 
     override fun onDestroy() {
+        addLog("Service destroyed")
         disconnect()
+        serviceScope.cancel()
         super.onDestroy()
     }
 }

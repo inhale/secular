@@ -23,7 +23,7 @@ class ServerListFragment : Fragment() {
     private lateinit var repository: ServersRepository
     private lateinit var adapter: ServerAdapter
     private var servers = mutableListOf<ServerProfile>()
-    private var selectedIndex = 0
+    private var selectedIndex = -1
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_server_list, container, false)
@@ -40,14 +40,15 @@ class ServerListFragment : Fragment() {
             onItemClick = { index ->
                 selectedIndex = index
                 adapter.notifyDataSetChanged()
-                // Return to dashboard
                 recyclerView.postDelayed({
-                    findNavController().popBackStack()
+                    try { findNavController().popBackStack() } catch (_: Exception) {}
                 }, 400)
             },
             onGearClick = { index ->
-                val bundle = Bundle().apply { putInt("serverIndex", index) }
-                findNavController().navigate(R.id.action_serverList_to_serverConfig, bundle)
+                try {
+                    val bundle = Bundle().apply { putInt("serverIndex", index) }
+                    findNavController().navigate(R.id.action_serverList_to_serverConfig, bundle)
+                } catch (_: Exception) {}
             }
         )
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -55,15 +56,18 @@ class ServerListFragment : Fragment() {
 
         // Empty state button
         view.findViewById<Button>(R.id.btn_add_first_server)?.setOnClickListener {
-            findNavController().navigate(R.id.action_serverList_to_addServer)
+            try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
         // Bottom nav
         view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
-            findNavController().popBackStack()
+            try { findNavController().popBackStack() } catch (_: Exception) {}
         }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
-            findNavController().navigate(R.id.action_serverList_to_addServer)
+            try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
+        }
+        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
+            try { findNavController().navigate(R.id.action_serverList_to_log) } catch (_: Exception) {}
         }
 
         loadServers()
@@ -71,19 +75,21 @@ class ServerListFragment : Fragment() {
 
     private fun loadServers() {
         lifecycleScope.launch {
-            servers.clear()
-            servers.addAll(repository.loadServers())
-            adapter.notifyDataSetChanged()
+            try {
+                servers.clear()
+                servers.addAll(repository.loadServers())
+                adapter.notifyDataSetChanged()
 
-            val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
-            val recyclerView = view?.findViewById<RecyclerView>(R.id.server_list)
-            if (servers.isEmpty()) {
-                emptyState?.visibility = View.VISIBLE
-                recyclerView?.visibility = View.GONE
-            } else {
-                emptyState?.visibility = View.GONE
-                recyclerView?.visibility = View.VISIBLE
-            }
+                val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
+                val rv = view?.findViewById<RecyclerView>(R.id.server_list)
+                if (servers.isEmpty()) {
+                    emptyState?.visibility = View.VISIBLE
+                    rv?.visibility = View.GONE
+                } else {
+                    emptyState?.visibility = View.GONE
+                    rv?.visibility = View.VISIBLE
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -92,7 +98,8 @@ class ServerListFragment : Fragment() {
         loadServers()
     }
 
-    // --- RecyclerView Adapter ---
+    private val flagEmojis = listOf("\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEB\uD83C\uDDF7", "\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDF5\uD83C\uDDF1")
+
     inner class ServerAdapter(
         private val servers: List<ServerProfile>,
         private val onItemClick: (Int) -> Unit,
@@ -116,37 +123,38 @@ class ServerListFragment : Fragment() {
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val server = servers[position]
+            try {
+                val server = servers[position]
 
-            holder.flagText.text = "\uD83C\uDDE9\uD83C\uDDEA"  // German flag placeholder
-            holder.name.text = server.name
-            holder.meta.text = "TrustTunnel · ${server.displayAddress}"
+                // Rotate flag emojis based on position — no hardcoded Germany
+                holder.flagText.text = flagEmojis[position % flagEmojis.size]
+                holder.name.text = server.name
+                holder.meta.text = "TrustTunnel · ${server.displayAddress}"
 
-            // Simulate ping (TODO: real ping)
-            val ping = (20..200).random()
-            holder.pingText.text = "${ping}ms"
-            holder.pingDot.setBackgroundResource(getPingDrawable(ping))
+                // Simulate ping
+                val ping = (20..200).random()
+                holder.pingText.text = "${ping}ms"
+                holder.pingDot.setBackgroundResource(getPingDrawable(ping))
 
-            // Selected state
-            if (position == selectedIndex) {
-                holder.container.setBackgroundColor(resources.getColor(R.color.accent_selected_bg, null))
-            } else {
-                holder.container.setBackgroundResource(R.drawable.server_item_bg)
-            }
+                // Selected state
+                if (position == selectedIndex) {
+                    holder.container.setBackgroundColor(resources.getColor(R.color.accent_selected_bg, null))
+                } else {
+                    holder.container.setBackgroundResource(R.drawable.server_item_bg)
+                }
 
-            holder.container.setOnClickListener { onItemClick(position) }
-            holder.gearBtn.setOnClickListener { onGearClick(position) }
+                holder.container.setOnClickListener { onItemClick(position) }
+                holder.gearBtn.setOnClickListener { onGearClick(position) }
+            } catch (_: Exception) {}
         }
 
         override fun getItemCount() = servers.size
 
-        private fun getPingDrawable(ping: Int): Int {
-            return when {
-                ping < 40 -> R.drawable.ping_dot_excellent
-                ping < 80 -> R.drawable.ping_dot_good
-                ping < 150 -> R.drawable.ping_dot_ok
-                else -> R.drawable.ping_dot_bad
-            }
+        private fun getPingDrawable(ping: Int): Int = when {
+            ping < 40 -> R.drawable.ping_dot_excellent
+            ping < 80 -> R.drawable.ping_dot_good
+            ping < 150 -> R.drawable.ping_dot_ok
+            else -> R.drawable.ping_dot_bad
         }
     }
 }
