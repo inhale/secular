@@ -78,8 +78,8 @@ class AddServerFragment : Fragment() {
         view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
             findNavController().popBackStack()
         }
-        view.findViewById<FrameLayout>(R.id.nav_home).setOnClickListener {
-            findNavController().navigate(R.id.action_addServer_to_dashboard)
+        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
+            findNavController().popBackStack()
         }
     }
 

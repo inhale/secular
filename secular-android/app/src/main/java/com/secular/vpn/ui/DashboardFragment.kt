@@ -49,6 +49,9 @@ class DashboardFragment : Fragment() {
         view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_serverList)
         }
+        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
+            // Already on dashboard — do nothing or scroll to top
+        }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_addServer)
         }
@@ -117,8 +120,10 @@ class DashboardFragment : Fragment() {
             try {
                 val servers = repository.loadServers()
                 if (servers.isNotEmpty()) {
+                    val server = servers[0]
                     val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
                         action = SecularVpnService.ACTION_CONNECT
+                        putExtra("server_json", com.google.gson.Gson().toJson(server))
                     }
                     requireContext().startService(intent)
                 }

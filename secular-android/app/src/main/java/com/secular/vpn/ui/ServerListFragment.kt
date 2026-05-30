@@ -60,7 +60,7 @@ class ServerListFragment : Fragment() {
 
         // Bottom nav
         view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
-            findNavController().navigate(R.id.action_serverList_to_dashboard)
+            findNavController().popBackStack()
         }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             findNavController().navigate(R.id.action_serverList_to_addServer)
