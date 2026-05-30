@@ -252,7 +252,7 @@
                 android:layout_marginTop="8dp"
                 android:text="Enter server details by hand"
                 android:textSize="12sp"
-                android:textColor="@color:text_dim" />
+                android:textColor="@color/text_dim" />
 
         </LinearLayout>
     </ScrollView>

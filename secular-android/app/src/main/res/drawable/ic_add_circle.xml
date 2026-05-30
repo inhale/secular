@@ -21,8 +21,8 @@
     <path
         android:strokeColor="#00FF66"
         android:strokeWidth="1"
-        android:strokeDashWidth="4"
-        android:strokeDashGap="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent"
         android:pathData="M6,6 L42,6 L42,42 L6,42 Z"
         android:fillAlpha="0.3"/>
