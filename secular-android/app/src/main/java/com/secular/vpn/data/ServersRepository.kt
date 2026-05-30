@@ -22,7 +22,13 @@ class ServersRepository(private val context: Context) {
             if (!serversFile.exists()) return@withContext mutableListOf()
             val json = serversFile.readText()
             val type = object : TypeToken<MutableList<ServerProfile>>() {}.type
-            gson.fromJson<MutableList<ServerProfile>>(json, type) ?: mutableListOf()
+            val loaded = gson.fromJson<MutableList<ServerProfile>>(json, type) ?: mutableListOf()
+            // Filter out stale entries with no name and no address
+            val originalSize = loaded.size
+            loaded.removeAll { it.name.isEmpty() && it.hostname.isEmpty() && it.addresses.isEmpty() }
+            // Save cleaned list if we removed anything
+            if (loaded.size != originalSize) saveServers(loaded)
+            loaded
         } catch (e: Exception) {
             mutableListOf()
         }

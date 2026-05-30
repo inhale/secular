@@ -43,6 +43,7 @@ class ServerConfigFragment : Fragment() {
     private lateinit var headerTitle: TextView
 
     private var passwordVisible = false
+    private var isSaving = false
 
     private val certPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -177,6 +178,9 @@ class ServerConfigFragment : Fragment() {
     }
 
     private fun saveConfig() {
+        if (isSaving) return
+        isSaving = true
+
         val name = fieldName.text.toString().trim()
         val ipAddress = fieldIp.text.toString().trim()
         val hostname = fieldHostname.text.toString().trim()
@@ -208,8 +212,10 @@ class ServerConfigFragment : Fragment() {
         lifecycleScope.launch {
             if (serverIndex >= 0) {
                 repository.updateServer(serverIndex, profile)
+                isSaving = false
             } else {
                 repository.addServer(profile)
+                isSaving = false
             }
             findNavController().popBackStack()
         }

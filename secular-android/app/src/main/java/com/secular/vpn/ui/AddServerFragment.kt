@@ -101,8 +101,9 @@ class AddServerFragment : Fragment() {
                 findNavController().popBackStack()
             }
         } else {
-            SecularVpnService.addLog("Link parse FAILED for: ${link.take(80)}")
-            Toast.makeText(requireContext(), "Invalid link format. Check Log for details.", Toast.LENGTH_LONG).show()
+            SecularVpnService.addLog("Link parse FAILED for: ${link.take(120)}")
+            SecularVpnService.addLog("Expected formats: tt://base64data, tt://hostname=x&..., or TLV binary")
+            Toast.makeText(requireContext(), "Invalid link format. Check Log screen for details.", Toast.LENGTH_LONG).show()
         }
     }
 

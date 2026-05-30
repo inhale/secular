@@ -15,6 +15,7 @@ object DeepLinkParser {
     fun parse(uriString: String): ServerProfile? {
         val trimmed = uriString.trim()
         if (trimmed.isEmpty()) return null
+        android.util.Log.d("DeepLinkParser", "Parsing: ${trimmed.take(80)}")
 
         val qs: String
         when {
@@ -25,14 +26,18 @@ object DeepLinkParser {
         }
 
         if (qs.isEmpty()) return null
+        android.util.Log.d("DeepLinkParser", "qs length=${qs.length}, qs=${qs.take(80)}")
 
     // Try all 3 formats in order
         val r1 = parseBase64Toml(qs)
         if (r1 != null) return r1
+        android.util.Log.d("DeepLinkParser", "base64 TOML: no match")
         val r2 = parseTlv(qs)
         if (r2 != null) return r2
+        android.util.Log.d("DeepLinkParser", "TLV: no match")
         val r3 = parseUrlEncoded(qs)
         if (r3 != null) return r3
+        android.util.Log.d("DeepLinkParser", "URL-encoded: no match")
 
         return null
     }
@@ -40,7 +45,8 @@ object DeepLinkParser {
     // ── Format 1: base64-encoded TOML ──
     private fun parseBase64Toml(qs: String): ServerProfile? {
         return try {
-            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
+            val padLen = (4 - qs.length % 4) % 4
+            val padded = qs + "=".repeat(padLen)
             val tomlStr = String(Base64.decode(padded, Base64.DEFAULT))
             val fields = parseTomlFields(tomlStr)
             buildProfileFromFields(fields)
@@ -124,7 +130,8 @@ object DeepLinkParser {
     // ── Format 2: TrustTunnel binary TLV ──
     private fun parseTlv(qs: String): ServerProfile? {
         return try {
-            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
+            val padLen = (4 - qs.length % 4) % 4
+            val padded = qs + "=".repeat(padLen)
             val data = Base64.decode(padded, Base64.DEFAULT)
             if (data.size < 4) return null
 
@@ -151,10 +158,10 @@ object DeepLinkParser {
             val address = String(addressBytes, Charsets.UTF_8).replace("\u0000", "")
             if (address.isEmpty()) return null
 
-            val usernameBytes = fields[0x05] ?: return null
+            val usernameBytes = fields[0x05]
             val username = String(usernameBytes, Charsets.UTF_8).replace("\u0000", "")
 
-            val passwordBytes = fields[0x06] ?: return null
+            val passwordBytes = fields[0x06]
             val password = String(passwordBytes, Charsets.UTF_8).replace("\u0000", "")
 
             val certBuilder = StringBuilder()

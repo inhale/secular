@@ -132,6 +132,8 @@ class SecularVpnService : VpnService() {
             .setMtu(1380)
             .addAddress("10.0.0.2", 32)
             .addRoute("0.0.0.0", 0)
+            .addRoute("::", 0)
+            .addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
             .setBlocking(true)
 
         if (config.dnsUpstreams.isNotEmpty()) {
@@ -188,9 +190,26 @@ class SecularVpnService : VpnService() {
                 socket.tcpNoDelay = true
                 serverSocket = socket
                 addLog("TCP connected: remote=${socket.inetAddress}:${socket.port}")
+
+                // Send HTTP/2 connection preface immediately
+                // TrustTunnel expects HTTP/2 like gRPC servers
+                val h2Preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+                val settingsFrame = byteArrayOf(
+                    0x00, 0x00, 0x00,  // length: 0
+                    0x04,              // type: SETTINGS (4)
+                    0x00,              // flags: none
+                    0x00, 0x00, 0x00, 0x00  // stream ID: 0
+                )
+                addLog("Sending HTTP/2 connection preface...")
+                withContext(Dispatchers.IO) {
+                    socket.getOutputStream().write(h2Preface.toByteArray(Charsets.US_ASCII))
+                    socket.getOutputStream().write(settingsFrame)
+                    socket.getOutputStream().flush()
+                }
+                addLog("HTTP/2 preface sent")
+
                 isTunnelUp = true
                 isConnecting = false
-
                 updateNotification("Connected to $host")
 
                 val vpn = vpnInterface
@@ -231,9 +250,14 @@ class SecularVpnService : VpnService() {
                         sockOutput.write(buf, 0, len)
                         sockOutput.flush()
                         bytesUploaded.addAndGet(len.toLong())
-                    } else if (len < 0) break
+                    } else if (len < 0) {
+                        addLog("vpnToServer: EOF (len=$len)")
+                        break
+                    }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                addLog("vpnToServer error: ${e.javaClass.simpleName}: ${e.message}")
+            }
         }
 
         val serverToVpn = serviceScope.launch(Dispatchers.IO) {
@@ -245,9 +269,14 @@ class SecularVpnService : VpnService() {
                         vpnOutput.write(buf, 0, len)
                         vpnOutput.flush()
                         bytesDownloaded.addAndGet(len.toLong())
-                    } else if (len < 0) break
+                    } else if (len < 0) {
+                        addLog("serverToVpn: EOF (len=$len)")
+                        break
+                    }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                addLog("serverToVpn error: ${e.javaClass.simpleName}: ${e.message}")
+            }
         }
 
         joinAll(vpnToServer, serverToVpn)

@@ -75,6 +75,11 @@ class DashboardFragment : Fragment() {
             findNavController().navigate(R.id.action_dashboard_to_addServer)
         }
 
+        // Log button
+        view.findViewById<ImageButton>(R.id.btn_log).setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_log)
+        }
+
         loadSelectedServer(view)
     }
 
