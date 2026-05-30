@@ -202,9 +202,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/secular-macos/*.zip
-            artifacts/secular-windows/*.exe
-            artifacts/secular-linux/*.AppImage
-            artifacts/secular-linux/*.deb
+            artifacts/secular-macos/**/*.zip
+            artifacts/secular-windows/**/*.exe
+            artifacts/secular-linux/**/*.AppImage
+            artifacts/secular-linux/**/*.deb
           generate_release_notes: true
           prerelease: true
