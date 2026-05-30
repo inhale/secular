@@ -26,21 +26,26 @@ object DeepLinkParser {
 
         if (qs.isEmpty()) return null
 
-        // Try all 3 formats in order
-        parseBase64Toml(qs)?.let { return it }
-        parseTlv(qs)?.let { return it }
-        parseUrlEncoded(qs)?.let { return it }
+    // Try all 3 formats in order
+        val r1 = parseBase64Toml(qs)
+        if (r1 != null) return r1
+        val r2 = parseTlv(qs)
+        if (r2 != null) return r2
+        val r3 = parseUrlEncoded(qs)
+        if (r3 != null) return r3
 
         return null
     }
 
     // ── Format 1: base64-encoded TOML ──
-    private fun parseBase64Toml(qs: String): ServerProfile? = try {
-        val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
-        val tomlStr = String(Base64.decode(padded, Base64.DEFAULT))
-        val fields = parseTomlFields(tomlStr)
-        buildProfileFromFields(fields)
-    } catch (_: Exception) { null }
+    private fun parseBase64Toml(qs: String): ServerProfile? {
+        return try {
+            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
+            val tomlStr = String(Base64.decode(padded, Base64.DEFAULT))
+            val fields = parseTomlFields(tomlStr)
+            buildProfileFromFields(fields)
+        } catch (_: Exception) { null }
+    }
 
     private fun parseTomlFields(toml: String): Map<String, String> {
         val fields = mutableMapOf<String, String>()
@@ -116,75 +121,69 @@ object DeepLinkParser {
     // Tag 0x06 = password
     // Tag 0x08+ = certificate PEM chunks (binary) — concatenated into certificate field
     // Tag 0x0c = display name suffix
-    private fun parseTlv(qs: String): ServerProfile? = try {
-        val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
-        val data = Base64.decode(padded, Base64.DEFAULT)
-        if (data.size < 4) return null
+    // ── Format 2: TrustTunnel binary TLV ──
+    private fun parseTlv(qs: String): ServerProfile? {
+        return try {
+            val padded = qs + "=".repeat((-len(qs) % 4) if len(qs) % 4 else 0)
+            val data = Base64.decode(padded, Base64.DEFAULT)
+            if (data.size < 4) return null
 
-        val fields = mutableMapOf<Int, ByteArray>()
-        var pos = 0
-        while (pos + 2 <= data.size) {
-            val tag = data[pos].toInt() and 0xFF
-            val vlen = data[pos + 1].toInt() and 0xFF
-            pos += 2
-            if (pos + vlen > data.size) break
-            fields[tag] = data.copyOfRange(pos, pos + vlen)
-            pos += vlen
-        }
-
-        // Map fields
-        // Tag 0x01 = name/hostname (may be just a hostname like "localhost")
-        // Tag 0x0c = display name suffix (e.g. "TrustTunnel Server")
-        val nameBytes = fields[0x01] ?: return null
-        val name = String(nameBytes, Charsets.UTF_8).replace("\u0000", "")
-        if (name.isEmpty()) return null
-
-        val suffixBytes = fields[0x0c]
-        val suffix = if (suffixBytes != null) String(suffixBytes, Charsets.UTF_8).replace("\u0000", "") else ""
-        val displayName = if (suffix.isNotEmpty()) "$name $suffix" else name
-
-        val addressBytes = fields[0x02] ?: return null
-        val address = String(addressBytes, Charsets.UTF_8).replace("\u0000", "")
-        if (address.isEmpty()) return null
-
-        val usernameBytes = fields[0x05] ?: return null
-        val username = String(usernameBytes, Charsets.UTF_8).replace("\u0000", "")
-
-        val passwordBytes = fields[0x06] ?: return null
-        val password = String(passwordBytes, Charsets.UTF_8).replace("\u0000", "")
-
-        // Certificate: concatenate all binary chunks (tags 0x08, 0x1b, etc.)
-        val certBuilder = StringBuilder()
-        for ((tag, bytes) in fields) {
-            if (tag >= 0x08 && tag != 0x0c) {
-                // Try to decode as PEM text, otherwise skip binary
-                try {
-                    val s = String(bytes, Charsets.UTF_8)
-                    if (s.contains("-----BEGIN") || s.contains("MII")) {
-                        certBuilder.append(s.replace("\u0000", ""))
-                    }
-                } catch (_: Exception) { }
+            val fields = mutableMapOf<Int, ByteArray>()
+            var pos = 0
+            while (pos + 2 <= data.size) {
+                val tag = data[pos].toInt() and 0xFF
+                val vlen = data[pos + 1].toInt() and 0xFF
+                pos += 2
+                if (pos + vlen > data.size) break
+                fields[tag] = data.copyOfRange(pos, pos + vlen)
+                pos += vlen
             }
-        }
 
-        ServerProfile(
-            name = displayName,
-            hostname = name,
-            addresses = listOf(address),
-            username = username,
-            password = password,
-            hasIpv6 = true,
-            skipVerification = true,
-            certificate = certBuilder.toString(),
-            upstreamProtocol = "http2",
-            dnsUpstreams = emptyList()
-        )
-    } catch (_: Exception) { null }
+            val nameBytes = fields[0x01] ?: return null
+            val name = String(nameBytes, Charsets.UTF_8).replace("\u0000", "")
+            if (name.isEmpty()) return null
+
+            val suffixBytes = fields[0x0c]
+            val suffix = if (suffixBytes != null) String(suffixBytes, Charsets.UTF_8).replace("\u0000", "") else ""
+            val displayName = if (suffix.isNotEmpty()) "$name $suffix" else name
+
+            val addressBytes = fields[0x02] ?: return null
+            val address = String(addressBytes, Charsets.UTF_8).replace("\u0000", "")
+            if (address.isEmpty()) return null
+
+            val usernameBytes = fields[0x05] ?: return null
+            val username = String(usernameBytes, Charsets.UTF_8).replace("\u0000", "")
+
+            val passwordBytes = fields[0x06] ?: return null
+            val password = String(passwordBytes, Charsets.UTF_8).replace("\u0000", "")
+
+            val certBuilder = StringBuilder()
+            for ((tag, bytes) in fields) {
+                if (tag >= 0x08 && tag != 0x0c) {
+                    try {
+                        val s = String(bytes, Charsets.UTF_8)
+                        if (s.contains("-----BEGIN") || s.contains("MII")) {
+                            certBuilder.append(s.replace("\u0000", ""))
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+
+            ServerProfile(
+                name = displayName, hostname = name, addresses = listOf(address),
+                username = username, password = password,
+                hasIpv6 = true, skipVerification = true,
+                certificate = certBuilder.toString(),
+                upstreamProtocol = "http2", dnsUpstreams = emptyList()
+            )
+        } catch (_: Exception) { null }
+    }
 
     // ── Format 3: URL-encoded key=value ──
-    private fun parseUrlEncoded(qs: String): ServerProfile? = try {
-        val uri = Uri.parse("http://localhost?$qs")
-        val hostname = uri.getQueryParameter("hostname") ?: return null
+    private fun parseUrlEncoded(qs: String): ServerProfile? {
+        return try {
+            val uri = Uri.parse("http://localhost?$qs")
+            val hostname = uri.getQueryParameter("hostname") ?: return null
         val addresses = parseList(uri.getQueryParameter("addresses") ?: "")
         val name = uri.getQueryParameter("name") ?: hostname
         ServerProfile(
@@ -198,8 +197,9 @@ object DeepLinkParser {
             upstreamProtocol = uri.getQueryParameter("upstream_protocol") ?: "http2",
             antiDpi = uri.getQueryParameter("anti_dpi")?.lowercase() == "true",
             dnsUpstreams = uri.getQueryParameters("dns_upstream").ifEmpty { emptyList() }
-        )
-    } catch (_: Exception) { null }
+            )
+        } catch (_: Exception) { null }
+    }
 
     // ── Helpers ──
     private fun parseList(raw: String): List<String> {

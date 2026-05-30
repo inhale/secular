@@ -128,14 +128,20 @@ class DashboardFragment : Fragment() {
     }
 
     private fun startVpnService() {
-        val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
-            action = SecularVpnService.ACTION_CONNECT
-            putExtra("server_json", com.google.gson.Gson().toJson(repository.loadServers()[0]))
+        lifecycleScope.launch {
+            try {
+                val servers = repository.loadServers()
+                if (servers.isEmpty()) return@launch
+                val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
+                    action = SecularVpnService.ACTION_CONNECT
+                    putExtra("server_json", com.google.gson.Gson().toJson(servers[0]))
+                }
+                requireContext().startService(intent)
+                startStatePolling()
+            } catch (e: Exception) {
+                SecularVpnService.addLog("startVpnService error: ${e.message}")
+            }
         }
-        requireContext().startService(intent)
-
-        // Start polling tunnel state
-        startStatePolling()
     }
 
     private fun startStatePolling() {

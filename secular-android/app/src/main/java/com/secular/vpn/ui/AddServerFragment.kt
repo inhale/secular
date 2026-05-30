@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.secular.vpn.R
+import com.secular.vpn.SecularVpnService
 import com.secular.vpn.data.DeepLinkParser
 import com.secular.vpn.data.TomlFileParser
 import com.secular.vpn.data.ServerProfile
