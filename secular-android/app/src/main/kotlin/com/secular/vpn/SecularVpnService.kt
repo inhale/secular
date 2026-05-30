@@ -39,12 +39,9 @@ class SecularVpnService : VpnService() {
             .setSession("Secular")
             .setMtu(1380)
             .addAddress("10.0.0.2", 32)
-            .addRoute("0.0.0.0", 0)  // Route all traffic
+            .addRoute("0.0.0.0", 0)
             .addDnsServer("9.9.9.9")
             .setBlocking(true)
-
-        // Allow bypass for local network (optional)
-        // builder.addDisallowedApplication("com.some.app")
 
         vpnInterface = builder.establish()
         if (vpnInterface == null) {
@@ -54,10 +51,9 @@ class SecularVpnService : VpnService() {
 
         Log.d(TAG, "VPN interface established: ${vpnInterface!!.fd}")
 
-        // Start packet forwarding coroutine
         job = CoroutineScope(Dispatchers.IO).launch {
             try {
-                forwardPackets(vpnInterface!!.fd)
+                forwardPackets(vpnInterface!!)
             } catch (e: Exception) {
                 Log.e(TAG, "Packet forwarding error: ${e.message}")
             }
@@ -75,32 +71,19 @@ class SecularVpnService : VpnService() {
         vpnInterface = null
     }
 
-    /**
-     * Forward packets between the TUN interface and the Rust core.
-     * 
-     * Reads raw IP packets from the TUN fd, passes them to secular-core
-     * via JNI/UniFFI, and writes response packets back to the TUN.
-     */
-    private suspend fun forwardPackets(tunFd: Int) {
-        Log.d(TAG, "Starting packet forwarding on fd=$tunFd")
-        
-        // TODO: Initialize secular-core via UniFFI
-        // val engine = SecularCore.create(config)
-        // engine.connect()
-        
+    private suspend fun forwardPackets(vpn: ParcelFileDescriptor) {
+        Log.d(TAG, "Starting packet forwarding on fd=${vpn.fd}")
+
+        val inputStream = ParcelFileDescriptor.AutoCloseInputStream(vpn)
+        val outputStream = ParcelFileDescriptor.AutoCloseOutputStream(vpn)
         val buffer = ByteArray(32767)
-        
+
         withContext(Dispatchers.IO) {
-            val inputStream = FileInputStream(tunFd)
-            val outputStream = FileOutputStream(tunFd)
-            
             while (isActive) {
                 try {
                     val length = inputStream.read(buffer)
                     if (length > 0) {
-                        // TODO: Pass to secular-core for encryption/wrapping
-                        // val encrypted = engine.processPacket(buffer, length)
-                        // outputStream.write(encrypted)
+                        // TODO: Pass to secular-core via UniFFI
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Packet read error: ${e.message}")
