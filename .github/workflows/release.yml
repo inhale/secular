@@ -30,6 +30,26 @@ jobs:
           node-version: 20
       - run: npm install
         working-directory: ./secular-desktop
+      - name: Regenerate icon.icns from PNGs (iconutil)
+        shell: bash
+        run: |
+          echo "=== Generating ICNS with iconutil ==="
+          ICONSET=/tmp/secular.iconset
+          mkdir -p "$ICONSET"
+          SRC=secular-desktop/src-tauri/icons
+          # iconutil needs 16x16, 32x32, 128x128, 256x256, 512x512, 1024x1024
+          for SIZE in 16 32 128 256 512 1024; do
+            cp "$SRC/${SIZE}x${SIZE}.png" "$ICONSET/icon_${SIZE}x${SIZE}.png"
+            # Retina @2x variants
+            if [ "$SIZE" -le 512 ]; then
+              DOUBLE=$((SIZE * 2))
+              SRC_FILE="$SRC/${DOUBLE}x${DOUBLE}.png"
+              [ -f "$SRC_FILE" ] && cp "$SRC_FILE" "$ICONSET/icon_${SIZE}x${SIZE}@2x.png"
+            fi
+          done
+          iconutil -c icns -o "$SRC/icon.icns" "$ICONSET" 2>&1
+          ls -la "$SRC/icon.icns"
+          echo "=== ICNS regenerated ==="
       - name: Build Tauri (macOS)
         shell: bash
         run: |
