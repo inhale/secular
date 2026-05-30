@@ -3,7 +3,9 @@
 
 package com.secular.vpn.ui
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
@@ -26,11 +28,13 @@ import kotlinx.coroutines.launch
 class DashboardFragment : Fragment() {
 
     private lateinit var repository: ServersRepository
+    private lateinit var prefs: SharedPreferences
     private var isConnected = false
     private var seconds = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var timerRunnable: Runnable? = null
     private var metricsRunnable: Runnable? = null
+    private var selectedServerName: String? = null
 
     // VPN prepare launcher — shows system "Allow VPN?" dialog
     private lateinit var vpnPrepareLauncher: ActivityResultLauncher<Intent>
@@ -58,6 +62,7 @@ class DashboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
         repository = ServersRepository(requireContext())
+        prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
         view.findViewById<ImageButton>(R.id.connect_btn).setOnClickListener {
             if (isConnected) disconnectVpn() else connectVpn()
@@ -89,11 +94,20 @@ class DashboardFragment : Fragment() {
                 val servers = repository.loadServers()
                 val nameTv = view.findViewById<TextView>(R.id.server_card_name)
                 val metaTv = view.findViewById<TextView>(R.id.server_card_meta)
+
                 if (servers.isNotEmpty()) {
-                    val server = servers[0]
+                    // Try to find the user-selected server first
+                    val savedName = prefs.getString("selected_server_name", null)
+                    selectedServerName = savedName
+                    val server = if (savedName != null) {
+                        servers.find { it.name == savedName } ?: servers[0]
+                    } else {
+                        servers[0]
+                    }
                     nameTv.text = server.name
                     metaTv.text = "TrustTunnel · ${server.displayAddress}"
                 } else {
+                    selectedServerName = null
                     nameTv.text = "No server selected"
                     metaTv.text = "Tap to add a server"
                 }
@@ -109,14 +123,18 @@ class DashboardFragment : Fragment() {
                 return@launch
             }
 
-            val server = servers[0]
+            // Use selected server, or fall back to first
+            val savedName = prefs.getString("selected_server_name", null)
+            val server = if (savedName != null) {
+                servers.find { it.name == savedName } ?: servers[0]
+            } else {
+                servers[0]
+            }
             SecularVpnService.addLog("Connect tapped: server=${server.name} addr=${server.displayAddress}")
 
-            // 1. Check if VPN is already prepared
             val prepareIntent = VpnService.prepare(requireContext())
             if (prepareIntent != null) {
                 SecularVpnService.addLog("VPN not prepared — showing system dialog")
-                // Show system "Allow VPN?" dialog
                 isConnected = true // optimistically
                 updateUiConnecting()
                 vpnPrepareLauncher.launch(prepareIntent)
@@ -134,9 +152,15 @@ class DashboardFragment : Fragment() {
             try {
                 val servers = repository.loadServers()
                 if (servers.isEmpty()) return@launch
+                val savedName = prefs.getString("selected_server_name", null)
+                val server = if (savedName != null) {
+                    servers.find { it.name == savedName } ?: servers[0]
+                } else {
+                    servers[0]
+                }
                 val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
                     action = SecularVpnService.ACTION_CONNECT
-                    putExtra("server_json", com.google.gson.Gson().toJson(servers[0]))
+                    putExtra("server_json", com.google.gson.Gson().toJson(server))
                 }
                 requireContext().startService(intent)
                 startStatePolling()
@@ -152,7 +176,6 @@ class DashboardFragment : Fragment() {
                 if (!isConnected || view == null) return
 
                 if (SecularVpnService.isTunnelUp) {
-                    // Tunnel is up!
                     val v = view ?: return
                     v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
                     v.findViewById<TextView>(R.id.status_label)?.setTextColor(
@@ -173,7 +196,6 @@ class DashboardFragment : Fragment() {
                         ?.setBackgroundResource(R.drawable.ping_dot_excellent)
                     startMetricsPolling()
                 } else if (SecularVpnService.lastError != null) {
-                    // Connection failed
                     val v = view ?: return
                     val err = SecularVpnService.lastError ?: "Connection failed"
                     v.findViewById<TextView>(R.id.status_label)?.text = err
@@ -182,10 +204,8 @@ class DashboardFragment : Fragment() {
                     )
                     disconnectVpn()
                 } else if (SecularVpnService.isConnecting) {
-                    // Still connecting, keep polling
                     handler.postDelayed(this, 1000)
                 } else {
-                    // Service not started yet or other issue
                     handler.postDelayed(this, 1000)
                 }
             }
@@ -206,7 +226,6 @@ class DashboardFragment : Fragment() {
             }
         }.also { handler.post(it) }
 
-        // Timer
         seconds = 0
         timerRunnable = object : Runnable {
             override fun run() {

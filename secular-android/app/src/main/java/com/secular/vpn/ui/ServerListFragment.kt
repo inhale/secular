@@ -3,6 +3,8 @@
 
 package com.secular.vpn.ui
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +16,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.secular.vpn.R
+import com.secular.vpn.SecularVpnService
 import com.secular.vpn.data.ServerProfile
 import com.secular.vpn.data.ServersRepository
 import kotlinx.coroutines.launch
@@ -24,6 +27,12 @@ class ServerListFragment : Fragment() {
     private lateinit var adapter: ServerAdapter
     private var servers = mutableListOf<ServerProfile>()
     private var selectedIndex = -1
+    private lateinit var prefs: SharedPreferences
+
+    companion object {
+        private const val PREFS_NAME = "secular_vpn_prefs"
+        private const val KEY_SELECTED_SERVER = "selected_server_name"
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_server_list, container, false)
@@ -32,6 +41,12 @@ class ServerListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
         repository = ServersRepository(requireContext())
+        prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Check if we should auto-select a server (from AddServerFragment)
+        val selectNew = arguments?.getBoolean("selectNewServer", false) ?: false
+        val newServerIndex = arguments?.getInt("serverIndex", -1) ?: -1
+        SecularVpnService.addLog("ServerList: selectNew=$selectNew newServerIndex=$newServerIndex")
 
         // Setup RecyclerView
         val recyclerView = view.findViewById<RecyclerView>(R.id.server_list)
@@ -40,6 +55,12 @@ class ServerListFragment : Fragment() {
             onItemClick = { index ->
                 selectedIndex = index
                 adapter.notifyDataSetChanged()
+                // Persist selection by name
+                val server = servers.getOrNull(index)
+                if (server != null) {
+                    prefs.edit().putString(KEY_SELECTED_SERVER, server.name).apply()
+                    SecularVpnService.addLog("ServerList: selected server=${server.name}")
+                }
                 recyclerView.postDelayed({
                     try { findNavController().popBackStack() } catch (_: Exception) {}
                 }, 400)
@@ -67,14 +88,32 @@ class ServerListFragment : Fragment() {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
-        loadServers()
+        loadServers(selectNew, newServerIndex)
     }
 
-    private fun loadServers() {
+    private fun loadServers(selectNew: Boolean = false, newServerIndex: Int = -1) {
         lifecycleScope.launch {
             try {
                 servers.clear()
                 servers.addAll(repository.loadServers())
+
+                if (selectNew && newServerIndex in servers.indices) {
+                    // Auto-select the newly added server
+                    selectedIndex = newServerIndex
+                    val server = servers[newServerIndex]
+                    prefs.edit().putString(KEY_SELECTED_SERVER, server.name).apply()
+                    SecularVpnService.addLog("ServerList: auto-selected new server=${server.name}")
+                } else {
+                    // Restore selected index by saved name
+                    val savedName = prefs.getString(KEY_SELECTED_SERVER, null)
+                    if (savedName != null) {
+                        val idx = servers.indexOfFirst { it.name == savedName }
+                        if (idx >= 0) selectedIndex = idx
+                    } else if (servers.isNotEmpty()) {
+                        selectedIndex = 0
+                    }
+                }
+
                 adapter.notifyDataSetChanged()
 
                 val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
@@ -92,10 +131,29 @@ class ServerListFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        loadServers()
+        // Don't re-load on resume if we came from add (to preserve selection)
+        // Only reload if returning from config (server may have been edited)
+        loadServers(false, -1)
     }
 
-    private val flagEmojis = listOf("\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEB\uD83C\uDDF7", "\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDF5\uD83C\uDDF1")
+    // Deterministic flag emojis — same server name always gets same flag
+    private val flagEmojis = listOf(
+        "\uD83C\uDDE9\uD83C\uDDEA", // 🇩🇪
+        "\uD83C\uDDEC\uD83C\uDDE7", // 🇬🇧
+        "\uD83C\uDDEB\uD83C\uDDF7", // 🇫🇷
+        "\uD83C\uDDE8\uD83C\uDDF3", // 🇨🇳
+        "\uD83C\uDDEF\uD83C\uDDF5", // 🇯🇵
+        "\uD83C\uDDF5\uD83C\uDDF1", // 🇵🇱
+        "\uD83C\uDDF9\uD83C\uDDED", // 🇹🇭
+        "\uD83C\uDDF3\uD83C\uDDF4", // 🇳🇴
+        "\uD83C\uDDFA\uD83C\uDDF8", // 🇺🇸
+        "\uD83C\uDDE8\uu200D\uD83C\uDDE6", // (extra)
+    )
+
+    private fun flagForServer(serverName: String): String {
+        val hash = serverName.hashCode()
+        return flagEmojis[Math.floorMod(hash, flagEmojis.size)]
+    }
 
     inner class ServerAdapter(
         private val servers: List<ServerProfile>,
@@ -123,8 +181,8 @@ class ServerListFragment : Fragment() {
             try {
                 val server = servers[position]
 
-                // Rotate flag emojis based on position — no hardcoded Germany
-                holder.flagText.text = flagEmojis[position % flagEmojis.size]
+                // Deterministic flag based on server name
+                holder.flagText.text = flagForServer(server.name)
                 holder.name.text = server.name
                 holder.meta.text = "TrustTunnel · ${server.displayAddress}"
 

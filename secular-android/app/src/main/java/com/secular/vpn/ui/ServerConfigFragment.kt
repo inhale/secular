@@ -4,7 +4,9 @@
 package com.secular.vpn.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -17,6 +19,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.secular.vpn.R
+import com.secular.vpn.SecularVpnService
 import com.secular.vpn.data.ServerProfile
 import com.secular.vpn.data.ServersRepository
 import kotlinx.coroutines.launch
@@ -27,6 +30,8 @@ class ServerConfigFragment : Fragment() {
     private var serverIndex = -1
     private var existingServer: ServerProfile? = null
     private var certFilePath: String? = null
+    private var isSaving = false
+    private lateinit var prefs: SharedPreferences
 
     // Form fields
     private lateinit var fieldName: EditText
@@ -43,7 +48,6 @@ class ServerConfigFragment : Fragment() {
     private lateinit var headerTitle: TextView
 
     private var passwordVisible = false
-    private var isSaving = false
 
     private val certPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -64,6 +68,7 @@ class ServerConfigFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
         repository = ServersRepository(requireContext())
+        prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
         serverIndex = arguments?.getInt("serverIndex", -1) ?: -1
 
@@ -194,6 +199,7 @@ class ServerConfigFragment : Fragment() {
 
         if (name.isEmpty()) {
             Toast.makeText(requireContext(), "Server name is required", Toast.LENGTH_SHORT).show()
+            isSaving = false
             return
         }
 
@@ -210,13 +216,31 @@ class ServerConfigFragment : Fragment() {
         )
 
         lifecycleScope.launch {
-            if (serverIndex >= 0) {
-                repository.updateServer(serverIndex, profile)
-                isSaving = false
-            } else {
-                repository.addServer(profile)
+            try {
+                if (serverIndex >= 0) {
+                    repository.updateServer(serverIndex, profile)
+                } else {
+                    repository.addServer(profile)
+                }
+                // Persist selected server name
+                prefs.edit().putString("selected_server_name", profile.name).apply()
+                SecularVpnService.addLog("Config saved: ${profile.name}, navigating to server list")
+            } catch (e: Exception) {
+                SecularVpnService.addLog("Save error: ${e.message}")
+            } finally {
                 isSaving = false
             }
+            // Navigate to server list to show the saved server
+            navigateToServerList()
+        }
+    }
+
+    private fun navigateToServerList() {
+        // Pop back to dashboard then navigate to server list
+        findNavController().popBackStack(R.id.addServerFragment, true)
+        try {
+            findNavController().navigate(R.id.action_dashboard_to_serverList)
+        } catch (_: Exception) {
             findNavController().popBackStack()
         }
     }

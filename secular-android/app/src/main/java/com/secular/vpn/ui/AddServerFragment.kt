@@ -4,7 +4,9 @@
 package com.secular.vpn.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -27,6 +29,7 @@ class AddServerFragment : Fragment() {
 
     private lateinit var repository: ServersRepository
     private lateinit var linkInput: EditText
+    private lateinit var prefs: SharedPreferences
 
     private val tomlPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -45,6 +48,7 @@ class AddServerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
         repository = ServersRepository(requireContext())
+        prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
         linkInput = view.findViewById(R.id.field_link)
 
@@ -55,7 +59,6 @@ class AddServerFragment : Fragment() {
 
         // Scan QR code
         view.findViewById<Button>(R.id.btn_scan_qr).setOnClickListener {
-            // TODO: Navigate to QR scanner
             Toast.makeText(requireContext(), "QR Scanner coming soon", Toast.LENGTH_SHORT).show()
         }
 
@@ -97,8 +100,10 @@ class AddServerFragment : Fragment() {
         if (profile != null) {
             SecularVpnService.addLog("Link parsed OK: name=${profile.name} host=${profile.hostname} addr=${profile.addresses}")
             lifecycleScope.launch {
-                repository.addServer(profile)
-                findNavController().popBackStack()
+                val idx = repository.addServer(profile)
+                prefs.edit().putString("selected_server_name", profile.name).apply()
+                SecularVpnService.addLog("Server added at index $idx: ${profile.name}")
+                navigateToServerListWithServer(idx)
             }
         } else {
             SecularVpnService.addLog("Link parse FAILED for: ${link.take(120)}")
@@ -115,8 +120,9 @@ class AddServerFragment : Fragment() {
                     val profile = TomlFileParser.parse(inputStream)
                     inputStream.close()
                     if (profile != null) {
-                        repository.addServer(profile)
-                        findNavController().popBackStack()
+                        val idx = repository.addServer(profile)
+                        prefs.edit().putString("selected_server_name", profile.name).apply()
+                        navigateToServerListWithServer(idx)
                     } else {
                         Toast.makeText(requireContext(), "Invalid TOML config", Toast.LENGTH_LONG).show()
                     }
@@ -124,6 +130,22 @@ class AddServerFragment : Fragment() {
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "Error reading file: ${e.message}", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    private fun navigateToServerListWithServer(serverIndex: Int) {
+        // Add the server index + name as arguments so ServerListFragment auto-selects it
+        val bundle = Bundle().apply {
+            putInt("serverIndex", serverIndex)
+            putBoolean("selectNewServer", true)
+        }
+        // Navigate to server list (not popBackStack — go there fresh)
+        findNavController().popBackStack(R.id.addServerFragment, true)  // remove add from stack
+        try {
+            findNavController().navigate(R.id.action_dashboard_to_serverList, bundle)
+        } catch (_: Exception) {
+            // Fallback: just pop back
+            findNavController().popBackStack()
         }
     }
 }
