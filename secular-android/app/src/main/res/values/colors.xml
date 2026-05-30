@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/values/colors.xml -->
+<resources>
+    <color name="bg">#121212</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="card">#0AFFFFFF</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_dim">#8A8A8A</color>
+    <color name="accent">#00FF66</color>
+    <color name="accent_glow">#4000FF66</color>
+    <color name="border">#14FFFFFF</color>
+    <color name="red">#FF4D4D</color>
+    <color name="ping_excellent">#00FF66</color>
+    <color name="ping_good">#A8E063</color>
+    <color name="ping_ok">#FFD93D</color>
+    <color name="ping_bad">#FF4D4D</color>
+</resources>

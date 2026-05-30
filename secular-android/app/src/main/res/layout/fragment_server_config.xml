@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/layout/fragment_server_config.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical"
+    tools:context=".ui.ServerConfigFragment">
+
+    <!-- Header with back button and trash -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_arrow_back"
+            android:contentDescription="Back" />
+
+        <TextView
+            android:id="@+id/config_header_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            tools:text="Frankfurt #1" />
+
+        <ImageButton
+            android:id="@+id/btn_delete"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_trash"
+            android:visibility="gone"
+            android:contentDescription="Delete server" />
+    </LinearLayout>
+
+    <!-- Scrollable Form -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="24dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Server Name -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Server Name" />
+            <EditText
+                android:id="@+id/field_server_name"
+                style="@style/FieldInput"
+                android:hint="My Server"
+                android:inputType="text" />
+
+            <!-- IP Address -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="IP Address"
+                android:layout_marginTop="20dp" />
+            <EditText
+                android:id="@+id/field_ip_address"
+                style="@style/FieldInput"
+                android:hint="1.2.3.4:443"
+                android:fontFamily="monospace"
+                android:inputType="text" />
+
+            <!-- Hostname for TLS -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Hostname for TLS Handshake"
+                android:layout_marginTop="20dp" />
+            <EditText
+                android:id="@+id/field_hostname"
+                style="@style/FieldInput"
+                android:hint="e.g. server.example.com"
+                android:fontFamily="monospace"
+                android:inputType="text" />
+
+            <!-- Username -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Username"
+                android:layout_marginTop="20dp" />
+            <EditText
+                android:id="@+id/field_username"
+                style="@style/FieldInput"
+                android:hint="Username"
+                android:inputType="text" />
+
+            <!-- Password -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Password"
+                android:layout_marginTop="20dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/field_input_bg">
+                <EditText
+                    android:id="@+id/field_password"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:paddingHorizontal="16dp"
+                    android:hint="Password"
+                    android:inputType="textPassword"
+                    android:textSize="14sp"
+                    android:fontFamily="monospace" />
+                <ImageButton
+                    android:id="@+id/btn_toggle_password"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_eye_off"
+                    android:contentDescription="Toggle password visibility" />
+            </LinearLayout>
+
+            <!-- Protocol -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Protocol"
+                android:layout_marginTop="20dp" />
+            <Spinner
+                android:id="@+id/field_protocol"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/field_input_bg"
+                android:paddingHorizontal="16dp" />
+
+            <!-- DNS Servers -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="DNS Servers"
+                android:layout_marginTop="20dp" />
+            <EditText
+                android:id="@+id/field_dns"
+                style="@style/FieldInput"
+                android:hint="One DNS server per line"
+                android:inputType="textMultiLine"
+                android:gravity="top"
+                android:minHeight="100dp"
+                android:fontFamily="monospace"
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.6" />
+
+            <!-- Certificate -->
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Self-Signed Certificate (.pem)"
+                android:layout_marginTop="20dp" />
+            <LinearLayout
+                android:id="@+id/field_cert_upload"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/field_input_bg"
+                android:padding="14dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_file"
+                    android:layout_marginEnd="12dp" />
+
+                <TextView
+                    android:id="@+id/cert_file_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="No file selected"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_dim"
+                    android:fontFamily="monospace"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Browse"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/browse_btn_bg"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="6dp" />
+            </LinearLayout>
+
+            <!-- IPv6 Checkbox -->
+            <CheckBox
+                android:id="@+id/field_ipv6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Allow IPv6 traffic"
+                android:textSize="14sp"
+                android:textColor="@color/text_primary"
+                android:buttonTint="@color/accent" />
+
+            <!-- SAVE Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_save"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="SAVE"
+                android:textColor="@color/bg"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="14dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OK ping dot (yellow) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/ping_ok"/>
+    <size android:width="7dp" android:height="7dp"/>
+</shape>

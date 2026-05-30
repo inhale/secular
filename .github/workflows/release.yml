@@ -1,5 +1,5 @@
 # .github/workflows/release.yml
-# Secular CI/CD — builds all platforms on tag push
+# Secular CI/CD — builds Android on tag push
 
 name: Release
 
@@ -20,159 +20,34 @@ env:
 
 jobs:
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-        working-directory: ./secular-desktop
-      - name: Regenerate icon.icns from PNGs (iconutil)
-        shell: bash
-        run: |
-          echo "=== Generating ICNS with iconutil ==="
-          ICONSET=/tmp/secular.iconset
-          mkdir -p "$ICONSET"
-          SRC=secular-desktop/src-tauri/icons
-          # iconutil needs 16x16, 32x32, 128x128, 256x256, 512x512, 1024x1024
-          for SIZE in 16 32 128 256 512 1024; do
-            cp "$SRC/${SIZE}x${SIZE}.png" "$ICONSET/icon_${SIZE}x${SIZE}.png"
-            # Retina @2x variants
-            if [ "$SIZE" -le 512 ]; then
-              DOUBLE=$((SIZE * 2))
-              SRC_FILE="$SRC/${DOUBLE}x${DOUBLE}.png"
-              [ -f "$SRC_FILE" ] && cp "$SRC_FILE" "$ICONSET/icon_${SIZE}x${SIZE}@2x.png"
-            fi
-          done
-          iconutil -c icns -o "$SRC/icon.icns" "$ICONSET" 2>&1
-          ls -la "$SRC/icon.icns"
-          echo "=== ICNS regenerated ==="
-      - name: Build Tauri (macOS)
-        shell: bash
-        run: |
-          set +e
-          cd secular-desktop/src-tauri
-          echo "=== Running tauri build ==="
-          npx tauri build 2>&1
-          echo "tauri build exit code: $?"
-          BUNDLE_MACOS=""
-          if [ -d "target/release/bundle/macos" ]; then
-            BUNDLE_MACOS="target/release/bundle/macos"
-          elif [ -d "target/aarch64-apple-darwin/release/bundle/macos" ]; then
-            BUNDLE_MACOS="target/aarch64-apple-darwin/release/bundle/macos"
-          fi
-          if [ -n "$BUNDLE_MACOS" ]; then
-            echo "=== Ad-hoc code signing ==="
-            codesign --sign - --force --deep "$BUNDLE_MACOS/Secular.app" 2>&1
-            codesign --verify --deep "$BUNDLE_MACOS/Secular.app" 2>&1
-            cd "$BUNDLE_MACOS"
-            zip -rv ../../../secular-macos-aarch64.zip *.app
-            cp ../../../secular-macos-aarch64.zip /Users/runner/work/secular/secular/secular-macos-aarch64.zip
-          else
-            echo "ERROR: No macOS bundle found"
-            exit 1
-          fi
-        env:
-          TAURI_PRIVATE_KEY: ""
-          TAURI_KEY_PASSWORD: ""
-      - name: Upload macOS
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-macos
-          path: secular-macos-aarch64.zip
-          retention-days: 30
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-        working-directory: ./secular-desktop
-      - name: Build Tauri (Windows)
-        shell: bash
-        run: |
-          set +e
-          cd secular-desktop/src-tauri
-          npx tauri build 2>&1
-          echo "exit code: $?"
-          find target/release/bundle -type f 2>/dev/null | sort
-      - name: Upload Windows
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-windows
-          path: secular-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
-          retention-days: 30
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: System deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev libwebkit2gtk-4.1-dev libfuse2
-      - name: appimagetool
-        run: |
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O /tmp/appimagetool
-          chmod +x /tmp/appimagetool && sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-        working-directory: ./secular-desktop
-      - name: Build Tauri (Linux)
-        run: |
-          set +e
-          cd secular-desktop/src-tauri
-          npx tauri build 2>&1
-          find target/release/bundle -type f 2>/dev/null | sort
-      - name: Upload Linux
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-linux
-          path: |
-            secular-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
-            secular-desktop/src-tauri/target/release/bundle/deb/*.deb
-          retention-days: 30
-
   build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: ~/.gradle/caches
           key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}
+
       - name: Build Debug APK
         working-directory: ./secular-android
         run: |
           echo "=== JAVA_HOME: $JAVA_HOME ==="
           java -version 2>&1
-          echo "=== gradlew first 5 lines ==="
-          head -5 gradlew
-          echo "=== DEFAULT_JVM_OPTS line ==="
-          grep DEFAULT_JVM_OPTS gradlew
           chmod +x gradlew
-          echo "=== Running gradlew assembleDebug ==="
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
-          echo "=== Gradlew exit code: $? ==="
+
       - name: Find and copy APK
         run: |
           find secular-android -name "*.apk" 2>/dev/null | while read apk; do
@@ -180,8 +55,8 @@ jobs:
             cp "$apk" /home/runner/work/secular/secular/
           done
           ls -la /home/runner/work/secular/secular/*.apk 2>/dev/null || echo "No APKs in workspace root"
-      - name: Upload Android
-        if: always()
+
+      - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: secular-android
@@ -190,93 +65,8 @@ jobs:
             ./*.apk
           retention-days: 30
 
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: xcodebuild -version
-
-      - name: Write project.yml
-        run: |
-          cd secular-ios
-          echo 'bmFtZTogU2VjdWxhcgpvcHRpb25zOgogIGJ1bmRsZUlkUHJlZml4OiBjb20uc2VjdWxhcgp0YXJnZXRzOgogIFNlY3VsYXI6CiAgICBkZXBsb3ltZW50VGFyZ2V0OiAnMTYuMCcKICAgIHBsYXRmb3JtOiBpT1MKICAgIHNldHRpbmdzOgogICAgICBiYXNlOgogICAgICAgIENPREVfU0lHTklOR19BTExPV0VEOiAnTk8nCiAgICAgICAgQ09ERV9TSUdOSU5HX1JFUVVJUkVEOiAnTk8nCiAgICAgICAgQ09ERV9TSUdOX0lERU5USVRZOiAnJwogICAgICAgIERFVkVMT1BNRU5UX1RFQU06ICcnCiAgICAgICAgSU5GT1BMSVNUX0ZJTEU6IFNlY3VsYXIvSW5mby5wbGlzdAogICAgICAgIFBST0RVQ1RfQlVORExFX0lERU5USUZJRVI6IGNvbS5zZWN1bGFyLnZwbgogICAgc291cmNlczoKICAgIC0gZXhjbHVkZXM6CiAgICAgIC0gRXh0ZW5zaW9ucwogICAgICBwYXRoOiBTZWN1bGFyCiAgICB0eXBlOiBhcHBsaWNhdGlvbgo=' | base64 -d > project.yml
-          cat project.yml
-
-      - name: Install xcodegen
-        run: brew install xcodegen 2>/dev/null && echo "xcodegen installed" || echo "brew install failed"
-
-      - name: Generate Xcode project
-        run: |
-          cd secular-ios
-          if command -v xcodegen &>/dev/null; then
-            xcodegen generate
-            echo "=== Generated files ==="
-            ls -la *.xcodeproj 2>/dev/null && echo "OK: xcodeproj generated" || echo "FAIL: no xcodeproj"
-            echo "=== Project targets ==="
-            xcodebuild -project Secular.xcodeproj -list 2>&1 | head -20
-          else
-            echo "xcodegen not available"
-          fi
-
-      - name: List available simulators
-        run: xcrun simctl list devices available 2>&1 | grep "iPhone" | head -10
-
-      - name: Build iOS
-        run: |
-          cd secular-ios
-          if [ -d "Secular.xcodeproj" ]; then
-            xcodebuild \
-              -project Secular.xcodeproj \
-              -scheme Secular \
-              -configuration Release \
-              -sdk iphonesimulator \
-              -destination 'generic/platform=iOS Simulator' \
-              CODE_SIGN_IDENTITY="" \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGNING_ALLOWED=NO \
-              build 2>&1
-            echo "IOS_BUILD_OK"
-          else
-            echo "NO_XCODEPROJ"
-          fi
-
-      - name: Package iOS
-        run: |
-          APP=""
-          # Search both simulator and device build outputs
-          for SEARCH in \
-            ~/Library/Developer/Xcode/DerivedData \
-            ~/Library/Developer/Xcode/Archives; do
-            if [ -d "$SEARCH" ]; then
-              FOUND=$(find "$SEARCH" -name "Secular.app" -type d 2>/dev/null | head -1)
-              if [ -n "$FOUND" ]; then
-                APP="$FOUND"
-                break
-              fi
-            fi
-          done
-          if [ -n "$APP" ] && [ -d "$APP" ]; then
-            echo "Found .app at: $APP"
-            cd "$(dirname "$APP")"
-            zip -ry /Users/runner/work/secular/secular/secular-ios.zip Secular.app
-            ls -la /Users/runner/work/secular/secular/secular-ios.zip
-          else
-            echo "=== DerivedData contents ==="
-            find ~/Library/Developer/Xcode/DerivedData -maxdepth 3 -type d 2>/dev/null | head -20
-            echo "No .app bundle found — iOS build may need Apple Developer signing"
-          fi
-
-      - name: Upload iOS
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secular-ios
-          path: /Users/runner/work/secular/secular/secular-ios.zip
-          retention-days: 30
-
   release:
-    needs: [build-macos, build-windows, build-linux, build-android, build-ios]
+    needs: [build-android]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -284,45 +74,17 @@ jobs:
         with:
           path: ./artifacts
       - run: find ./artifacts -type f | sort
-      - name: Rename artifacts for clarity
+      - name: Rename APK artifact
         run: |
           set -e
-          ART=./artifacts
-          ls -laR "$ART"
-          # macOS
-          for f in "$ART"/secular-macos/*.zip; do
-            [ -f "$f" ] && cp "$f" "./secular-macos-aarch64.zip" && echo "Renamed: $f → secular-macos-aarch64.zip"
-          done
-          # Windows
-          for f in "$ART"/secular-windows/*.exe; do
-            [ -f "$f" ] && cp "$f" "./secular-windows-x64-setup.exe" && echo "Renamed: $f → secular-windows-x64-setup.exe"
-          done
-          # Linux AppImage
-          for f in "$ART"/secular-linux/**/*.AppImage; do
-            [ -f "$f" ] && cp "$f" "./secular-linux-x64.AppImage" && echo "Renamed: $f → secular-linux-x64.AppImage"
-          done
-          # Linux .deb
-          for f in "$ART"/secular-linux/**/*.deb; do
-            [ -f "$f" ] && cp "$f" "./secular-linux-x64.deb" && echo "Renamed: $f → secular-linux-x64.deb"
-          done
-          # Android
-          for f in "$ART"/secular-android/*.apk; do
+          for f in ./artifacts/secular-android/*.apk; do
             [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Renamed: $f → secular-android-debug.apk"
           done
-          # iOS
-          for f in "$ART"/secular-ios/*.zip; do
-            [ -f "$f" ] && cp "$f" "./secular-ios-simulator.zip" && echo "Renamed: $f → secular-ios-simulator.zip"
-          done
-          ls -la ./
+          ls -la ./*.apk 2>/dev/null
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            secular-macos-aarch64.zip
-            secular-windows-x64-setup.exe
-            secular-linux-x64.AppImage
-            secular-linux-x64.deb
             secular-android-debug.apk
-            secular-ios-simulator.zip
           generate_release_notes: true
           draft: false
           prerelease: false

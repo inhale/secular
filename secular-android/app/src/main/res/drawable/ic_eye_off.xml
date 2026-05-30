@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Eye off icon — password is hidden, shows slash through eye -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#8A8A8A"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M1,12 S5,4 12,4 S23,12 23,12 S19,20 12,20 S1,12 1,12 Z"/>
+    <path
+        android:fillColor="#8A8A8A"
+        android:pathData="M12,9 A3,3 0,1,0 12,15 A3,3 0,1,0 12,9 Z M12,11 A1,1 0,1,1 12,13 A1,1 0,1,1 12,11 Z"/>
+    <path
+        android:strokeColor="#8A8A8A"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M4,20 L20,4"/>
+</vector>

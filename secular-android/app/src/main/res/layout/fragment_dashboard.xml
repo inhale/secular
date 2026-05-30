@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- secular-android/app/src/main/res/layout/fragment_dashboard.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    tools:context=".ui.DashboardFragment">
+
+    <!-- Status Bar spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="48dp" />
+
+    <!-- Status Label -->
+    <TextView
+        android:id="@+id/status_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Disconnected"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.02"
+        android:textColor="@color/text_dim"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Metrics Row -->
+    <LinearLayout
+        android:id="@+id/metrics_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:alpha="0.35"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginEnd="32dp">
+            <TextView
+                android:id="@+id/session_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00:00"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:fontFamily="monospace" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Session"
+                android:textSize="10sp"
+                android:textColor="@color/text_dim"
+                android:letterSpacing="0.1"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginEnd="32dp">
+            <TextView
+                android:id="@+id/dl_speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="— MB"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:fontFamily="monospace" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Download"
+                android:textSize="10sp"
+                android:textColor="@color/text_dim"
+                android:letterSpacing="0.1"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+            <TextView
+                android:id="@+id/ul_speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="— MB"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:fontFamily="monospace" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Upload"
+                android:textSize="10sp"
+                android:textColor="@color/text_dim"
+                android:letterSpacing="0.1"
+                android:textAllCaps="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Spacer to push connect button to center -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Connect Button Area -->
+    <FrameLayout
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:layout_gravity="center"
+        android:layout_marginBottom="24dp">
+
+        <!-- Spinning ring (connected state) -->
+        <View
+            android:id="@+id/connect_ring"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/connect_ring"
+            android:visibility="invisible" />
+
+        <!-- Main button -->
+        <ImageButton
+            android:id="@+id/connect_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/connect_btn_bg"
+            android:src="@drawable/logo_white"
+            android:scaleType="fitCenter"
+            android:padding="50dp"
+            android:contentDescription="Toggle VPN connection"
+            android:stateListAnimator="@null" />
+    </FrameLayout>
+
+    <!-- Spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Server Card -->
+    <LinearLayout
+        android:id="@+id/server_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/server_card_bg"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/server_card_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:text="Frankfurt #1" />
+
+            <View
+                android:id="@+id/ping_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/ping_dot_bg"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🇩🇪"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/server_card_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="TrustTunnel · 185.103.24.4:443"
+            android:textSize="12sp"
+            android:textColor="@color/text_dim"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.02" />
+    </LinearLayout>
+
+    <!-- Bottom Nav -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="32dp"
+        android:paddingBottom="36dp">
+
+        <!-- Grid / Server List button -->
+        <ImageButton
+            android:id="@+id/nav_servers"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_grid"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Server list" />
+
+        <!-- Home button (green circle) -->
+        <FrameLayout
+            android:id="@+id/nav_home"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="-12dp"
+            android:background="@drawable/nav_home_circle"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp"
+            android:layout_marginHorizontal="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_home"
+                android:tint="@color/bg" />
+        </FrameLayout>
+
+        <!-- Add Server button -->
+        <ImageButton
+            android:id="@+id/nav_add"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_add"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Add server" />
+    </LinearLayout>
+
+</LinearLayout>

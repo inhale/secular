@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Server list item layout -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="14dp"
+    android:paddingHorizontal="8dp"
+    android:background="@drawable/server_item_bg"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Flag circle -->
+    <FrameLayout
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="14dp"
+        android:background="@drawable/flag_circle_bg">
+
+        <TextView
+            android:id="@+id/flag_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="20sp"
+            android:text="🇩🇪"
+            tools:ignore="HardcodedText" />
+    </FrameLayout>
+
+    <!-- Server info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:minWidth="0">
+
+        <TextView
+            android:id="@+id/server_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:ellipsize="end"
+            android:maxLines="1"
+            tools:text="Frankfurt #1" />
+
+        <TextView
+            android:id="@+id/server_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textSize="11sp"
+            android:textColor="@color/text_dim"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.02"
+            tools:text="TrustTunnel · 185.103.24.4:443" />
+    </LinearLayout>
+
+    <!-- Ping -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginEnd="12dp"
+        android:minWidth="50dp">
+
+        <View
+            android:id="@+id/ping_dot"
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:background="@drawable/ping_dot_bg"
+            android:layout_marginEnd="5dp" />
+
+        <TextView
+            android:id="@+id/ping_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/text_dim"
+            android:fontFamily="monospace"
+            tools:text="24ms" />
+    </LinearLayout>
+
+    <!-- Gear icon -->
+    <ImageButton
+        android:id="@+id/gear_btn"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_gear"
+        android:scaleType="centerInside"
+        android:padding="8dp"
+        android:contentDescription="Edit server" />
+
+</LinearLayout>

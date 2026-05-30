@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static spinning ring for connected state - rotation animated via ObjectAnimator -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="ring"
+    android:innerRadius="82dp"
+    android:thickness="2dp"
+    android:useLevel="false">
+    <gradient
+        android:type="sweep"
+        android:startColor="@color/accent"
+        android:centerColor="@android:color/transparent"
+        android:endColor="@color/accent" />
+</shape>

@@ -2,7 +2,4 @@
 <!-- secular-android/app/src/main/res/values/strings.xml -->
 <resources>
     <string name="app_name">Secular</string>
-    <string name="vpn_service_label">Secular VPN</string>
-    <string name="notification_channel_name">VPN Status</string>
-    <string name="notification_channel_description">Shows VPN connection status</string>
 </resources>

@@ -1,40 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- secular-android/app/src/main/res/layout/activity_main.xml -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.fragment.app.FragmentContainerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_host_fragment"
+    android:name="androidx.navigation.fragment.NavHostFragment"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp">
-
-    <!-- Logo area -->
-    <ImageView
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:layout_marginBottom="48dp"
-        android:src="@mipmap/ic_launcher"
-        android:contentDescription="Secular logo" />
-
-    <!-- Status -->
-    <TextView
-        android:id="@+id/status_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:text="Disconnected"
-        android:textColor="#7A869A"
-        android:textSize="16sp" />
-
-    <!-- Connect Button (pill shape) -->
-    <Button
-        android:id="@+id/connect_button"
-        android:layout_width="200dp"
-        android:layout_height="48dp"
-        android:background="@drawable/connect_btn_bg"
-        android:text="Connect"
-        android:textAllCaps="false"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp" />
-
-</LinearLayout>
+    android:background="@color/bg"
+    app:defaultNavHost="true"
+    app:navGraph="@navigation/nav_graph" />
