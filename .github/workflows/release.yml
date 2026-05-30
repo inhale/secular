@@ -20,9 +20,6 @@ env:
 
 jobs:
 
-  # ──────────────────────────────────────────────
-  # macOS: .app bundle → zip
-  # ──────────────────────────────────────────────
   build-macos:
     runs-on: macos-latest
     steps:
@@ -31,9 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm install
+      - run: npm install
         working-directory: ./secular-desktop
 
       - name: Build Tauri (macOS)
@@ -41,17 +36,9 @@ jobs:
         run: |
           set +e
           cd secular-desktop/src-tauri
-
           echo "=== Running tauri build ==="
           npx tauri build 2>&1
-          BUILD_EXIT=$?
-          echo "tauri build exit code: $BUILD_EXIT"
-
-          echo "=== Post-build debug ==="
-          find target -maxdepth 4 -type f \( -name "*.app" -o -name "secular-desktop" \) 2>/dev/null
-          find target -maxdepth 3 -type d 2>/dev/null | sort
-
-          echo "=== Zipping ==="
+          echo "tauri build exit code: $?"
           BUNDLE_MACOS=""
           if [ -d "target/release/bundle/macos" ]; then
             BUNDLE_MACOS="target/release/bundle/macos"
@@ -60,18 +47,17 @@ jobs:
           fi
           if [ -n "$BUNDLE_MACOS" ]; then
             cd "$BUNDLE_MACOS"
-            ls -la *.app
             zip -rv ../../../secular-macos-aarch64.zip *.app
-            cp ../../../secular-macos-aarch64.zip /Users/runner/work/secular/secular/secular-macos-aarch64.zip 2>/dev/null || true
+            cp ../../../secular-macos-aarch64.zip /Users/runner/work/secular/secular/secular-macos-aarch64.zip
           else
-            echo "ERROR: No macOS bundle directory found"
+            echo "ERROR: No macOS bundle found"
             exit 1
           fi
         env:
           TAURI_PRIVATE_KEY: ""
           TAURI_KEY_PASSWORD: ""
 
-      - name: Upload macOS App
+      - name: Upload macOS
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -79,9 +65,6 @@ jobs:
           path: secular-macos-aarch64.zip
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # Windows: NSIS installer
-  # ──────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
     steps:
@@ -90,9 +73,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm install
+      - run: npm install
         working-directory: ./secular-desktop
 
       - name: Build Tauri (Windows)
@@ -100,17 +81,12 @@ jobs:
         run: |
           set +e
           cd secular-desktop/src-tauri
-
           echo "=== Running tauri build ==="
           npx tauri build 2>&1
-          BUILD_EXIT=$?
-          echo "tauri build exit code: $BUILD_EXIT"
-
-          echo "=== Checking bundle output ==="
+          echo "tauri build exit code: $?"
           find target/release/bundle -type f 2>/dev/null | sort
-          ls -la target/release/secular-desktop.exe 2>/dev/null || echo "No .exe found"
 
-      - name: Upload Windows Artifacts
+      - name: Upload Windows
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -120,36 +96,26 @@ jobs:
             secular-desktop/src-tauri/target/release/secular-desktop.exe
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # Linux: .deb + .AppImage
-  # ──────────────────────────────────────────────
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system dependencies
+      - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
-            libssl-dev libwebkit2gtk-4.1-dev \
-            libfuse2
-
+            libssl-dev libwebkit2gtk-4.1-dev libfuse2
       - name: Install appimagetool
         run: |
           wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O /tmp/appimagetool
-          chmod +x /tmp/appimagetool
-          sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
+          chmod +x /tmp/appimagetool && sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
           appimagetool --version
-
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm install
+      - run: npm install
         working-directory: ./secular-desktop
 
       - name: Build Tauri (Linux)
@@ -157,18 +123,11 @@ jobs:
         run: |
           set +e
           cd secular-desktop/src-tauri
-
-          echo "=== Running tauri build ==="
           npx tauri build 2>&1
-          BUILD_EXIT=$?
-          echo "tauri build exit code: $BUILD_EXIT"
+          echo "build exit code: $?"
+          find target/release/bundle -type f 2>/dev/null | sort
 
-          echo "=== Checking bundle output ==="
-          find target/release/bundle -type f 2>/dev/null | sort || echo "No bundle output"
-          ls -la target/release/bundle/deb/*.deb 2>/dev/null || echo "No .deb found"
-          ls -la target/release/bundle/appimage/*.AppImage 2>/dev/null || echo "No .AppImage found"
-
-      - name: Upload Linux Artifacts
+      - name: Upload Linux
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -178,74 +137,36 @@ jobs:
             secular-desktop/src-tauri/target/release/bundle/deb/*.deb
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # Android: Debug APK
-  # ──────────────────────────────────────────────
   build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('secular-android/**/*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Install Gradle wrapper
-        working-directory: ./secular-android
-        run: |
-          # Download gradle wrapper if not present
-          if [ ! -f gradlew ]; then
-            echo "=== Downloading gradle wrapper ==="
-            # Get gradle version from wrapper properties
-            GRADLE_VERSION=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties 2>/dev/null | sed 's/.*gradle-\(.*\)-.*/\1/' || echo "8.2")
-            echo "Gradle version: $GRADLE_VERSION"
-            # Install gradle temporarily
-            curl -sL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip
-            unzip -q -o /tmp/gradle.zip -d /tmp/
-            export PATH="/tmp/gradle-${GRADLE_VERSION}/bin:$PATH"
-            gradle wrapper --no-daemon
-          fi
-          chmod +x gradlew
-          ls -la gradlew
+          path: ~/.gradle/caches
+          key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}
 
       - name: Build Debug APK
         working-directory: ./secular-android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          ./gradlew assembleDebug --no-daemon 2>&1
 
-      - name: Find and copy APK
+      - name: Copy APK to workspace
         run: |
-          echo "=== Looking for APK ==="
-          find secular-android -name "*.apk" 2>/dev/null | sort
+          mkdir -p /home/runner/work/secular/secular
+          find secular-android -name "*.apk" -exec cp {} /home/runner/work/secular/secular/ \;
+          ls -la /home/runner/work/secular/secular/*.apk 2>/dev/null || echo "No APKs found"
 
-          # Copy APKs to workspace root for reliable artifact upload
-          for apk in $(find secular-android -name "*.apk" 2>/dev/null); do
-            echo "Found: $apk ($(stat -c%s "$apk" 2>/dev/null || stat -f%z "$apk" 2>/dev/null) bytes)"
-            cp "$apk" /home/runner/work/secular/secular/ 2>/dev/null || true
-          done
-          echo "=== Workspace root APKs ==="
-          ls -la /home/runner/work/secular/secular/*.apk 2>/dev/null || echo "No APKs in workspace root"
-
-      - name: Upload Android APK
+      - name: Upload Android
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -255,114 +176,117 @@ jobs:
             ./*.apk
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # iOS: Build .app bundle → zip (unsigned)
-  # ──────────────────────────────────────────────
   build-ios:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: |
-          xcodebuild -version
-          xcodebuild -showsdks 2>&1 | grep -i ios
+        run: xcodebuild -version
 
-      - name: Find Xcode project
+      - name: Prepare iOS project
         run: |
-          find secular-ios -name "*.xcodeproj" -o -name "*.xcworkspace" | sort
-          ls -la secular-ios/
+          cd secular-ios
+          # Create a simple pbxproj-less build using xctoolchain
+          # Since we have Swift sources but no .xcodeproj, generate one
+          mkdir -p /tmp/ios-proj
 
-      - name: Build iOS (Swift Package)
-        working-directory: ./secular-ios
+          # Generate project.yml for xcodegen (avoids YAML-in-YAML issue)
+          python3 << 'PYEOF'
+          import yaml, os
+          spec = {
+            "options": {
+              "bundleIdPrefix": "com.secular",
+            },
+            "targets": {
+              "Secular": {
+                "type": "application",
+                "platform": "iOS",
+                "deploymentTarget": "16.0",
+                "sources": [{"path": "Secular"}],
+                "settings": {
+                  "base": {
+                    "PRODUCT_BUNDLE_IDENTIFIER": "com.secular.vpn",
+                    "INFOPLIST_FILE": "Secular/Info.plist",
+                    "CODE_SIGN_IDENTITY": "",
+                    "CODE_SIGNING_REQUIRED": "NO",
+                    "CODE_SIGNING_ALLOWED": "NO",
+                  }
+                }
+              }
+            }
+          }
+          os.makedirs("secular-ios", exist_ok=True)
+          with open("secular-ios/project.yml", "w") as f:
+            yaml.dump(spec, f, default_flow_style=False, sort_keys=False)
+          print("project.yml written")
+          PYEOF
+
+          cat project.yml
+
+          # Try to install xcodegen
+          brew install xcodegen 2>/dev/null || pip3 install xcodegen 2>/dev/null || echo "xcodegen not available"
+
+          if command -v xcodegen &>/dev/null; then
+            xcodegen generate
+            ls -la *.xcodeproj 2>/dev/null && echo "Xcode project generated" || echo "Failed to generate"
+          else
+            echo "xcodegen not available, listing Swift files"
+            find . -name "*.swift" | sort
+          fi
+
+      - name: Build iOS
         run: |
-          ls -la
-
-          # Check if we have an xcodeproj or need to use swift package
-          if [ -d "Secular.xcodeproj" ] || [ -d "Secular.xcworkspace" ]; then
-            echo "=== Building with xcodebuild ==="
-            SCHEME="Secular"
-            # Try xcodebuild on the Secular directory
+          cd secular-ios
+          if [ -d "Secular.xcodeproj" ]; then
             xcodebuild \
-              -scheme "$SCHEME" \
+              -project Secular.xcodeproj \
+              -scheme Secular \
               -configuration Release \
               -sdk iphoneos \
               -destination 'generic/platform=iOS' \
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO \
-              build 2>&1 || BUILD_FAILED=1
+              build 2>&1
+            echo "BUILD_OK"
           else
-            echo "=== No xcodeproj found, checking Package.swift ==="
-            if [ -f "Package.swift" ]; then
-              echo "Building with Swift Package Manager..."
-              swift build 2>&1 || BUILD_FAILED=1
+            echo "NO_XCODEPROJ=1"
+          fi
+
+      - name: Package iOS
+        run: |
+          if [ -d ~/Library/Developer/Xcode/DerivedData ]; then
+            APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Secular.app" -type d 2>/dev/null | head -1)
+            if [ -n "$APP" ]; then
+              cd "$(dirname "$APP")"
+              zip -ry /Users/runner/work/secular/secular/secular-ios.zip Secular.app
+              echo "Packaged: secular-ios.zip"
             else
-              echo "=== No Package.swift either, listing contents ==="
-              ls -la
-              find . -name "*.swift" | sort
-              BUILD_FAILED=1
+              echo "No .app found"
             fi
           fi
 
-          if [ "$BUILD_FAILED" = "1" ]; then
-            echo "=== Build attempt finished (check output above) ==="
-          fi
-
-      - name: Package iOS App
-        run: |
-          echo "=== Looking for built .app ==="
-
-          # Search in DerivedData
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Secular.app" -type d 2>/dev/null | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            # Search relative to project
-            APP_PATH=$(find secular-ios -name "*.app" -type d 2>/dev/null | head -1)
-          fi
-
-          if [ -n "$APP_PATH" ]; then
-            echo "Found app at: $APP_PATH"
-            DIR=$(dirname "$APP_PATH")
-            cd "$DIR"
-            zip -r "/Users/runner/work/secular/secular/secular-ios.zip" "Secular.app"
-            ls -la /Users/runner/work/secular/secular/secular-ios.zip
-          else
-            echo "WARNING: No .app bundle found — build may have failed"
-            # Don't fail the job so the workflow continues
-            echo "Creating placeholder zip"
-            echo "iOS build requires Apple Developer signing for distribution" > /tmp/ios-notice.txt
-            cd /tmp && zip /Users/runner/work/secular/secular/ios-ios.zip ios-notice.txt
-          fi
-
-      - name: Upload iOS App
+      - name: Upload iOS
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: secular-ios
-          path: |
-            secular-ios/**/*.zip
-            /Users/runner/work/secular/secular/secular-ios.zip
+          path: /Users/runner/work/secular/secular/secular-ios.zip
           retention-days: 30
 
-  # ──────────────────────────────────────────────
-  # Release: collect all artifacts, create GitHub Release
-  # ──────────────────────────────────────────────
   release:
     needs: [build-macos, build-windows, build-linux, build-android, build-ios]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: List artifacts
-        run: find ./artifacts -type f | sort
+      - run: find ./artifacts -type f | sort
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/secular-macos/**/*.zip
