@@ -13,8 +13,18 @@ import android.util.Base64
 object DeepLinkParser {
 
     fun parse(uriString: String): ServerProfile? {
-        if (!uriString.startsWith("tt://?")) return null
-        val qs = uriString.removePrefix("tt://?")
+        val trimmed = uriString.trim()
+
+        // Accept tt:// and tl:// prefixes
+        val qs: String
+        when {
+            trimmed.startsWith("tt://?") -> qs = trimmed.removePrefix("tt://?")
+            trimmed.startsWith("tt://") -> qs = trimmed.removePrefix("tt://")
+            trimmed.startsWith("tl://") -> qs = trimmed.removePrefix("tl://")
+            else -> return null
+        }
+
+        if (qs.isEmpty()) return null
 
         // Format 1: base64-encoded TOML
         parseBase64Toml(qs)?.let { return it }
@@ -66,23 +76,45 @@ object DeepLinkParser {
     }
 
     private fun buildProfileFromFields(fields: Map<String, String>, raw: String): ServerProfile? {
-        val hostname = fields["hostname"] ?: fields["endpoint.hostname"] ?: return null
-        val addresses = parseAddresses(fields["addresses"] ?: fields["endpoint.addresses"] ?: "")
-        val username = fields["username"] ?: fields["endpoint.username"] ?: ""
-        val password = fields["password"] ?: fields["endpoint.password"] ?: ""
-        val name = fields["name"] ?: hostname
-        val hasIpv6 = parseBoolean(fields["has_ipv6"] ?: fields["endpoint.has_ipv6"], true)
-        val clientRandom = fields["client_random"] ?: fields["client_random_prefix"]
-            ?: fields["endpoint.client_random"] ?: ""
-        val skipVerification = parseBoolean(
-            fields["skip_verification"] ?: fields["endpoint.skip_verification"], false
+        val hostname = fields["hostname"]
+            ?: fields["endpoint.hostname"]
+            ?: fields["endpoints.hostname"] ?: return null
+        val addresses = parseAddresses(
+            fields["addresses"]
+                ?: fields["endpoint.addresses"]
+                ?: fields["addresses.0"]
+                ?: fields["endpoints.addresses"] ?: ""
         )
-        val certificate = fields["certificate"] ?: fields["endpoint.certificate"] ?: ""
+        val username = fields["username"] ?: fields["endpoint.username"]
+            ?: fields["endpoints.username"] ?: ""
+        val password = fields["password"] ?: fields["endpoint.password"]
+            ?: fields["endpoints.password"] ?: ""
+        val name = fields["name"] ?: hostname
+        val hasIpv6 = parseBoolean(
+            fields["has_ipv6"] ?: fields["endpoint.has_ipv6"]
+                ?: fields["endpoints.has_ipv6"], true
+        )
+        val clientRandom = fields["client_random"]
+            ?: fields["client_random_prefix"]
+            ?: fields["endpoint.client_random"]
+            ?: fields["endpoints.client_random"] ?: ""
+        val skipVerification = parseBoolean(
+            fields["skip_verification"] ?: fields["endpoint.skip_verification"]
+                ?: fields["endpoints.skip_verification"], false
+        )
+        val certificate = fields["certificate"] ?: fields["endpoint.certificate"]
+            ?: fields["endpoints.certificate"] ?: ""
         val upstreamProtocol = fields["upstream_protocol"]
-            ?: fields["endpoint.upstream_protocol"] ?: "http2"
-        val antiDpi = parseBoolean(fields["anti_dpi"] ?: fields["endpoint.anti_dpi"], false)
-        val dnsUpstreams = parseDnsUpstreams(fields["dns_upstreams"]
-            ?: fields["endpoint.dns_upstreams"] ?: "")
+            ?: fields["endpoint.upstream_protocol"]
+            ?: fields["endpoints.upstream_protocol"] ?: "http2"
+        val antiDpi = parseBoolean(
+            fields["anti_dpi"] ?: fields["endpoint.anti_dpi"]
+                ?: fields["endpoints.anti_dpi"], false
+        )
+        val dnsUpstreams = parseDnsUpstreams(
+            fields["dns_upstreams"] ?: fields["endpoint.dns_upstreams"]
+                ?: fields["endpoints.dns_upstreams"] ?: ""
+        )
 
         return ServerProfile(
             name = name,

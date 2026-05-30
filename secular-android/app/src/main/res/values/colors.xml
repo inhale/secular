@@ -14,4 +14,5 @@
     <color name="ping_good">#A8E063</color>
     <color name="ping_ok">#FFD93D</color>
     <color name="ping_bad">#FF4D4D</color>
+    <color name="accent_selected_bg">#1400FF66</color>
 </resources>

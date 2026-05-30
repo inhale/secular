@@ -40,9 +40,9 @@ class ServerListFragment : Fragment() {
             onItemClick = { index ->
                 selectedIndex = index
                 adapter.notifyDataSetChanged()
-                // Return to dashboard after selection
+                // Return to dashboard
                 recyclerView.postDelayed({
-                    findNavController().navigate(R.id.action_serverList_to_dashboard)
+                    findNavController().popBackStack()
                 }, 400)
             },
             onGearClick = { index ->

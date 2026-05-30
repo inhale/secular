@@ -12,19 +12,27 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicLong
 
 class SecularVpnService : VpnService() {
     companion object {
         const val TAG = "SecularVPN"
         const val ACTION_CONNECT = "com.secular.vpn.CONNECT"
         const val ACTION_DISCONNECT = "com.secular.vpn.DISCONNECT"
+
+        // Observable state for UI
+        @Volatile var isTunnelUp = false
+            private set
+        @Volatile var lastError: String? = null
+            private set
+        val bytesDownloaded = AtomicLong(0)
+        val bytesUploaded = AtomicLong(0)
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var job: Job? = null
     private var serverSocket: Socket? = null
 
-    // Lightweight server config class for deserialization
     private data class ServerConfig(
         @SerializedName("hostname") val hostname: String = "",
         @SerializedName("addresses") val addresses: List<String> = emptyList(),
@@ -62,7 +70,19 @@ class SecularVpnService : VpnService() {
             if (serverJson != null) Gson().fromJson(serverJson, ServerConfig::class.java) else null
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse server config: ${e.message}")
-            null
+            lastError = "Invalid server config"
+            return
+        }
+
+        if (config == null) {
+            lastError = "No server config provided"
+            return
+        }
+
+        val address = config.addresses.firstOrNull()
+        if (address.isNullOrEmpty()) {
+            lastError = "No server address"
+            return
         }
 
         // Build VPN interface
@@ -73,129 +93,123 @@ class SecularVpnService : VpnService() {
             .addRoute("0.0.0.0", 0)
             .setBlocking(true)
 
-        // Use custom DNS if provided
-        if (config != null && config.dnsUpstreams.isNotEmpty()) {
+        // DNS
+        if (config.dnsUpstreams.isNotEmpty()) {
             config.dnsUpstreams.forEach { dns ->
                 try {
-                    val addr = java.net.InetAddress.getByName(dns)
-                    builder.addDnsServer(addr)
-                    Log.d(TAG, "Added DNS: $dns")
+                    builder.addDnsServer(java.net.InetAddress.getByName(dns))
                 } catch (e: Exception) {
                     Log.e(TAG, "Invalid DNS: $dns")
                 }
             }
         } else {
-            builder.addDnsServer("9.9.9.9")
+            builder.addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
         }
 
         vpnInterface = builder.establish()
         if (vpnInterface == null) {
             Log.e(TAG, "Failed to establish VPN interface")
+            lastError = "VPN permission denied"
             return
         }
 
         Log.d(TAG, "VPN interface established: fd=${vpnInterface!!.fd}")
 
-        // Connect to remote server if config is available
-        if (config != null) {
-            connectToServer(config)
-        }
+        // Connect to remote server
+        connectToServer(config, address)
     }
 
-    private fun connectToServer(config: ServerConfig) {
-        val address = config.addresses.firstOrNull() ?: run {
-            Log.e(TAG, "No server address available")
-            return
-        }
+    private fun connectToServer(config: ServerConfig, address: String) {
         val host = address.substringBefore(":")
         val port = address.substringAfter(":", "443").toIntOrNull() ?: 443
 
-        Log.d(TAG, "Connecting to server: $host:$port (hostname=${config.hostname})")
+        Log.d(TAG, "Connecting to $host:$port hostname=${config.hostname}")
 
         job = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val socket = Socket()
                 socket.connect(InetSocketAddress(host, port), 15000)
+                socket.tcpNoDelay = true
                 serverSocket = socket
-                Log.d(TAG, "Connected to server: $host:${socket.port}")
+                Log.d(TAG, "TCP connected to $host:${socket.port}")
+                isTunnelUp = true
+                lastError = null
+                bytesDownloaded.set(0)
+                bytesUploaded.set(0)
 
-                // Start bidirectional packet forwarding
-                val vpn = vpnInterface ?: return@launch
+                // Forward packets between VPN interface and server socket
+                val vpn = vpnInterface ?: run {
+                    lastError = "VPN interface lost"
+                    isTunnelUp = false
+                    return@launch
+                }
                 forwardPackets(vpn, socket)
             } catch (e: Exception) {
-                Log.e(TAG, "Server connection error: ${e.message}")
-                // VPN interface is established but no server tunnel — will retry or handle gracefully
-                // Keep VPN interface alive so the system shows "connected"
+                Log.e(TAG, "Server connection failed: ${e.message}")
+                lastError = "Connection failed: ${e.message}"
+                isTunnelUp = false
             }
         }
     }
 
     private suspend fun forwardPackets(vpn: ParcelFileDescriptor, socket: Socket) {
-        Log.d(TAG, "Starting packet forwarding: fd=${vpn.fd} <-> ${socket.inetAddress}:${socket.port}")
+        Log.d(TAG, "Packet forwarding started: fd=${vpn.fd}")
 
         val vpnInput = ParcelFileDescriptor.AutoCloseInputStream(vpn)
         val vpnOutput = ParcelFileDescriptor.AutoCloseOutputStream(vpn)
-        val socketInput: InputStream = socket.getInputStream()
-        val socketOutput: OutputStream = socket.getOutputStream()
+        val sockInput: InputStream = socket.getInputStream()
+        val sockOutput: OutputStream = socket.getOutputStream()
 
-        // Coroutine: VPN -> Server
+        // VPN -> Server (upload)
         val vpnToServer = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val buffer = ByteArray(32767)
                 while (isActive && !socket.isClosed) {
                     val length = vpnInput.read(buffer)
                     if (length > 0) {
-                        socketOutput.write(buffer, 0, length)
-                        socketOutput.flush()
-                        Log.v(TAG, "VPN -> Server: $length bytes")
-                    } else if (length < 0) {
-                        break
-                    }
+                        sockOutput.write(buffer, 0, length)
+                        sockOutput.flush()
+                        bytesUploaded.addAndGet(length.toLong())
+                    } else if (length < 0) break
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "VPN->Server error: ${e.message}")
+                Log.e(TAG, "VPN→Server error: ${e.message}")
             }
         }
 
-        // Coroutine: Server -> VPN
+        // Server -> VPN (download)
         val serverToVpn = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val buffer = ByteArray(32767)
                 while (isActive && !socket.isClosed) {
-                    val length = socketInput.read(buffer)
+                    val length = sockInput.read(buffer)
                     if (length > 0) {
                         vpnOutput.write(buffer, 0, length)
                         vpnOutput.flush()
-                        Log.v(TAG, "Server -> VPN: $length bytes")
-                    } else if (length < 0) {
-                        break
-                    }
+                        bytesDownloaded.addAndGet(length.toLong())
+                    } else if (length < 0) break
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Server->VPN error: ${e.message}")
+                Log.e(TAG, "Server→VPN error: ${e.message}")
             }
         }
 
-        // Wait for either direction to finish
         joinAll(vpnToServer, serverToVpn)
         Log.d(TAG, "Packet forwarding ended")
+        isTunnelUp = false
     }
 
     private fun disconnect() {
         Log.d(TAG, "Disconnecting...")
+        isTunnelUp = false
+        lastError = null
         job?.cancel()
-        try {
-            serverSocket?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error closing server socket: ${e.message}")
-        }
+        try { serverSocket?.close() } catch (_: Exception) {}
         serverSocket = null
-        try {
-            vpnInterface?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error closing interface: ${e.message}")
-        }
+        try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
+        bytesDownloaded.set(0)
+        bytesUploaded.set(0)
     }
 
     override fun onDestroy() {
