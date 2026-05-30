@@ -147,7 +147,7 @@ class ServerListFragment : Fragment() {
         "\uD83C\uDDF9\uD83C\uDDED", // 🇹🇭
         "\uD83C\uDDF3\uD83C\uDDF4", // 🇳🇴
         "\uD83C\uDDFA\uD83C\uDDF8", // 🇺🇸
-        "\uD83C\uDDE8\uu200D\uD83C\uDDE6", // (extra)
+        "\uD83C\uDDE8\u200D\uD83C\uDDE6", // (extra)
     )
 
     private fun flagForServer(serverName: String): String {
