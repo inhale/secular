@@ -1,13 +1,10 @@
 // secular-android/app/src/main/kotlin/com/secular/vpn/TunnelClient.kt
-// TLS + HTTP/2 tunnel client using OkHttp for auth, then raw socket forwarding
+// TLS tunnel client using SSLSocket (SNI + ALPN) + HTTP/1.1 auth fallback
 
 package com.secular.vpn
 
 import android.os.Build
 import kotlinx.coroutines.*
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.InputStream
 import java.io.OutputStream

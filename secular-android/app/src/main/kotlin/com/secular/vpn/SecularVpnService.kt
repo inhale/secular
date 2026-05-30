@@ -1,4 +1,4 @@
-// Android VpnService implementation
+// Android VpnService implementation using TrustTunnel native client
 package com.secular.vpn
 
 import android.app.Notification
@@ -11,12 +11,10 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.adguard.trusttunnel.VpnClient
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
-import java.io.InputStream
-import java.io.OutputStream
-import java.util.concurrent.atomic.AtomicLong
 
 class SecularVpnService : VpnService() {
     companion object {
@@ -32,8 +30,40 @@ class SecularVpnService : VpnService() {
             private set
         @Volatile var isConnecting = false
             private set
-        val bytesDownloaded = AtomicLong(0)
-        val bytesUploaded = AtomicLong(0)
+        val bytesDownloaded = java.util.concurrent.atomic.AtomicLong(0)
+        val bytesUploaded = java.util.concurrent.atomic.AtomicLong(0)
+
+        // Native state codes matching TrustTunnel VpnState enum
+        const val STATE_DISCONNECTED = 0
+        const val STATE_CONNECTING = 1
+        const val STATE_CONNECTED = 2
+        const val STATE_WAITING_RECOVERY = 3
+        const val STATE_RECOVERING = 4
+        const val STATE_WAITING_FOR_NETWORK = 5
+
+        // Reference to the running service instance (for JNI callbacks)
+        @Volatile
+        var instance: SecularVpnService? = null
+
+        // Called from JNI via NativeVpnClient
+        @JvmStatic
+        fun onNativeStateChanged(state: Int) {
+            when (state) {
+                STATE_CONNECTED -> {
+                    isTunnelUp = true
+                    isConnecting = false
+                    lastError = null
+                }
+                STATE_DISCONNECTED -> {
+                    isTunnelUp = false
+                    isConnecting = false
+                }
+                STATE_CONNECTING -> {
+                    isConnecting = true
+                }
+                else -> { /* recovery states */ }
+            }
+        }
 
         // Log buffer for UI
         val logBuffer = mutableListOf<String>()
@@ -49,7 +79,7 @@ class SecularVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var vpnJob: Job? = null
-    private var tunnelClient: TunnelClient? = null
+    private var nativeClient: VpnClient? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private data class ServerConfig(
@@ -65,12 +95,80 @@ class SecularVpnService : VpnService() {
         @SerializedName("skip_verification") val skipVerification: Boolean = false,
         @SerializedName("anti_dpi") val antiDpi: Boolean = false,
         @SerializedName("client_random") val clientRandom: String = ""
-    )
+    ) {
+        /**
+         * Build a TrustTunnel client configuration TOML string.
+         * The native client parses this with toml::parse().
+         *
+         * The config includes:
+         * - [listener.tun] — TUN interface settings (routes, MTU)
+         * - [endpoint] — server connection settings (address, protocol, DNS)
+         */
+        fun toTrustTunnelToml(): String {
+            val host = addresses.firstOrNull()?.substringBefore(":") ?: ""
+            val port = addresses.firstOrNull()?.substringAfter(":", "443") ?: "443"
+            val sni = hostname.ifEmpty { host }
+
+            val sb = StringBuilder()
+
+            // [listener] section — TUN interface config
+            sb.appendLine("[listener]")
+            sb.appendLine("[listener.tun]")
+            // Route all traffic through VPN
+            sb.appendLine("included_routes = [\"0.0.0.0/0\", \"::/0\"]")
+            sb.appendLine("excluded_routes = []")
+            sb.appendLine("mtu_size = 1380")
+
+            // [endpoint] section — server connection
+            sb.appendLine()
+            sb.appendLine("[endpoint]")
+            sb.appendLine("address = \"$host:$port\"")
+            sb.appendLine("sni = \"$sni\"")
+
+            // Protocol
+            when (upstreamProtocol) {
+                "http3" -> sb.appendLine("protocol = \"http3\"")
+                "http2" -> sb.appendLine("protocol = \"http2\"")
+                "http1" -> sb.appendLine("protocol = \"http1\"")
+                else -> sb.appendLine("protocol = \"http2\"")
+            }
+
+            // DNS upstreams
+            val dnsList = if (dnsUpstreams.isNotEmpty()) {
+                dnsUpstreams
+            } else {
+                listOf("9.9.9.9", "149.112.112.112")  // Quad9 defaults
+            }
+            sb.appendLine("dns_upstreams = [${dnsList.joinToString(", ") { "\"$it\"" }}]")
+
+            // Authentication
+            if (username.isNotEmpty()) {
+                sb.appendLine("username = \"$username\"")
+            }
+            if (password.isNotEmpty()) {
+                sb.appendLine("password = \"$password\"")
+            }
+
+            // Anti-DPI
+            sb.appendLine("anti_dpi = $antiDpi")
+
+            // Client random
+            if (clientRandom.isNotEmpty()) {
+                sb.appendLine("client_random = \"$clientRandom\"")
+            }
+
+            // Skip certificate verification
+            sb.appendLine("skip_verification = $skipVerification")
+
+            return sb.toString()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         createNotificationChannel()
-        addLog("Service created")
+        addLog("Service created (native TrustTunnel)")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -115,14 +213,13 @@ class SecularVpnService : VpnService() {
             return
         }
 
-        val address = config.addresses.firstOrNull()
-        if (address.isNullOrEmpty()) {
+        if (config.addresses.isEmpty()) {
             addLog("No address in config")
             lastError = "No server address"
             return
         }
 
-        // Build VPN interface
+        // Build VPN TUN interface
         addLog("Establishing VPN interface...")
         val builder = Builder()
             .setSession("Secular VPN")
@@ -157,15 +254,13 @@ class SecularVpnService : VpnService() {
             addLog("Foreground start failed: ${e.message}")
         }
 
-        connectToServer(config, address)
+        connectToServer(config)
     }
 
-    private fun connectToServer(config: ServerConfig, address: String) {
-        val host = address.substringBefore(":")
-        val port = address.substringAfter(":", "443").toIntOrNull() ?: 443
-        val sni = config.hostname.ifEmpty { host }
-
-        addLog("Connecting to $host:$port (SNI=$sni)")
+    private fun connectToServer(config: ServerConfig) {
+        val host = config.addresses.firstOrNull()?.substringBefore(":") ?: ""
+        val port = config.addresses.firstOrNull()?.substringAfter(":", "443")?.toIntOrNull() ?: 443
+        addLog("Connecting to $host:$port via native TrustTunnel client")
 
         vpnJob = serviceScope.launch {
             try {
@@ -175,41 +270,52 @@ class SecularVpnService : VpnService() {
                 bytesDownloaded.set(0)
                 bytesUploaded.set(0)
 
-                val client = TunnelClient(
-                    serverHost = host,
-                    serverPort = port,
-                    sniHostname = sni,
-                    username = config.username,
-                    password = config.password
+                val tomlConfig = config.toTrustTunnelToml()
+                addLog("TOML config:")
+                tomlConfig.lines().forEach { addLog("  $it") }
+
+                val client = VpnClient(
+                    config = tomlConfig,
+                    listener = object : VpnClient.Listener {
+                        override fun onStateChanged(state: Int) {
+                            addLog("Native state: $state")
+                            onNativeStateChanged(state)
+                            updateNotificationForState(state)
+                        }
+
+                        override fun onConnectionInfo(info: String) {
+                            addLog("Native info: $info")
+                        }
+                    }
                 )
 
-                val connected = client.connect()
-                if (!connected) {
-                    addLog("Tunnel connection failed")
-                    lastError = "Connection failed — check server address and credentials"
-                    isConnecting = false
-                    return@launch
-                }
-
-                tunnelClient = client
-                isTunnelUp = true
-                isConnecting = false
-                updateNotification("Connected to $host")
+                nativeClient = client
 
                 val vpn = vpnInterface
                 if (vpn == null) {
                     addLog("VPN interface null, cancelling")
                     lastError = "VPN interface lost"
                     isTunnelUp = false
+                    isConnecting = false
                     return@launch
                 }
 
-                addLog("Starting packet forwarding: fd=${vpn.fd}")
-                forwardPackets(vpn, client)
+                addLog("Starting native tunnel with tunFd=${vpn.fd}")
+                // This is synchronous — native client runs the full tunnel lifecycle
+                val result = client.start(vpn.fd)
+                addLog("Native tunnel returned: result=$result")
+
+                isTunnelUp = false
+                isConnecting = false
+
+                if (!result && lastError == null) {
+                    lastError = "Tunnel disconnected unexpectedly"
+                }
+
             } catch (e: CancellationException) {
                 addLog("Connection cancelled")
             } catch (e: Exception) {
-                addLog("Server connection failed: ${e.javaClass.simpleName}: ${e.message}")
+                addLog("Native connection failed: ${e.javaClass.simpleName}: ${e.message}")
                 lastError = "Connection failed: ${e.message}"
                 isTunnelUp = false
                 isConnecting = false
@@ -217,60 +323,17 @@ class SecularVpnService : VpnService() {
         }
     }
 
-    private suspend fun forwardPackets(vpn: ParcelFileDescriptor, client: TunnelClient) {
-        val vpnInput = ParcelFileDescriptor.AutoCloseInputStream(vpn)
-        val vpnOutput = ParcelFileDescriptor.AutoCloseOutputStream(vpn)
-        val sockInput = client.getInputStream()
-        val sockOutput = client.getOutputStream()
-
-        if (sockInput == null || sockOutput == null) {
-            addLog("Tunnel streams null, cannot forward")
-            return
+    private fun updateNotificationForState(state: Int) {
+        val text = when (state) {
+            STATE_CONNECTED -> "Secular VPN connected"
+            STATE_CONNECTING -> "Secular VPN connecting..."
+            STATE_DISCONNECTED -> "Secular VPN disconnected"
+            STATE_WAITING_RECOVERY -> "Secular VPN recovering..."
+            STATE_RECOVERING -> "Secular VPN recovering..."
+            STATE_WAITING_FOR_NETWORK -> "Secular VPN waiting for network..."
+            else -> "Secular VPN"
         }
-
-        addLog("Packet forwarding started")
-
-        val vpnToServer = serviceScope.launch(Dispatchers.IO) {
-            try {
-                val buf = ByteArray(32767)
-                while (isActive) {
-                    val len = vpnInput.read(buf)
-                    if (len > 0) {
-                        sockOutput.write(buf, 0, len)
-                        sockOutput.flush()
-                        bytesUploaded.addAndGet(len.toLong())
-                    } else if (len < 0) {
-                        addLog("vpnToServer: EOF (len=$len)")
-                        break
-                    }
-                }
-            } catch (e: Exception) {
-                addLog("vpnToServer error: ${e.javaClass.simpleName}: ${e.message}")
-            }
-        }
-
-        val serverToVpn = serviceScope.launch(Dispatchers.IO) {
-            try {
-                val buf = ByteArray(32767)
-                while (isActive) {
-                    val len = sockInput.read(buf)
-                    if (len > 0) {
-                        vpnOutput.write(buf, 0, len)
-                        vpnOutput.flush()
-                        bytesDownloaded.addAndGet(len.toLong())
-                    } else if (len < 0) {
-                        addLog("serverToVpn: EOF (len=$len)")
-                        break
-                    }
-                }
-            } catch (e: Exception) {
-                addLog("serverToVpn error: ${e.javaClass.simpleName}: ${e.message}")
-            }
-        }
-
-        joinAll(vpnToServer, serverToVpn)
-        addLog("Packet forwarding ended")
-        isTunnelUp = false
+        try { updateNotification(text) } catch (_: Exception) {}
     }
 
     private fun disconnect() {
@@ -280,8 +343,17 @@ class SecularVpnService : VpnService() {
         vpnJob?.cancel()
         vpnJob = null
 
-        tunnelClient?.disconnect()
-        tunnelClient = null
+        try {
+            nativeClient?.stop()
+        } catch (e: Exception) {
+            addLog("nativeClient.stop() error: ${e.message}")
+        }
+        try {
+            nativeClient?.destroy()
+        } catch (e: Exception) {
+            addLog("nativeClient.destroy() error: ${e.message}")
+        }
+        nativeClient = null
 
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
@@ -321,6 +393,7 @@ class SecularVpnService : VpnService() {
 
     override fun onDestroy() {
         addLog("Service destroyed")
+        instance = null
         disconnect()
         serviceScope.cancel()
         super.onDestroy()

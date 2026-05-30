@@ -1,0 +1,3 @@
+[submodule "trusttunnel-client-android"]
+	path = trusttunnel-client-android
+	url = https://github.com/TrustTunnel/TrustTunnelClient.git
