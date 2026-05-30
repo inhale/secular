@@ -159,10 +159,10 @@ object DeepLinkParser {
             if (address.isEmpty()) return null
 
             val usernameBytes = fields[0x05]
-            val username = String(usernameBytes, Charsets.UTF_8).replace("\u0000", "")
+            val username = if (usernameBytes != null) String(usernameBytes, Charsets.UTF_8).replace("\u0000", "") else ""
 
             val passwordBytes = fields[0x06]
-            val password = String(passwordBytes, Charsets.UTF_8).replace("\u0000", "")
+            val password = if (passwordBytes != null) String(passwordBytes, Charsets.UTF_8).replace("\u0000", "") else ""
 
             val certBuilder = StringBuilder()
             for ((tag, bytes) in fields) {
