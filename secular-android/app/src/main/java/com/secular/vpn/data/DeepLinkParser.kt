@@ -67,7 +67,7 @@ object DeepLinkParser {
 
     private fun buildProfileFromFields(fields: Map<String, String>, raw: String): ServerProfile? {
         val hostname = fields["hostname"] ?: fields["endpoint.hostname"] ?: return null
-        val addresses = parseAddresses(fields["addresses"] ?: fields["endpoint.addresses"])
+        val addresses = parseAddresses(fields["addresses"] ?: fields["endpoint.addresses"] ?: "")
         val username = fields["username"] ?: fields["endpoint.username"] ?: ""
         val password = fields["password"] ?: fields["endpoint.password"] ?: ""
         val name = fields["name"] ?: hostname
@@ -82,7 +82,7 @@ object DeepLinkParser {
             ?: fields["endpoint.upstream_protocol"] ?: "http2"
         val antiDpi = parseBoolean(fields["anti_dpi"] ?: fields["endpoint.anti_dpi"], false)
         val dnsUpstreams = parseDnsUpstreams(fields["dns_upstreams"]
-            ?: fields["endpoint.dns_upstreams"])
+            ?: fields["endpoint.dns_upstreams"] ?: "")
 
         return ServerProfile(
             name = name,
