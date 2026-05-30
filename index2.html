@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secular — Icon & Logo Showcase</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0A0A0A; --bg-card: #111111; --bg-card-hover: #1A1A1A;
+    --text: #FFFFFF; --text-dim: #777777;
+    --accent: #00FF66; --accent-red: #D02B57; --accent-white: #FFFFFF;
+    --border: rgba(255,255,255,0.06);
+    --radius: 10px;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; }
+  body { padding: 40px 28px 80px; }
+
+  .header { text-align: center; margin-bottom: 56px; }
+  .header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 6px; }
+  .header .subtitle { font-size: 13px; color: var(--text-dim); }
+  .source-badge { font-size: 11px; color: #555; margin-top: 10px; padding: 5px 14px; background: var(--bg-card); border-radius: 6px; display: inline-block; border: 1px solid var(--border); }
+  .source-badge code { color: var(--accent); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+  .section { margin-bottom: 56px; }
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: rgba(255,255,255,0.12); }
+
+  .preview {
+    margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .preview.white-bg { background: #FFFFFF; }
+  .preview.dark-bg  { background: #0A0A0A; border: 1px solid rgba(255,255,255,0.12); }
+  .preview.gray-bg  { background: #F5F7FA; }
+  .preview img { display: block; image-rendering: -webkit-optimize-contrast; }
+
+  .size-label { font-size: 12px; font-weight: 600; }
+  .dims { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .bytes { font-size: 10px; color: #555; margin-top: 2px; font-family: 'SF Mono', monospace; }
+
+  .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .row .item { text-align: center; }
+  .row .item .title { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+  .row .item .box { border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+
+  .color-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px; border: 1px solid rgba(255,255,255,0.1); }
+
+  .variant-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }
+  .variant-badge.white { background: rgba(255,255,255,0.1); color: #AAA; }
+  .variant-badge.neon  { background: rgba(0,255,102,0.12); color: #00FF66; }
+
+  .footer { text-align: center; margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); }
+  .footer p { font-size: 11px; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Secular — Icon &amp; Logo Showcase</h1>
+  <p class="subtitle">All sizes rendered from the single source SVG via cairosvg</p>
+  <div class="source-badge"><code>/tmp/secular1.svg</code> — viewBox 0 0 236 × 236</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- HERO: Source logo, all 3 color variants    -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Logo Variants — Full Size</div>
+  <div class="row">
+
+    <!-- BLACK (original) -->
+    <div class="item">
+      <div class="title"><span class="color-dot" style="background:#242424;"></span>Black <span class="variant-badge white">#242424</span></div>
+      <div class="box" style="width:180px;height:180px;background:#F5F7FA;border-radius:12px;padding:16px;">
+        <img src="secular-icons/desktop_512.png" width="148" height="148">
+      </div>
+    </div>
+
+    <!-- WHITE -->
+    <div class="item">
+      <div class="title"><span class="color-dot" style="background:#FFFFFF;"></span>White <span class="variant-badge white">#FFFFFF</span></div>
+      <div class="box" style="width:180px;height:180px;background:#0A0A0A;border-radius:12px;padding:16px;">
+        <img src="secular-icons/white_desktop_512x512.png" width="148" height="148">
+      </div>
+      <div style="margin-top:6px;">
+        <div class="box" style="width:84px;height:84px;background:#F5F7FA;border-radius:8px;padding:8px;display:inline-flex;margin-right:6px;">
+          <img src="secular-icons/white_desktop_512x512.png" width="68" height="68">
+        </div>
+        <div class="box" style="width:84px;height:84px;background:#1A1A2E;border-radius:8px;padding:8px;display:inline-flex;">
+          <img src="secular-icons/white_desktop_512x512.png" width="68" height="68">
+        </div>
+      </div>
+      <div style="font-size:10px;color:#666;margin-top:4px;">on brand BG & on navy</div>
+    </div>
+
+    <!-- NEON GREEN -->
+    <div class="item">
+      <div class="title"><span class="color-dot" style="background:#00FF66;"></span>Neon Green <span class="variant-badge neon">#00FF66</span></div>
+      <div class="box" style="width:180px;height:180px;background:#0A0A0A;border-radius:12px;padding:16px;">
+        <img src="secular-icons/neon_desktop_512x512.png" width="148" height="148">
+      </div>
+      <div style="margin-top:6px;">
+        <div class="box" style="width:84px;height:84px;background:#F5F7FA;border-radius:8px;padding:8px;display:inline-flex;margin-right:6px;">
+          <img src="secular-icons/neon_desktop_512x512.png" width="68" height="68">
+        </div>
+        <div class="box" style="width:84px;height:84px;background:#1A1A2E;border-radius:8px;padding:8px;display:inline-flex;">
+          <img src="secular-icons/neon_desktop_512x512.png" width="68" height="68">
+        </div>
+      </div>
+      <div style="font-size:10px;color:#666;margin-top:4px;">on brand BG & on navy</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SIZE COMPARISON: All 3 variants at all sizes -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">All Sizes — Black vs White vs Neon</div>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="color:#666;border-bottom:1px solid var(--border);">
+      <th style="text-align:left;padding:6px 8px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Size</th>
+      <th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Black</th>
+      <th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;">White <span style="color:#555;">(on dark)</span></th>
+      <th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Neon <span style="color:#555;">(on dark)</span></th>
+    </tr>
+  </table>
+
+  <!-- Desktop sizes -->
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Desktop Icons</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:left;padding:6px 8px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Size</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Black</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">White</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Neon</th></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">16×16</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_16x16.png" width="16" height="16" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_16x16.png" width="16" height="16" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_16x16.png" width="16" height="16" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">32×32</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_32x32.png" width="32" height="32" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_32x32.png" width="32" height="32" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_32x32.png" width="32" height="32" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">64×64</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_64x64.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_64x64.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_64x64.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">128×128</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_128x128.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_128x128.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_128x128.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">256×256</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_256x256.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_256x256.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_256x256.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">512×512</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_512x512.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_512x512.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_512x512.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">1024×1024</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/desktop_1024x1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_desktop_1024x1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_desktop_1024x1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr></table>
+    </table>
+  </div>
+
+  <!-- Android sizes -->
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Android Launcher Icons</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:left;padding:6px 8px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Size</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Black</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">White</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Neon</th></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">mdpi (48px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">hdpi (72px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">xhdpi (96px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">xxhdpi (144px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">xxxhdpi (192px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr></table>
+    </table>
+  </div>
+
+  <!-- iOS sizes -->
+  <div>
+    <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">iOS App Icons</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;"><tr><th style="text-align:left;padding:6px 8px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Size</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Black</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">White</th><th style="text-align:center;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;">Neon</th></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">iphone_40 (40px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">iphone_60 (60px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">iphone_80 (80px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">iphone_120 (120px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">iphone_180 (180px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr><tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px 6px 0;color:#999;white-space:nowrap;">ios_1024 (1024px)</td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#FFFFFF;border-radius:6px;">
+          <img src="secular-icons/ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/white_ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td>
+      <td style="text-align:center;padding:4px 6px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);border-radius:6px;">
+          <img src="secular-icons/neon_ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+        </div>
+      </td></tr></table>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ANDROID: All 5 densities, all 3 variants    -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Android Launcher Icons — All Densities × All Variants</div>
+  <div class="grid">
+    
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">mdpi</div>
+      <div class="dims">48×48</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">hdpi</div>
+      <div class="dims">72×72</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">xhdpi</div>
+      <div class="dims">96×96</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">xxhdpi</div>
+      <div class="dims">144×144</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">xxxhdpi</div>
+      <div class="dims">192×192</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">mdpi</div>
+      <div class="dims">48×48</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">hdpi</div>
+      <div class="dims">72×72</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">xhdpi</div>
+      <div class="dims">96×96</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">xxhdpi</div>
+      <div class="dims">144×144</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">xxxhdpi</div>
+      <div class="dims">192×192</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_android_mdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">mdpi</div>
+      <div class="dims">48×48</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_android_hdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">hdpi</div>
+      <div class="dims">72×72</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_android_xhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">xhdpi</div>
+      <div class="dims">96×96</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_android_xxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">xxhdpi</div>
+      <div class="dims">144×144</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_android_xxxhdpi.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">xxxhdpi</div>
+      <div class="dims">192×192</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- iOS: All sizes, all 3 variants             -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">iOS App Icons — All Sizes × All Variants</div>
+  <div class="grid">
+    
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">40px</div>
+      <div class="dims">40×40</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">60px</div>
+      <div class="dims">60×60</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">80px</div>
+      <div class="dims">80×80</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">120px</div>
+      <div class="dims">120×120</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">180px</div>
+      <div class="dims">180×180</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#FFFFFF;">
+        <img src="secular-icons/ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#999;">1024px</div>
+      <div class="dims">1024×1024</div>
+      <div class="bytes" style="color:#999;">black</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">40px</div>
+      <div class="dims">40×40</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">60px</div>
+      <div class="dims">60×60</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">80px</div>
+      <div class="dims">80×80</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">120px</div>
+      <div class="dims">120×120</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">180px</div>
+      <div class="dims">180×180</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/white_ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#AAA;">1024px</div>
+      <div class="dims">1024×1024</div>
+      <div class="bytes" style="color:#AAA;">white</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_iphone_40.png" width="40" height="40" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">40px</div>
+      <div class="dims">40×40</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_iphone_60.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">60px</div>
+      <div class="dims">60×60</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_iphone_80.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">80px</div>
+      <div class="dims">80×80</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_iphone_120.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">120px</div>
+      <div class="dims">120×120</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_iphone_180.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">180px</div>
+      <div class="dims">180×180</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+    <div class="card">
+      <div class="preview" style="width:64px;height:64px;background:#0A0A0A;border:1px solid rgba(255,255,255,0.1);">
+        <img src="secular-icons/neon_ios_ios_1024.png" width="48" height="48" style="image-rendering:-webkit-optimize-contrast;">
+      </div>
+      <div class="size-label" style="color:#00FF66;">1024px</div>
+      <div class="dims">1024×1024</div>
+      <div class="bytes" style="color:#00FF66;">neon</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- In-App Logo comparison                     -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">In-App Logo — Current vs Target</div>
+  <div class="row">
+    <div class="item">
+      <div class="title" style="color:#8A8A8A;">■ Currently shipped (v0.2.12)</div>
+      <div class="box" style="width:132px;height:132px;background:#F5F7FA;padding:12px;">
+        <svg width="108" height="108" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#242424">
+            <path d="M320 446 c-16 -6 -23 -16 -23 -33 0 -14 7 -24 20 -30 12 -6 21 -6 33 0 18 9 24 30 15 47 -8 15 -28 23 -44 17z"/>
+            <path d="M215 438 c-41 -14 -67 -43 -69 -76 -1 -12 0 -16 5 -26 13 -26 38 -41 104 -64 21 -7 44 -16 51 -20 13 -7 27 -21 30 -29 2 -7 1 -6 10 -2 14 7 23 16 30 30 6 11 7 16 7 31 0 21 -6 35 -20 50 -14 14 -30 22 -73 36 -44 15 -54 20 -61 36 -5 11 -5 20 0 31 2 5 4 9 4 9 0 1 -4 0 -18 -4z"/>
+            <path d="M178 282 c-24 -15 -34 -35 -32 -63 1 -20 7 -33 19 -46 12 -12 32 -22 73 -35 50 -16 63 -26 65 -49 1 -10 0 -14 -3 -20 -3 -4 -4 -8 -3 -8 7 0 35 12 45 19 35 24 48 59 34 89 -7 14 -25 31 -44 41 -8 4 -34 14 -57 22 -44 15 -68 26 -76 34 -2 3 -6 8 -8 13 l-4 8 -10 -6z"/>
+            <path d="M176 123 c-23 -11 -26 -40 -7 -57 15 -12 34 -12 49 1 18 16 14 45 -8 56 -12 6 -22 6 -34 0z"/>
+          </g>
+        </svg>
+      </div>
+      <div style="font-size:10px;color:#666;margin-top:6px;">Old bezier curves</div>
+    </div>
+    <div class="item">
+      <div class="title" style="color:#00FF66;">● Target — Black from secular1.svg</div>
+      <div class="box" style="width:132px;height:132px;background:#F5F7FA;padding:12px;">
+        <svg width="108" height="108" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#242424">
+            <path d="M320.4 66.0 c-15.8 5.9 -23.2 16.5 -23.2 33.4 0.0 13.7 6.5 23.6 19.5 30.2 12.1 6.3 20.8 6.3 32.8 -0.0 17.6 -9.3 23.9 -29.5 15.0 -46.9 -7.8 -15.4 -27.6 -22.8 -44.0 -16.7 z"/>
+            <path d="M214.6 74.4 c-41.0 13.9 -66.8 42.5 -68.8 75.9 -0.9 12.4 0.0 16.3 4.8 26.3 12.6 25.6 38.0 41.2 104.1 64.2 21.5 7.4 44.5 16.1 51.2 19.5 13.2 6.7 27.3 20.6 29.5 29.3 1.5 6.5 1.3 6.3 10.2 2.0 13.7 -7.2 23.0 -16.3 29.5 -29.5 5.9 -11.5 6.7 -15.6 6.7 -30.8 0.0 -21.3 -5.6 -35.4 -20.0 -49.7 -14.3 -14.1 -29.5 -21.7 -73.3 -36.0 -44.3 -14.5 -53.8 -20.2 -61.0 -35.8 -5.2 -11.5 -5.2 -20.0 0.2 -30.6 2.4 -4.8 4.3 -8.9 4.3 -9.1 0.0 -1.3 -3.7 -0.4 -17.6 4.3 z"/>
+            <path d="M177.9 229.5 c-23.9 15.2 -33.8 34.9 -32.1 63.1 1.3 20.0 6.7 33.4 18.9 45.6 12.1 12.1 32.1 21.7 73.3 34.7 50.1 15.8 63.3 25.8 65.3 48.8 0.7 9.5 0.0 13.7 -3.5 19.7 -2.6 4.1 -3.7 7.6 -2.8 7.6 6.5 -0.0 35.4 -11.9 45.1 -18.7 34.7 -23.9 48.4 -59.0 34.5 -88.7 -6.5 -14.1 -25.2 -31.2 -43.8 -40.8 -8.2 -4.1 -34.1 -14.1 -57.3 -22.1 -43.6 -15.0 -67.7 -25.8 -75.7 -34.5 -2.4 -2.6 -6.3 -8.5 -8.5 -12.8 l-3.9 -8.0 -9.5 6.1 z"/>
+            <path d="M175.7 388.8 c-22.6 11.5 -25.8 40.4 -6.7 56.6 14.8 12.4 34.3 12.1 49.0 -0.9 18.2 -16.1 14.1 -45.1 -8.0 -56.0 -12.4 -5.9 -22.3 -5.9 -34.3 0.2 z"/>
+          </g>
+        </svg>
+      </div>
+      <div style="font-size:10px;color:#00FF66;margin-top:6px;">secular1.svg · BLACK paths</div>
+    </div>
+    <div class="item">
+      <div class="title" style="color:#00FF66;">● Target — White from secular1.svg</div>
+      <div class="box" style="width:132px;height:132px;background:#0A0A0A;padding:12px;">
+        <svg width="108" height="108" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#FFFFFF">
+            <path d="M320.4 66.0 c-15.8 5.9 -23.2 16.5 -23.2 33.4 0.0 13.7 6.5 23.6 19.5 30.2 12.1 6.3 20.8 6.3 32.8 -0.0 17.6 -9.3 23.9 -29.5 15.0 -46.9 -7.8 -15.4 -27.6 -22.8 -44.0 -16.7 z"/>
+            <path d="M214.6 74.4 c-41.0 13.9 -66.8 42.5 -68.8 75.9 -0.9 12.4 0.0 16.3 4.8 26.3 12.6 25.6 38.0 41.2 104.1 64.2 21.5 7.4 44.5 16.1 51.2 19.5 13.2 6.7 27.3 20.6 29.5 29.3 1.5 6.5 1.3 6.3 10.2 2.0 13.7 -7.2 23.0 -16.3 29.5 -29.5 5.9 -11.5 6.7 -15.6 6.7 -30.8 0.0 -21.3 -5.6 -35.4 -20.0 -49.7 -14.3 -14.1 -29.5 -21.7 -73.3 -36.0 -44.3 -14.5 -53.8 -20.2 -61.0 -35.8 -5.2 -11.5 -5.2 -20.0 0.2 -30.6 2.4 -4.8 4.3 -8.9 4.3 -9.1 0.0 -1.3 -3.7 -0.4 -17.6 4.3 z"/>
+            <path d="M177.9 229.5 c-23.9 15.2 -33.8 34.9 -32.1 63.1 1.3 20.0 6.7 33.4 18.9 45.6 12.1 12.1 32.1 21.7 73.3 34.7 50.1 15.8 63.3 25.8 65.3 48.8 0.7 9.5 0.0 13.7 -3.5 19.7 -2.6 4.1 -3.7 7.6 -2.8 7.6 6.5 -0.0 35.4 -11.9 45.1 -18.7 34.7 -23.9 48.4 -59.0 34.5 -88.7 -6.5 -14.1 -25.2 -31.2 -43.8 -40.8 -8.2 -4.1 -34.1 -14.1 -57.3 -22.1 -43.6 -15.0 -67.7 -25.8 -75.7 -34.5 -2.4 -2.6 -6.3 -8.5 -8.5 -12.8 l-3.9 -8.0 -9.5 6.1 z"/>
+            <path d="M175.7 388.8 c-22.6 11.5 -25.8 40.4 -6.7 56.6 14.8 12.4 34.3 12.1 49.0 -0.9 18.2 -16.1 14.1 -45.1 -8.0 -56.0 -12.4 -5.9 -22.3 -5.9 -34.3 0.2 z"/>
+          </g>
+        </svg>
+      </div>
+      <div style="font-size:10px;color:#00FF66;margin-top:6px;">secular1.svg · WHITE paths</div>
+    </div>
+    <div class="item">
+      <div class="title" style="color:#00FF66;">● Target — Neon (#00FF66) from secular1.svg</div>
+      <div class="box" style="width:132px;height:132px;background:#0A0A0A;padding:12px;">
+        <svg width="108" height="108" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#00FF66">
+            <path d="M320.4 66.0 c-15.8 5.9 -23.2 16.5 -23.2 33.4 0.0 13.7 6.5 23.6 19.5 30.2 12.1 6.3 20.8 6.3 32.8 -0.0 17.6 -9.3 23.9 -29.5 15.0 -46.9 -7.8 -15.4 -27.6 -22.8 -44.0 -16.7 z"/>
+            <path d="M214.6 74.4 c-41.0 13.9 -66.8 42.5 -68.8 75.9 -0.9 12.4 0.0 16.3 4.8 26.3 12.6 25.6 38.0 41.2 104.1 64.2 21.5 7.4 44.5 16.1 51.2 19.5 13.2 6.7 27.3 20.6 29.5 29.3 1.5 6.5 1.3 6.3 10.2 2.0 13.7 -7.2 23.0 -16.3 29.5 -29.5 5.9 -11.5 6.7 -15.6 6.7 -30.8 0.0 -21.3 -5.6 -35.4 -20.0 -49.7 -14.3 -14.1 -29.5 -21.7 -73.3 -36.0 -44.3 -14.5 -53.8 -20.2 -61.0 -35.8 -5.2 -11.5 -5.2 -20.0 0.2 -30.6 2.4 -4.8 4.3 -8.9 4.3 -9.1 0.0 -1.3 -3.7 -0.4 -17.6 4.3 z"/>
+            <path d="M177.9 229.5 c-23.9 15.2 -33.8 34.9 -32.1 63.1 1.3 20.0 6.7 33.4 18.9 45.6 12.1 12.1 32.1 21.7 73.3 34.7 50.1 15.8 63.3 25.8 65.3 48.8 0.7 9.5 0.0 13.7 -3.5 19.7 -2.6 4.1 -3.7 7.6 -2.8 7.6 6.5 -0.0 35.4 -11.9 45.1 -18.7 34.7 -23.9 48.4 -59.0 34.5 -88.7 -6.5 -14.1 -25.2 -31.2 -43.8 -40.8 -8.2 -4.1 -34.1 -14.1 -57.3 -22.1 -43.6 -15.0 -67.7 -25.8 -75.7 -34.5 -2.4 -2.6 -6.3 -8.5 -8.5 -12.8 l-3.9 -8.0 -9.5 6.1 z"/>
+            <path d="M175.7 388.8 c-22.6 11.5 -25.8 40.4 -6.7 56.6 14.8 12.4 34.3 12.1 49.0 -0.9 18.2 -16.1 14.1 -45.1 -8.0 -56.0 -12.4 -5.9 -22.3 -5.9 -34.3 0.2 z"/>
+          </g>
+        </svg>
+      </div>
+      <div style="font-size:10px;color:#00FF66;margin-top:6px;">secular1.svg · NEON paths</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Rendered via <code>cairosvg.svg2png()</code> from <code>/tmp/secular1.svg</code> · 3 color variants × 18 sizes each = 54 PNGs + ICNS</p>
+  <p style="margin-top:4px;color:#444;">Black=#242424 White=#FFFFFF Neon=#00FF66 · All on transparent background</p>
+</div>
+
+</body>
+</html>

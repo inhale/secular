@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Screen 1 — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #121212;
+    --surface: #1E1E1E;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --text: #FFFFFF;
+    --text-dim: #8A8A8A;
+    --accent: #00FF66;
+    --accent-glow: rgba(0,255,102,0.25);
+    --red: #FF4D4D;
+    --radius: 14px;
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    max-width: 390px;
+    height: 844px;
+    margin: 0 auto;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+
+  /* Status Bar */
+  .status-zone {
+    padding: 48px 24px 0;
+    text-align: center;
+  }
+  .status-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    transition: color 0.4s;
+  }
+  .status-label.connected { color: var(--accent); }
+
+  .metrics {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: opacity 0.4s;
+  }
+  .metrics .val {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .metrics .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+  }
+
+  /* Connect Button */
+  .connect-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .connect-btn {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 4px solid var(--text-dim);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: border-color 0.5s, box-shadow 0.5s;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .connect-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+
+  .connect-btn::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background 0.6s, box-shadow 0.6s;
+  }
+
+  .connect-btn::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: transparent;
+    transition: all 0.8s;
+  }
+
+  .connect-btn.connected { border-color: var(--accent); }
+  .connect-btn.connected::before {
+    background: var(--accent-glow);
+    box-shadow: 0 0 40px 10px var(--accent-glow), 0 0 80px 20px rgba(0,255,102,0.08);
+  }
+  .connect-btn.connected::after {
+    border-color: transparent;
+    border-top-color: var(--accent);
+    border-right-color: rgba(0,255,102,0.4);
+    animation: ring-spin 3s linear infinite;
+  }
+
+  @keyframes ring-spin { to { transform: rotate(360deg); } }
+
+  .logo-in-circle {
+    width: 80px; height: 80px;
+    object-fit: contain;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.5s ease;
+  }
+  .logo-dim {
+    opacity: 1;
+  }
+  .logo-bright {
+    opacity: 0;
+  }
+  .connect-btn.connected .logo-dim {
+    opacity: 0;
+  }
+  .connect-btn.connected .logo-bright {
+    opacity: 1;
+    animation: pulse-icon 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-icon {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.08); }
+  }
+
+  .connect-btn:active { transform: scale(0.97); transition: transform 0.1s; }
+
+  /* Server Card */
+  .server-card {
+    margin: 0 24px 16px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+  }
+  .server-card .row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .server-card .server-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .server-card .country {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .ping-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .ping-dot.good { background: var(--accent); }
+  .server-card .row2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+  }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 32px 36px;
+    position: relative;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px 0;
+    color: var(--text-dim);
+    transition: color 0.2s;
+  }
+  .nav-btn:active, .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 26px; height: 26px; }
+
+  .nav-btn.home .home-circle {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #121212;
+    margin-top: -12px;
+    box-shadow: 0 4px 24px rgba(0,255,102,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .nav-btn.home:active .home-circle {
+    transform: scale(0.93);
+    box-shadow: 0 2px 12px rgba(0,255,102,0.25);
+  }
+
+  .nav-btn.add .add-circle {
+    width: 40px; height: 40px;
+    border: 2px solid var(--text-dim);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    transition: transform 0.15s;
+  }
+  .nav-btn.add:active .add-circle {
+    transform: scale(0.93);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .page-label {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+  }
+
+  @media (min-width: 600px) {
+    body { margin: 24px auto; border-radius: 32px; border: 2px solid var(--border); box-shadow: 0 0 60px rgba(0,0,0,0.8); }
+    html { background: #0A0A0A; display: flex; min-height: 100vh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="status-zone">
+  <div class="status-label" id="statusLabel">Disconnected</div>
+</div>
+
+<div class="metrics" id="metrics" style="opacity:0.35;">
+  <div>
+    <span class="val" id="sessionTime">00:00:00</span>
+    <span class="label">Session</span>
+  </div>
+  <div>
+    <span class="val" id="dlSpeed">— MB</span>
+    <span class="label">Download</span>
+  </div>
+  <div>
+    <span class="val" id="ulSpeed">— MB</span>
+    <span class="label">Upload</span>
+  </div>
+</div>
+
+<div class="connect-area">
+  <button class="connect-btn" id="connectBtn" aria-label="Toggle VPN connection">
+    <img class="logo-in-circle logo-dim" src="/assets/secular1-white.svg" alt="">
+    <img class="logo-in-circle logo-bright" src="/assets/secular1-green.svg" alt="">
+  </button>
+</div>
+
+<div class="server-card" id="serverCard" onclick="window.location.href='screen2.html'">
+  <div class="row1">
+    <span class="server-name">Frankfurt #1</span>
+    <div class="country">
+      <span class="ping-dot good" id="pingDot"></span>
+      <span>🇩🇪</span>
+    </div>
+  </div>
+  <div class="row2">TrustTunnel · 185.103.24.4:443</div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn" onclick="window.location.href='screen2.html'" aria-label="Server list">
+    <svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
+      <rect x="16" y="2" width="8" height="8" rx="1.5"/>
+      <rect x="2" y="16" width="8" height="8" rx="1.5"/>
+      <rect x="16" y="16" width="8" height="8" rx="1.5"/>
+    </svg>
+  </button>
+  <button class="nav-btn home" onclick="window.location.href='screen1.html'" aria-label="Home">
+    <div class="home-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+        <path d="M3 9.5l9-7 9 7"/>
+        <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
+      </svg>
+    </div>
+  </button>
+  <button class="nav-btn add" onclick="window.location.href='screen4.html'" aria-label="Add server">
+    <div class="add-circle">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20">
+        <line x1="10" y1="4" x2="10" y2="16"/>
+        <line x1="4" y1="10" x2="16" y2="10"/>
+      </svg>
+    </div>
+  </button>
+</nav>
+
+<div class="page-label">Screen 1 · Dashboard</div>
+
+<script>
+  const btn = document.getElementById('connectBtn');
+  const statusLabel = document.getElementById('statusLabel');
+  const metrics = document.getElementById('metrics');
+  const pingDot = document.getElementById('pingDot');
+  let connected = false;
+  let timerInterval = null;
+  let seconds = 0;
+
+  function formatTime(s) {
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    return `${h}:${m}:${sec}`;
+  }
+
+  btn.addEventListener('click', () => {
+    connected = !connected;
+    btn.classList.toggle('connected', connected);
+    statusLabel.textContent = connected ? 'Connected' : 'Disconnected';
+    statusLabel.classList.toggle('connected', connected);
+    if (connected) {
+      metrics.style.opacity = '1';
+      pingDot.classList.add('good');
+      seconds = 0;
+      document.getElementById('dlSpeed').textContent = '0 MB';
+      document.getElementById('ulSpeed').textContent = '0 MB';
+      timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('sessionTime').textContent = formatTime(seconds);
+        document.getElementById('dlSpeed').textContent = (Math.random()*2.4+0.8).toFixed(1)+' MB';
+        document.getElementById('ulSpeed').textContent = (Math.random()*0.8+0.2).toFixed(1)+' MB';
+      }, 1000);
+    } else {
+      metrics.style.opacity = '0.35';
+      pingDot.classList.remove('good');
+      clearInterval(timerInterval);
+      document.getElementById('sessionTime').textContent = '00:00:00';
+      document.getElementById('dlSpeed').textContent = '— MB';
+      document.getElementById('ulSpeed').textContent = '— MB';
+    }
+  });
+</script>
+</body>
+</html>
