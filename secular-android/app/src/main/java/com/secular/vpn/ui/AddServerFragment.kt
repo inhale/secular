@@ -118,7 +118,7 @@ class AddServerFragment : Fragment() {
                     inputStream.close()
                     if (profile != null) {
                         repository.addServer(profile)
-                        findNavController().navigate(R.id.action_addServer_to_dashboard)
+                        findNavController().popBackStack()
                     } else {
                         Toast.makeText(requireContext(), "Invalid TOML config", Toast.LENGTH_LONG).show()
                     }

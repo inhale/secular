@@ -124,7 +124,7 @@ object DeepLinkParser {
     // ── Format 2: TrustTunnel binary TLV ──
     private fun parseTlv(qs: String): ServerProfile? {
         return try {
-            val padded = qs + "=".repeat((-len(qs) % 4) if len(qs) % 4 else 0)
+            val padded = qs + "=".repeat((-qs.length % 4).let { if (it == 0) 0 else it })
             val data = Base64.decode(padded, Base64.DEFAULT)
             if (data.size < 4) return null
 
