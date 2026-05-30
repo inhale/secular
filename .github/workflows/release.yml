@@ -207,4 +207,5 @@ jobs:
             artifacts/secular-linux/**/*.AppImage
             artifacts/secular-linux/**/*.deb
           generate_release_notes: true
+          draft: true
           prerelease: true
