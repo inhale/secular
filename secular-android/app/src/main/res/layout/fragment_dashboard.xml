@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- secular-android/app/src/main/res/layout/fragment_dashboard.xml -->
+<!-- Dashboard Screen -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -13,7 +12,7 @@
     <!-- Status Bar spacer -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="48dp" />
+        android:layout_height="40dp" />
 
     <!-- Status Label -->
     <TextView
@@ -25,7 +24,7 @@
         android:textStyle="bold"
         android:letterSpacing="0.02"
         android:textColor="@color/text_dim"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="8dp" />
 
     <!-- Metrics Row -->
     <LinearLayout
@@ -112,17 +111,16 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Spacer to push connect button to center -->
+    <!-- Spacer to push connect button to vertical center -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Connect Button Area -->
+    <!-- Connect Button: large circle with thin gray border -->
     <FrameLayout
         android:layout_width="180dp"
         android:layout_height="180dp"
-        android:layout_gravity="center"
         android:layout_marginBottom="24dp">
 
         <!-- Spinning ring (connected state) -->
@@ -133,7 +131,7 @@
             android:background="@drawable/connect_ring"
             android:visibility="invisible" />
 
-        <!-- Main button -->
+        <!-- Main button circle: thin gray border, dark fill, white logo -->
         <ImageButton
             android:id="@+id/connect_btn"
             android:layout_width="match_parent"
@@ -146,7 +144,7 @@
             android:stateListAnimator="@null" />
     </FrameLayout>
 
-    <!-- Spacer -->
+    <!-- Spacer between connect button and server card -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -157,66 +155,77 @@
         android:id="@+id/server_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
+        android:layout_marginHorizontal="20dp"
         android:layout_marginBottom="16dp"
         android:background="@drawable/server_card_bg"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
         android:focusable="true"
         android:foreground="?attr/selectableItemBackground">
 
+        <!-- Text block -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/server_card_name"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
-                android:text="Frankfurt #1" />
-
-            <View
-                android:id="@+id/ping_dot"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:background="@drawable/ping_dot_bg"
-                android:layout_marginEnd="4dp" />
+                tools:text="Frankfurt #1" />
 
             <TextView
+                android:id="@+id/server_card_meta"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🇩🇪"
-                android:textSize="16sp" />
+                android:layout_marginTop="4dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_dim"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.02"
+                tools:text="TrustTunnel · 185.103.24.4:443" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/server_card_meta"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="TrustTunnel · 185.103.24.4:443"
-            android:textSize="12sp"
-            android:textColor="@color/text_dim"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.02" />
+        <!-- Ping dot -->
+        <View
+            android:id="@+id/ping_dot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/ping_dot_bg"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Flag circle -->
+        <FrameLayout
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/flag_circle_bg">
+
+            <TextView
+                android:id="@+id/flag_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textSize="16sp"
+                tools:text="🇩🇪"
+                tools:ignore="HardcodedText" />
+        </FrameLayout>
     </LinearLayout>
 
-    <!-- Bottom Nav -->
+    <!-- Bottom Nav: 3 buttons with center green circle home -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
+        android:gravity="bottom"
         android:paddingHorizontal="32dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="44dp">
+        android:paddingBottom="36dp">
 
         <!-- Grid / Server List button -->
         <ImageButton
@@ -230,17 +239,25 @@
             android:tint="@color/text_dim"
             android:contentDescription="Server list" />
 
-        <!-- Home button -->
-        <ImageButton
-            android:id="@+id/nav_home"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_home"
-            android:scaleType="centerInside"
-            android:tint="@color/accent"
-            android:contentDescription="Home" />
+        <!-- Home button — green circle 56dp -->
+        <FrameLayout
+            android:id="@+id/nav_home_btn"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginBottom="-8dp"
+            android:layout_marginHorizontal="16dp"
+            android:background="@drawable/nav_home_circle"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_home"
+                android:tint="@color/bg" />
+        </FrameLayout>
 
         <!-- Add Server button -->
         <ImageButton
@@ -249,22 +266,10 @@
             android:layout_height="44dp"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_add"
+            android:src="@drawable/ic_add_circle_outline"
             android:scaleType="centerInside"
             android:tint="@color/text_dim"
             android:contentDescription="Add server" />
-
-        <!-- Log button -->
-        <ImageButton
-            android:id="@+id/nav_log"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_log"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="Log" />
     </LinearLayout>
 
 </LinearLayout>

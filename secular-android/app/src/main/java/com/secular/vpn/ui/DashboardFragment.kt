@@ -70,12 +70,9 @@ class DashboardFragment : Fragment() {
         view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_serverList)
         }
-        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener { /* already home */ }
+        view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener { /* already home */ }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_addServer)
-        }
-        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
-            findNavController().navigate(R.id.action_dashboard_to_log)
         }
 
         loadSelectedServer(view)

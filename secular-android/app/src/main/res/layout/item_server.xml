@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Server list item layout -->
+<!-- Server list item: horizontal card with flag, name, ping, gear -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingVertical="14dp"
-    android:paddingHorizontal="8dp"
+    android:paddingVertical="10dp"
+    android:paddingHorizontal="12dp"
+    android:layout_marginBottom="4dp"
     android:background="@drawable/server_item_bg"
     android:clickable="true"
     android:focusable="true">
 
     <!-- Flag circle -->
     <FrameLayout
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:layout_marginEnd="14dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="12dp"
         android:background="@drawable/flag_circle_bg">
 
         <TextView
@@ -24,8 +25,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:textSize="20sp"
-            android:text="🇩🇪"
+            android:textSize="16sp"
+            tools:text="🇩🇪"
             tools:ignore="HardcodedText" />
     </FrameLayout>
 
@@ -34,8 +35,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:minWidth="0dp">
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/server_name"
@@ -52,35 +52,34 @@
             android:id="@+id/server_meta"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:textSize="11sp"
+            android:layout_marginTop="2dp"
+            android:textSize="12sp"
             android:textColor="@color/text_dim"
             android:fontFamily="monospace"
             android:letterSpacing="0.02"
             tools:text="TrustTunnel · 185.103.24.4:443" />
     </LinearLayout>
 
-    <!-- Ping -->
+    <!-- Ping indicator -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginEnd="12dp"
-        android:minWidth="50dp">
+        android:layout_marginEnd="8dp">
 
         <View
             android:id="@+id/ping_dot"
             android:layout_width="7dp"
             android:layout_height="7dp"
             android:background="@drawable/ping_dot_bg"
-            android:layout_marginEnd="5dp" />
+            android:layout_marginEnd="4dp" />
 
         <TextView
             android:id="@+id/ping_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textColor="@color/text_dim"
             android:fontFamily="monospace"
             tools:text="24ms" />
@@ -89,12 +88,12 @@
     <!-- Gear icon -->
     <ImageButton
         android:id="@+id/gear_btn"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_gear"
         android:scaleType="centerInside"
-        android:padding="8dp"
+        android:padding="6dp"
         android:contentDescription="Edit server" />
 
 </LinearLayout>

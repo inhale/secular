@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- secular-android/app/src/main/res/layout/fragment_server_list.xml -->
+<!-- Server List Screen -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -12,7 +12,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="24dp"
+        android:paddingHorizontal="20dp"
         android:paddingTop="48dp"
         android:paddingBottom="16dp"
         android:text="My Servers"
@@ -21,7 +21,7 @@
         android:textColor="@color/text_primary"
         android:fontFamily="sans-serif-medium" />
 
-    <!-- Empty state (shown when no servers) -->
+    <!-- Empty state -->
     <LinearLayout
         android:id="@+id/empty_state"
         android:layout_width="match_parent"
@@ -29,7 +29,8 @@
         android:layout_weight="1"
         android:gravity="center"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:paddingHorizontal="20dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -45,7 +46,9 @@
             android:layout_height="wrap_content"
             android:text="Add your first server"
             android:textColor="@color/bg"
+            android:textStyle="bold"
             app:backgroundTint="@color/accent"
+            app:cornerRadius="12dp"
             xmlns:app="http://schemas.android.com/apk/res-auto" />
     </LinearLayout>
 
@@ -59,16 +62,16 @@
         android:clipToPadding="false"
         android:scrollbars="none" />
 
-    <!-- Bottom Nav -->
+    <!-- Bottom Nav: same 3-button layout -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
+        android:gravity="bottom"
         android:paddingHorizontal="32dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="44dp">
+        android:paddingBottom="36dp">
 
+        <!-- Grid / Server List button — highlighted (current screen) -->
         <ImageButton
             android:id="@+id/nav_servers"
             android:layout_width="0dp"
@@ -80,40 +83,37 @@
             android:tint="@color/accent"
             android:contentDescription="Server list" />
 
-        <!-- Home button -->
-        <ImageButton
-            android:id="@+id/nav_home"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_home"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="Home" />
+        <!-- Home button — green circle 56dp -->
+        <FrameLayout
+            android:id="@+id/nav_home_btn"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginBottom="-8dp"
+            android:layout_marginHorizontal="16dp"
+            android:background="@drawable/nav_home_circle"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
 
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_home"
+                android:tint="@color/bg" />
+        </FrameLayout>
+
+        <!-- Add Server button -->
         <ImageButton
             android:id="@+id/nav_add"
             android:layout_width="0dp"
             android:layout_height="44dp"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_add"
+            android:src="@drawable/ic_add_circle_outline"
             android:scaleType="centerInside"
             android:tint="@color/text_dim"
             android:contentDescription="Add server" />
-
-        <!-- Log button -->
-        <ImageButton
-            android:id="@+id/nav_log"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_log"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="Log" />
     </LinearLayout>
 
 </LinearLayout>

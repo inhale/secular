@@ -79,11 +79,8 @@ class AddServerFragment : Fragment() {
         view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
         }
-        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
+        view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
-        }
-        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
-            try { findNavController().navigate(R.id.action_addServer_to_log) } catch (_: Exception) {}
         }
     }
 

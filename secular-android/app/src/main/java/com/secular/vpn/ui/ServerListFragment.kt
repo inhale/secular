@@ -60,14 +60,11 @@ class ServerListFragment : Fragment() {
         }
 
         // Bottom nav
-        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
+        view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
         }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
-        }
-        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
-            try { findNavController().navigate(R.id.action_serverList_to_log) } catch (_: Exception) {}
         }
 
         loadServers()
@@ -138,7 +135,7 @@ class ServerListFragment : Fragment() {
 
                 // Selected state
                 if (position == selectedIndex) {
-                    holder.container.setBackgroundColor(resources.getColor(R.color.accent_selected_bg, null))
+                    holder.container.setBackgroundResource(R.drawable.server_item_selected_bg)
                 } else {
                     holder.container.setBackgroundResource(R.drawable.server_item_bg)
                 }
