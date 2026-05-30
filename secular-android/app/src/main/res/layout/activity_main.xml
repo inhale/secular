@@ -9,14 +9,12 @@
     android:padding="32dp">
 
     <!-- Logo area -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <ImageView
+        android:layout_width="96dp"
+        android:layout_height="96dp"
         android:layout_marginBottom="48dp"
-        android:text="§"
-        android:textColor="#242424"
-        android:textSize="72sp"
-        android:textStyle="bold" />
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="Secular logo" />
 
     <!-- Status -->
     <TextView
