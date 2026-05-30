@@ -139,7 +139,7 @@ class VPNManager: ObservableObject {
         return Color(hex: "d02b57")
     }
 
-    private let manager = NETunnelProviderManager()
+    private var manager = NETunnelProviderManager()
 
     private init() {
         loadVPNConfiguration()
