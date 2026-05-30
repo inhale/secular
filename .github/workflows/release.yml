@@ -45,6 +45,9 @@ jobs:
             BUNDLE_MACOS="target/aarch64-apple-darwin/release/bundle/macos"
           fi
           if [ -n "$BUNDLE_MACOS" ]; then
+            echo "=== Ad-hoc code signing ==="
+            codesign --sign - --force --deep "$BUNDLE_MACOS/Secular.app" 2>&1
+            codesign --verify --deep "$BUNDLE_MACOS/Secular.app" 2>&1
             cd "$BUNDLE_MACOS"
             zip -rv ../../../secular-macos-aarch64.zip *.app
             cp ../../../secular-macos-aarch64.zip /Users/runner/work/secular/secular/secular-macos-aarch64.zip
