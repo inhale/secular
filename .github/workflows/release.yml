@@ -86,9 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: secular-windows
-          path: |
-            secular-desktop/src-tauri/target/release/bundle/nsis/*.exe
-            secular-desktop/src-tauri/target/release/secular-desktop.exe
+          path: secular-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
           retention-days: 30
 
   build-linux:
@@ -277,11 +275,11 @@ jobs:
             [ -f "$f" ] && cp "$f" "./secular-windows-x64-setup.exe" && echo "Renamed: $f → secular-windows-x64-setup.exe"
           done
           # Linux AppImage
-          for f in "$ART"/secular-linux/*.AppImage; do
+          for f in "$ART"/secular-linux/**/*.AppImage; do
             [ -f "$f" ] && cp "$f" "./secular-linux-x64.AppImage" && echo "Renamed: $f → secular-linux-x64.AppImage"
           done
           # Linux .deb
-          for f in "$ART"/secular-linux/*.deb; do
+          for f in "$ART"/secular-linux/**/*.deb; do
             [ -f "$f" ] && cp "$f" "./secular-linux-x64.deb" && echo "Renamed: $f → secular-linux-x64.deb"
           done
           # Android
