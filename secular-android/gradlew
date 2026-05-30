@@ -33,10 +33,13 @@ if [ -n "$JAVA_HOME" ] ; then
         die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
     fi
 else
-    JAVACMD=command -v java >/dev/null 2>&1 && echo "$(command -v java)" || die "ERROR: JAVA_HOME is not set"
+    JAVACMD=$(command -v java 2>/dev/null)
+    if [ -z "$JAVACMD" ] || [ ! -x "$JAVACMD" ]; then
+        die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH."
+    fi
 fi
 
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 

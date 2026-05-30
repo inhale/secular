@@ -142,8 +142,16 @@ jobs:
       - name: Build Debug APK
         working-directory: ./secular-android
         run: |
+          echo "=== JAVA_HOME: $JAVA_HOME ==="
+          java -version 2>&1
+          echo "=== gradlew first 5 lines ==="
+          head -5 gradlew
+          echo "=== DEFAULT_JVM_OPTS line ==="
+          grep DEFAULT_JVM_OPTS gradlew
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon 2>&1
+          echo "=== Running gradlew assembleDebug ==="
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+          echo "=== Gradlew exit code: $? ==="
       - name: Find and copy APK
         run: |
           find secular-android -name "*.apk" 2>/dev/null | while read apk; do
@@ -171,7 +179,7 @@ jobs:
       - name: Write project.yml
         run: |
           cd secular-ios
-          echo 'b3B0aW9uczoKICBidW5kbGVJZFByZWZpeDogY29tLnNlY3VsYXIKdGFyZ2V0czoKICBTZWN1bGFyOgogICAgdHlwZTogYXBwbGljYXRpb24KICAgIHBsYXRmb3JtOiBpT1MKICAgIGRlcGxveW1lbnRUYXJnZXQ6IDE2LjAKICAgIHNvdXJjZXM6CiAgICAgIC0gU2VjdWxhcgogICAgc2V0dGluZ3M6CiAgICAgIGJhc2U6CiAgICAgICAgUFJPRFVDVF9CVU5ETEVfSURFTlRJRklFUjogY29tLnNlY3VsYXIudnBuCiAgICAgICAgSU5GT1BMSVNUX0ZJTEU6IFNlY3VsYXIvSW5mby5wbGlzdAogICAgICAgIENPREVfU0lHTl9JREVOVElUWTogJycKICAgICAgICBDT0RFX1NJR05JTkdfUkVRVUlSRUQ6ICdOTycKICAgICAgICBDT0RFX1NJR05JTkdfQUxMT1dFRDogJ05PJwogICAgICAgIERFVkVMT1BNRU5UX1RFQU06ICcnCg==' | base64 -d > project.yml
+          echo 'bmFtZTogU2VjdWxhcgpvcHRpb25zOgogIGJ1bmRsZUlkUHJlZml4OiBjb20uc2VjdWxhcgp0YXJnZXRzOgogIFNlY3VsYXI6CiAgICB0eXBlOiBhcHBsaWNhdGlvbgogICAgcGxhdGZvcm06IGlPUwogICAgZGVwbG95bWVudFRhcmdldDogMTYuMAogICAgc291cmNlczoKICAgICAgLSBTZWN1bGFyCiAgICBzZXR0aW5nczoKICAgICAgYmFzZToKICAgICAgICBQUk9EVUNUX0JVTkRMRV9JREVOVElGSUVSOiBjb20uc2VjdWxhci52cG4KICAgICAgICBJTkZPUExJU1RfRklMRTogU2VjdWxhci9JbmZvLnBsaXN0CiAgICAgICAgQ09ERV9TSUdOX0lERU5USVRZOiAiIgogICAgICAgIENPREVfU0lHTklOR19SRVFVSVJFRDogIk5PIgogICAgICAgIENPREVfU0lHTklOR19BTExPV0VEOiAiTk8iCiAgICAgICAgREVWRUxPUE1FTlRfVEVBTTogIiIK' | base64 -d > project.yml
           cat project.yml
 
       - name: Install xcodegen
@@ -182,7 +190,10 @@ jobs:
           cd secular-ios
           if command -v xcodegen &>/dev/null; then
             xcodegen generate
+            echo "=== Generated files ==="
             ls -la *.xcodeproj 2>/dev/null && echo "OK: xcodeproj generated" || echo "FAIL: no xcodeproj"
+            echo "=== Project targets ==="
+            xcodebuild -project Secular.xcodeproj -list 2>&1 | head -20
           else
             echo "xcodegen not available"
           fi
@@ -195,8 +206,8 @@ jobs:
               -project Secular.xcodeproj \
               -scheme Secular \
               -configuration Release \
-              -sdk iphoneos \
-              -destination 'generic/platform=iOS' \
+              -sdk iphonesimulator \
+              -destination 'platform=iOS Simulator,name=iPhone 15' \
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO \
@@ -209,14 +220,26 @@ jobs:
       - name: Package iOS
         run: |
           APP=""
-          if [ -d ~/Library/Developer/Xcode/DerivedData ]; then
-            APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Secular.app" -type d 2>/dev/null | head -1)
-          fi
+          # Search both simulator and device build outputs
+          for SEARCH in \
+            ~/Library/Developer/Xcode/DerivedData \
+            ~/Library/Developer/Xcode/Archives; do
+            if [ -d "$SEARCH" ]; then
+              FOUND=$(find "$SEARCH" -name "Secular.app" -type d 2>/dev/null | head -1)
+              if [ -n "$FOUND" ]; then
+                APP="$FOUND"
+                break
+              fi
+            fi
+          done
           if [ -n "$APP" ] && [ -d "$APP" ]; then
+            echo "Found .app at: $APP"
             cd "$(dirname "$APP")"
             zip -ry /Users/runner/work/secular/secular/secular-ios.zip Secular.app
             ls -la /Users/runner/work/secular/secular/secular-ios.zip
           else
+            echo "=== DerivedData contents ==="
+            find ~/Library/Developer/Xcode/DerivedData -maxdepth 3 -type d 2>/dev/null | head -20
             echo "No .app bundle found — iOS build may need Apple Developer signing"
           fi
 
@@ -237,15 +260,45 @@ jobs:
         with:
           path: ./artifacts
       - run: find ./artifacts -type f | sort
+      - name: Rename artifacts for clarity
+        run: |
+          set -e
+          ART=./artifacts
+          ls -laR "$ART"
+          # macOS
+          for f in "$ART"/secular-macos/*.zip; do
+            [ -f "$f" ] && cp "$f" "./secular-macos-aarch64.zip" && echo "Renamed: $f → secular-macos-aarch64.zip"
+          done
+          # Windows
+          for f in "$ART"/secular-windows/*.exe; do
+            [ -f "$f" ] && cp "$f" "./secular-windows-x64-setup.exe" && echo "Renamed: $f → secular-windows-x64-setup.exe"
+          done
+          # Linux AppImage
+          for f in "$ART"/secular-linux/*.AppImage; do
+            [ -f "$f" ] && cp "$f" "./secular-linux-x64.AppImage" && echo "Renamed: $f → secular-linux-x64.AppImage"
+          done
+          # Linux .deb
+          for f in "$ART"/secular-linux/*.deb; do
+            [ -f "$f" ] && cp "$f" "./secular-linux-x64.deb" && echo "Renamed: $f → secular-linux-x64.deb"
+          done
+          # Android
+          for f in "$ART"/secular-android/*.apk; do
+            [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Renamed: $f → secular-android-debug.apk"
+          done
+          # iOS
+          for f in "$ART"/secular-ios/*.zip; do
+            [ -f "$f" ] && cp "$f" "./secular-ios-simulator.zip" && echo "Renamed: $f → secular-ios-simulator.zip"
+          done
+          ls -la ./
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/secular-macos/**/*.zip
-            artifacts/secular-windows/**/*.exe
-            artifacts/secular-linux/**/*.AppImage
-            artifacts/secular-linux/**/*.deb
-            artifacts/secular-android/**/*.apk
-            artifacts/secular-ios/**/*.zip
+            secular-macos-aarch64.zip
+            secular-windows-x64-setup.exe
+            secular-linux-x64.AppImage
+            secular-linux-x64.deb
+            secular-android-debug.apk
+            secular-ios-simulator.zip
           generate_release_notes: true
-          draft: true
-          prerelease: true
+          draft: false
+          prerelease: false
