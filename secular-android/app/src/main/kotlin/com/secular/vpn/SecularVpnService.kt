@@ -16,8 +16,6 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.util.concurrent.atomic.AtomicLong
 
 class SecularVpnService : VpnService() {
@@ -51,7 +49,7 @@ class SecularVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var vpnJob: Job? = null
-    private var serverSocket: Socket? = null
+    private var tunnelClient: TunnelClient? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private data class ServerConfig(
@@ -97,7 +95,6 @@ class SecularVpnService : VpnService() {
     private fun connect(serverJson: String?) {
         addLog("connect() called, serverJson=${serverJson != null}")
 
-        // Parse server config
         val config = try {
             if (serverJson != null) {
                 Gson().fromJson(serverJson, ServerConfig::class.java).also {
@@ -132,7 +129,6 @@ class SecularVpnService : VpnService() {
             .setMtu(1380)
             .addAddress("10.0.0.2", 32)
             .addRoute("0.0.0.0", 0)
-            .addRoute("::", 0)
             .addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
             .setBlocking(true)
 
@@ -143,8 +139,6 @@ class SecularVpnService : VpnService() {
                     addLog("Added DNS: $dns")
                 } catch (e: Exception) { addLog("Bad DNS: $dns") }
             }
-        } else {
-            builder.addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
         }
 
         vpnInterface = builder.establish()
@@ -156,7 +150,6 @@ class SecularVpnService : VpnService() {
 
         addLog("VPN interface established: fd=${vpnInterface!!.fd}")
 
-        // Start as foreground service so Android doesn't kill us
         try {
             startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
             addLog("Foreground notification started")
@@ -164,15 +157,15 @@ class SecularVpnService : VpnService() {
             addLog("Foreground start failed: ${e.message}")
         }
 
-        // Connect to remote server
         connectToServer(config, address)
     }
 
     private fun connectToServer(config: ServerConfig, address: String) {
         val host = address.substringBefore(":")
         val port = address.substringAfter(":", "443").toIntOrNull() ?: 443
+        val sni = config.hostname.ifEmpty { host }
 
-        addLog("Connecting TCP to $host:$port")
+        addLog("Connecting to $host:$port (SNI=$sni)")
 
         vpnJob = serviceScope.launch {
             try {
@@ -182,32 +175,23 @@ class SecularVpnService : VpnService() {
                 bytesDownloaded.set(0)
                 bytesUploaded.set(0)
 
-                val socket = Socket()
-                addLog("Opening socket to $host:$port with 15s timeout...")
-                withContext(Dispatchers.IO) {
-                    socket.connect(InetSocketAddress(host, port), 15000)
-                }
-                socket.tcpNoDelay = true
-                serverSocket = socket
-                addLog("TCP connected: remote=${socket.inetAddress}:${socket.port}")
-
-                // Send HTTP/2 connection preface immediately
-                // TrustTunnel expects HTTP/2 like gRPC servers
-                val h2Preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-                val settingsFrame = byteArrayOf(
-                    0x00, 0x00, 0x00,  // length: 0
-                    0x04,              // type: SETTINGS (4)
-                    0x00,              // flags: none
-                    0x00, 0x00, 0x00, 0x00  // stream ID: 0
+                val client = TunnelClient(
+                    serverHost = host,
+                    serverPort = port,
+                    sniHostname = sni,
+                    username = config.username,
+                    password = config.password
                 )
-                addLog("Sending HTTP/2 connection preface...")
-                withContext(Dispatchers.IO) {
-                    socket.getOutputStream().write(h2Preface.toByteArray(Charsets.US_ASCII))
-                    socket.getOutputStream().write(settingsFrame)
-                    socket.getOutputStream().flush()
-                }
-                addLog("HTTP/2 preface sent")
 
+                val connected = client.connect()
+                if (!connected) {
+                    addLog("Tunnel connection failed")
+                    lastError = "Connection failed — check server address and credentials"
+                    isConnecting = false
+                    return@launch
+                }
+
+                tunnelClient = client
                 isTunnelUp = true
                 isConnecting = false
                 updateNotification("Connected to $host")
@@ -221,10 +205,9 @@ class SecularVpnService : VpnService() {
                 }
 
                 addLog("Starting packet forwarding: fd=${vpn.fd}")
-                forwardPackets(vpn, socket)
+                forwardPackets(vpn, client)
             } catch (e: CancellationException) {
                 addLog("Connection cancelled")
-                // normal on disconnect
             } catch (e: Exception) {
                 addLog("Server connection failed: ${e.javaClass.simpleName}: ${e.message}")
                 lastError = "Connection failed: ${e.message}"
@@ -234,17 +217,23 @@ class SecularVpnService : VpnService() {
         }
     }
 
-    private suspend fun forwardPackets(vpn: ParcelFileDescriptor, socket: Socket) {
+    private suspend fun forwardPackets(vpn: ParcelFileDescriptor, client: TunnelClient) {
         val vpnInput = ParcelFileDescriptor.AutoCloseInputStream(vpn)
         val vpnOutput = ParcelFileDescriptor.AutoCloseOutputStream(vpn)
-        val sockInput: InputStream = socket.getInputStream()
-        val sockOutput: OutputStream = socket.getOutputStream()
+        val sockInput = client.getInputStream()
+        val sockOutput = client.getOutputStream()
+
+        if (sockInput == null || sockOutput == null) {
+            addLog("Tunnel streams null, cannot forward")
+            return
+        }
+
         addLog("Packet forwarding started")
 
         val vpnToServer = serviceScope.launch(Dispatchers.IO) {
             try {
                 val buf = ByteArray(32767)
-                while (isActive && !socket.isClosed) {
+                while (isActive) {
                     val len = vpnInput.read(buf)
                     if (len > 0) {
                         sockOutput.write(buf, 0, len)
@@ -263,7 +252,7 @@ class SecularVpnService : VpnService() {
         val serverToVpn = serviceScope.launch(Dispatchers.IO) {
             try {
                 val buf = ByteArray(32767)
-                while (isActive && !socket.isClosed) {
+                while (isActive) {
                     val len = sockInput.read(buf)
                     if (len > 0) {
                         vpnOutput.write(buf, 0, len)
@@ -291,8 +280,8 @@ class SecularVpnService : VpnService() {
         vpnJob?.cancel()
         vpnJob = null
 
-        try { serverSocket?.close() } catch (_: Exception) {}
-        serverSocket = null
+        tunnelClient?.disconnect()
+        tunnelClient = null
 
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
@@ -304,7 +293,6 @@ class SecularVpnService : VpnService() {
         stopSelf()
     }
 
-    // ── Notifications ──
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
@@ -320,7 +308,7 @@ class SecularVpnService : VpnService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Secular VPN")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_lock_lock) // use any available icon; TODO: proper icon
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(pi)
             .setOngoing(true)
             .build()

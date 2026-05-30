@@ -134,18 +134,7 @@ class AddServerFragment : Fragment() {
     }
 
     private fun navigateToServerListWithServer(serverIndex: Int) {
-        // Add the server index + name as arguments so ServerListFragment auto-selects it
-        val bundle = Bundle().apply {
-            putInt("serverIndex", serverIndex)
-            putBoolean("selectNewServer", true)
-        }
-        // Navigate to server list (not popBackStack — go there fresh)
-        findNavController().popBackStack(R.id.addServerFragment, true)  // remove add from stack
-        try {
-            findNavController().navigate(R.id.action_dashboard_to_serverList, bundle)
-        } catch (_: Exception) {
-            // Fallback: just pop back
-            findNavController().popBackStack()
-        }
+        // Just pop back — the server list will read selection from SharedPreferences
+        findNavController().popBackStack()
     }
 }
