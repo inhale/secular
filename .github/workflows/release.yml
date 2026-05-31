@@ -15,17 +15,11 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Pin NDK version matching TrustTunnelClient's build.gradle.kts
-  NDK_VERSION: "28.1.13356709"
-
 jobs:
 
-  # ── Stage 1: Build TrustTunnel native library ──────────────
   build-native:
     uses: ./.github/workflows/build-native-lib.yml
 
-  # ── Stage 2: Build Android APK ─────────────────────────────
   build-android:
     needs: build-native
     runs-on: ubuntu-latest
@@ -62,9 +56,6 @@ jobs:
             fi
           done
 
-          echo "=== jniLibs ==="
-          find ../secular-android/app/src/main/jniLibs -type f -exec ls -lh {} \;
-
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -74,18 +65,16 @@ jobs:
       - name: Build Debug APK
         working-directory: ./secular-android
         run: |
-          echo "=== JAVA_HOME: $JAVA_HOME ==="
           java -version 2>&1
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -50
 
-      - name: Find and copy APK
+      - name: Copy APK to workspace root
         run: |
           find secular-android -name "*.apk" 2>/dev/null | while read apk; do
             echo "APK: $apk ($(stat -c%s "$apk") bytes)"
             cp "$apk" /home/runner/work/secular/secular/
           done
-          ls -la /home/runner/work/secular/secular/*.apk 2>/dev/null || echo "No APKs in workspace root"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -96,7 +85,6 @@ jobs:
             ./*.apk
           retention-days: 30
 
-  # ── Stage 3: Create GitHub Release ─────────────────────────
   release:
     needs: build-android
     runs-on: ubuntu-latest
@@ -108,15 +96,12 @@ jobs:
       - run: find ./artifacts -type f | sort
       - name: Rename APK artifact
         run: |
-          set -e
           for f in ./artifacts/secular-android/*.apk; do
-            [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Renamed: $f → secular-android-debug.apk"
+            [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Copied: $f"
           done
-          ls -la ./*.apk 2>/dev/null
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            secular-android-debug.apk
+          files: secular-android-debug.apk
           generate_release_notes: true
           draft: false
           prerelease: false
