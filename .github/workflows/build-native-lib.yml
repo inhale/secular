@@ -1,0 +1,124 @@
+# .github/workflows/build-native-lib.yml
+# Builds TrustTunnel native Android library (libtrusttunnel_android.so) from source.
+# All Conan dependencies are bootstrapped from public AdGuard repos (no credentials needed).
+# Artifact: trusttunnel-native-lib.zip containing .so files for all 4 ABIs.
+
+name: Build Native Library
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-native:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build cmake
+          pip3 install conan
+          cmake --version
+          conan --version
+          ninja --version
+
+      - name: Set up Android SDK + NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager --install "ndk;28.1.13356709" 2>&1 | tail -3
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_SDK_ROOT/ndk/28.1.13356709/ 2>/dev/null || \
+            ls -la $ANDROID_HOME/ndk/28.1.13356709/ 2>/dev/null || \
+            echo "NDK dir not found"
+
+      - name: Clone TrustTunnelClient
+        run: |
+          git clone --depth 1 https://github.com/TrustTunnel/TrustTunnelClient.git tt-client
+          echo "TrustTunnelClient: $(cd tt-client && git rev-parse HEAD)"
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/
+          key: conan2-${{ runner.os }}-${{ hashFiles('tt-client/conanfile.py') }}
+          restore-keys: conan2-${{ runner.os }}-
+
+      - name: Bootstrap Conan dependencies
+        working-directory: tt-client
+        timeout-minutes: 30
+        run: |
+          # This clones DnsLibs + NativeLibsCommon (both public repos)
+          # and exports all @adguard/oss packages to local Conan cache
+          python3 scripts/bootstrap_conan_deps.py 2>&1 | tail -20
+          echo "=== Conan packages ==="
+          ls ~/.conan2/p/ 2>/dev/null | head -30
+
+      - name: Build native library (AAR)
+        working-directory: tt-client/platform/android
+        run: |
+          # Find NDK — could be under ANDROID_SDK_ROOT or ANDROID_HOME
+          if [ -d "$ANDROID_SDK_ROOT/ndk/28.1.13356709" ]; then
+            NDK_DIR="$ANDROID_SDK_ROOT/ndk/28.1.13356709"
+          elif [ -d "$ANDROID_HOME/ndk/28.1.13356709" ]; then
+            NDK_DIR="$ANDROID_HOME/ndk/28.1.13356709"
+          else
+            NDK_DIR=$(find /usr/local/lib/android -name "28.1.13356709" -type d 2>/dev/null | head -1)
+          fi
+
+          if [ -z "$NDK_DIR" ]; then
+            echo "ERROR: NDK 28.1.13356709 not found"
+            find / -name "ndk-build" 2>/dev/null | head -5
+            exit 1
+          fi
+
+          echo "NDK: $NDK_DIR"
+          echo "cmake.dir=$(dirname $(dirname $(which cmake)))" > local.properties
+          echo "ndk.dir=$NDK_DIR" >> local.properties
+          cat local.properties
+
+          chmod +x gradlew
+          ./gradlew :lib:assembleRelease --no-daemon 2>&1 | tail -40
+
+          echo "=== Build outputs ==="
+          find lib/build -type f \( -name "*.aar" -o -name "*.so" \) 2>/dev/null
+
+      - name: Extract .so files from AAR
+        working-directory: tt-client/platform/android
+        run: |
+          AAR=$(find lib/build/outputs -name "*.aar" | head -1)
+          if [ -z "$AAR" ]; then
+            AAR=$(find lib/build -name "*.aar" | head -1)
+          fi
+          if [ -z "$AAR" ]; then
+            echo "ERROR: No AAR found"
+            find lib/build -type f | head -20
+            exit 1
+          fi
+
+          echo "AAR: $AAR ($(stat -c%s "$AAR") bytes)"
+
+          rm -rf /tmp/native-libs && mkdir -p /tmp/native-libs
+          cd /tmp/native-libs
+          unzip -o "$AAR"
+
+          echo "=== Extracted ==="
+          find . -name "*.so" -type f | while read f; do
+            echo "  $f ($(stat -c%s "$f") bytes)"
+          done
+
+          # Package all .so files into a zip for the next job
+          zip -j /tmp/trusttunnel-native-lib.zip $(find . -name "*.so" -type f)
+          ls -la /tmp/trusttunnel-native-lib.zip
+
+      - name: Upload native lib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trusttunnel-native-lib
+          path: /tmp/trusttunnel-native-lib.zip
+          retention-days: 30

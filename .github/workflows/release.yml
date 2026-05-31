@@ -1,5 +1,5 @@
 # .github/workflows/release.yml
-# Secular CI/CD — builds TrustTunnel native lib from source + Android APK on tag push
+# Secular CI/CD — builds Android on tag push with TrustTunnel native library
 
 name: Release
 
@@ -15,162 +15,22 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pin NDK version matching TrustTunnelClient's build.gradle.kts
+  NDK_VERSION: "28.1.13356709"
+
 jobs:
 
-  # =============================================================================
-  # Stage 1: Build TrustTunnel native AAR from source
-  # =============================================================================
-  build-native-lib:
-    name: Build TrustTunnel native AAR
-    runs-on: ubuntu-latest
-    outputs:
-      cache-key: ${{ steps.cache-key.outputs.value }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+  # ── Stage 1: Build TrustTunnel native library ──────────────
+  build-native:
+    uses: ./.github/workflows/build-native-lib.yml
 
-      - name: Cache TrustTunnel native build
-        id: cache-tt-native
-        uses: actions/cache@v4
-        with:
-          path: |
-            trusttunnel-client-android/platform/android/lib/build
-          key: tt-native-${{ hashFiles('trusttunnel-client-android/conanfile.py') }}-${{ hashFiles('trusttunnel-android-adapter/profiles/*.jinja') }}
-
-      - name: Set up Python
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install build tools
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q ninja-build bzip2
-          # Install CMake 3.28+
-          CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v3.28.6/cmake-3.28.6-linux-x86_64.sh"
-          wget -q "$CMAKE_URL" -O cmake-install.sh
-          chmod +x cmake-install.sh
-          sudo ./cmake-install.sh --prefix=/usr/local --skip-license
-          cmake --version
-          # Install Conan 2.x
-          pip install "conan>=2.12,<3"
-          conan --version
-          # Install Go (needed for trusttunnel_client binary, not for android lib but safe)
-          GO_URL="https://go.dev/dl/go1.22.5.linux-amd64.tar.gz"
-          wget -q "$GO_URL" | sudo tar -C /usr/local -xz
-          echo "/usr/local/go/bin" >> $GITHUB_PATH
-
-      - name: Set up Android NDK
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK 28.1.13356709
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        run: |
-          yes | sdkmanager --install "ndk;28.1.13356709"
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/28.1.13356709" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.1.13356709" >> $GITHUB_ENV
-          echo "NDK: $ANDROID_HOME/ndk/28.1.13356709"
-          ls "$ANDROID_HOME/ndk/28.1.13356709"
-
-      - name: Bootstrap Conan dependencies
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        working-directory: ./trusttunnel-client-android
-        run: |
-          python3 -m pip install -r scripts/requirements.txt
-          python3 scripts/bootstrap_conan_deps.py
-
-      - name: Download conan_provider.cmake
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        working-directory: ./trusttunnel-client-android
-        run: |
-          mkdir -p cmake
-          curl -sL "https://github.com/AdguardTeam/NativeLibsCommon/releases/latest/download/conanfiles.tar.gz" | tar -xz -C .
-
-      - name: Build native Android library (assembleRelease)
-        if: steps.cache-tt-native.outputs.cache-hit != 'true'
-        working-directory: ./trusttunnel-client-android/platform/android
-        env:
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
-        run: |
-          # Set cmake.dir for the Gradle build
-          echo "cmake.dir=$(dirname $(dirname $(which cmake)))" > local.properties
-          echo "--- local.properties ---"
-          cat local.properties
-          echo "--- Starting Gradle build ---"
-          chmod +x gradlew
-          ./gradlew :lib:assembleRelease --no-daemon --stacktrace 2>&1
-
-      - name: Show AAR contents
-        working-directory: ./trusttunnel-client-android/platform/android/lib/build/outputs/aar
-        run: |
-          echo "=== AAR files ==="
-          ls -la *.aar 2>/dev/null || echo "NO AAR PRODUCED"
-          for aar in *.aar; do
-            echo "=== $aar ==="
-            unzip -l "$aar" | grep -E "(jni/|lib/|\.so)" || true
-          done
-
-      - name: Upload native AAR artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trusttunnel-native-aar
-          path: trusttunnel-client-android/platform/android/lib/build/outputs/aar/*.aar
-          retention-days: 30
-          if-no-files-found: error
-
-  # =============================================================================
-  # Stage 2: Build Android APK with native library
-  # =============================================================================
+  # ── Stage 2: Build Android APK ─────────────────────────────
   build-android:
-    needs: [build-native-lib]
+    needs: build-native
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download native AAR
-        uses: actions/download-artifact@v4
-        with:
-          name: trusttunnel-native-aar
-          path: ./native-aar
-
-      - name: Show downloaded AAR
-        run: |
-          ls -la ./native-aar/
-          for f in ./native-aar/*.aar; do
-            echo "=== $f ==="
-            unzip -l "$f"
-          done
-
-      - name: Extract .so files from AAR
-        run: |
-          mkdir -p secular-android/app/src/main/jniLibs/arm64-v8a
-          mkdir -p secular-android/app/src/main/jniLibs/armeabi-v7a
-          mkdir -p secular-android/app/src/main/jniLibs/x86_64
-          mkdir -p secular-android/app/src/main/jniLibs/x86
-
-          for aar in ./native-aar/*.aar; do
-            echo "Extracting from $aar"
-            # List JNI contents
-            unzip -l "$aar" | grep "jni/" || true
-
-            # Extract all .so files preserving ABI directory structure
-            unzip -o "$aar" "jni/*" -d ./tmp_aar_extract 2>/dev/null
-            if [ -d ./tmp_aar_extract/jni ]; then
-              for abi_dir in ./tmp_aar_extract/jni/*; do
-                abi=$(basename "$abi_dir")
-                echo "  ABI: $abi -> jniLibs/$abi/"
-                cp -v "$abi_dir"/*.so "secular-android/app/src/main/jniLibs/$abi/" 2>/dev/null
-              done
-              rm -rf ./tmp_aar_extract
-            fi
-          done
-
-          echo "=== Extracted native libs ==="
-          find secular-android/app/src/main/jniLibs -name "*.so" -exec ls -la {} \;
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -178,8 +38,32 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Download native lib artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trusttunnel-native-lib
+          path: ./native-libs
+
+      - name: Extract .so files into jniLibs
+        run: |
+          cd native-libs
+          unzip -o trusttunnel-native-lib.zip -d ./extracted
+
+          mkdir -p ../secular-android/app/src/main/jniLibs
+
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            SRC="extracted/jni/$abi/libtrusttunnel_android.so"
+            if [ -f "$SRC" ]; then
+              mkdir -p "../secular-android/app/src/main/jniLibs/$abi"
+              cp "$SRC" "../secular-android/app/src/main/jniLibs/$abi/"
+              echo "✓ Installed libtrusttunnel_android.so for $abi ($(stat -c%s "$SRC") bytes)"
+            else
+              echo "✗ Missing libtrusttunnel_android.so for $abi"
+            fi
+          done
+
+          echo "=== jniLibs ==="
+          find ../secular-android/app/src/main/jniLibs -type f -exec ls -lh {} \;
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -193,25 +77,15 @@ jobs:
           echo "=== JAVA_HOME: $JAVA_HOME ==="
           java -version 2>&1
           chmod +x gradlew
-          echo "=== Native libs in jniLibs ==="
-          find app/src/main/jniLibs -name "*.so" 2>/dev/null || echo "No .so files"
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
-
-      - name: Show APK contents (verify .so inclusion)
-        run: |
-          APK=$(find secular-android -name "*.apk" | head -1)
-          if [ -n "$APK" ]; then
-            echo "APK: $APK"
-            unzip -l "$APK" | grep "lib/" | head -20
-          fi
 
       - name: Find and copy APK
         run: |
           find secular-android -name "*.apk" 2>/dev/null | while read apk; do
             echo "APK: $apk ($(stat -c%s "$apk") bytes)"
-            cp "$apk" .
+            cp "$apk" /home/runner/work/secular/secular/
           done
-          ls -la *.apk 2>/dev/null || echo "No APKs"
+          ls -la /home/runner/work/secular/secular/*.apk 2>/dev/null || echo "No APKs in workspace root"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -222,11 +96,9 @@ jobs:
             ./*.apk
           retention-days: 30
 
-  # =============================================================================
-  # Stage 3: Create GitHub Release
-  # =============================================================================
+  # ── Stage 3: Create GitHub Release ─────────────────────────
   release:
-    needs: [build-android]
+    needs: build-android
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -234,19 +106,14 @@ jobs:
         with:
           path: ./artifacts
       - run: find ./artifacts -type f | sort
-      - name: Find APK and rename
+      - name: Rename APK artifact
         run: |
           set -e
           for f in ./artifacts/secular-android/*.apk; do
-            if [ -f "$f" ]; then
-              cp "$f" "./secular-android-debug.apk"
-              echo "Renamed: $f → secular-android-debug.apk"
-              break
-            fi
+            [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Renamed: $f → secular-android-debug.apk"
           done
           ls -la ./*.apk 2>/dev/null
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: |
             secular-android-debug.apk
