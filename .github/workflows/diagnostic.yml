@@ -1,0 +1,21 @@
+name: Diagnostic
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "=== Android SDK ==="
+          ls -la /usr/local/lib/android/sdk/ 2>/dev/null || echo "No SDK dir"
+          echo "=== NDK versions ==="
+          ls -la /usr/local/lib/android/sdk/ndk/ 2>/dev/null || echo "No NDK dir"
+          echo "=== Env ==="
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "=== CMake ==="
+          which cmake 2>/dev/null && cmake --version | head -1 || echo "cmake not found"
+          echo "=== sdkmanager ==="
+          which sdkmanager 2>/dev/null || echo "sdkmanager not found"
+          echo "=== Installed packages ==="
+          sdkmanager --list_installed 2>&1 | head -30 || true
