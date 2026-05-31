@@ -264,6 +264,19 @@ class DashboardFragment : Fragment() {
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.5f
     }
 
+    private fun updateUiConnected(v: View) {
+        v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
+        v.findViewById<TextView>(R.id.status_label)?.setTextColor(
+            resources.getColor(R.color.accent, null)
+        )
+        v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
+        v.findViewById<ImageButton>(R.id.connect_btn)
+            ?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+        v.findViewById<View>(R.id.connect_ring)?.visibility = View.VISIBLE
+        v.findViewById<View>(R.id.ping_dot)
+            ?.setBackgroundResource(R.drawable.ping_dot_excellent)
+    }
+
     private fun updateUiDisconnected(v: View) {
         v.findViewById<TextView>(R.id.status_label)?.text = "Disconnected"
         v.findViewById<TextView>(R.id.status_label)?.setTextColor(
@@ -324,10 +337,16 @@ class DashboardFragment : Fragment() {
         super.onResume()
         view?.let { loadSelectedServer(it) }
         // Sync connection state with actual service state
-        if (!SecularVpnService.isTunnelUp && !SecularVpnService.isConnecting && isConnected) {
-            // Service was disconnected (e.g., process death, DISCONNECT race)
-            isConnected = false
-            view?.let { updateUiDisconnected(it) }
+        view?.let {
+            if (SecularVpnService.isTunnelUp) {
+                if (!isConnected) isConnected = true
+                updateUiConnected(it)
+            } else if (SecularVpnService.isConnecting) {
+                updateUiConnecting()
+            } else {
+                if (isConnected) isConnected = false
+                updateUiDisconnected(it)
+            }
         }
     }
 

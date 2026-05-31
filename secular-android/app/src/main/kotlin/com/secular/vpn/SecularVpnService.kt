@@ -72,7 +72,8 @@ class SecularVpnService : VpnService() {
         // Called from VpnClient.onConnectionInfo JNI callback
         @JvmStatic
         fun onNativeConnectionInfo(info: String) {
-            Log.d(TAG, "onNativeConnectionInfo: $info")
+            // Verbose per-connection logging — use Log.d only, don't spam addLog buffer
+            // Log.d(TAG, "onNativeConnectionInfo: $info")
         }
 
         // Log buffer for LogFragment UI
@@ -367,7 +368,7 @@ class SecularVpnService : VpnService() {
                             }
                         }
                         override fun onConnectionInfo(info: String) {
-                            addLog("Native info: $info")
+                            // addLog("Native info: $info")  // verbose per-packet, disabled
                         }
                     })
                 } catch (e: Throwable) {
