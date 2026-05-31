@@ -181,7 +181,7 @@ class ServerListFragment : Fragment() {
 
         fun updateList(newServers: List<ServerProfile>, newSelected: Int) {
             servers.clear()
-            servers.addAll(newServers)
+            servers.addAll(ArrayList(newServers))  // copy to avoid aliasing bug
             selectedIndex = newSelected
             notifyDataSetChanged()
         }

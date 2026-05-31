@@ -402,11 +402,16 @@ class SecularVpnService : VpnService() {
                     return@launch
                 }
 
-                addLog("Starting tunnel with fd=${vpn.fd}")
+                // Detach fd from ParcelFileDescriptor so Java doesn't close it.
+                // Native code takes ownership of the fd and will close it when done.
+                val detachedFd = vpn.detachFd()
+                addLog("Starting tunnel with detached fd=$detachedFd")
                 val startResult = try {
-                    client.start(vpn.fd)
+                    client.start(detachedFd)
                 } catch (e: Throwable) {
                     addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
+                    // If start throws, we still own the fd — close it to avoid leak
+                    try { android.system.Os.close(detachedFd) } catch (_: Exception) {}
                     false
                 }
                 addLog("startNative returned: $startResult")
@@ -417,6 +422,8 @@ class SecularVpnService : VpnService() {
                     isConnecting = false
                     client.destroy()
                     nativeClient = null
+                    // startNative returned false — it didn't take the fd, close it
+                    try { android.system.Os.close(detachedFd) } catch (_: Exception) {}
                     return@launch
                 }
 
@@ -479,7 +486,8 @@ class SecularVpnService : VpnService() {
         try { nativeClient?.destroy() } catch (_: Exception) {}
         nativeClient = null
 
-        try { vpnInterface?.close() } catch (_: Exception) {}
+        // Don't close vpnInterface — fd was already detached and given to native.
+        // Closing the detached PFD is a no-op for the fd, but skip it anyway.
         vpnInterface = null
 
         try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
