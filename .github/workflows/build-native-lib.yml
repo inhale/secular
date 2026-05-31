@@ -32,7 +32,9 @@ jobs:
           echo "=== .so files ==="
           find /tmp/tt-extract -name "*.so" -type f -exec ls -lh {} \;
 
-          zip -j /tmp/trusttunnel-native-lib.zip $(find /tmp/tt-extract -name "*.so" -type f)
+          # Create zip preserving jni/ABI/ directory structure
+          cd /tmp/tt-extract
+          zip -r /tmp/trusttunnel-native-lib.zip jni/
           ls -la /tmp/trusttunnel-native-lib.zip
 
       - name: Upload native lib artifact
