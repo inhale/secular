@@ -60,14 +60,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.gradle/caches
-          key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('secular-android/**/*.kt', 'secular-android/**/*.xml', 'secular-android/**/*.kts') }}
 
       - name: Build Debug APK
         working-directory: ./secular-android
         run: |
           java -version 2>&1
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon 2>&1
+          ./gradlew assembleDebug --no-daemon --no-build-cache --rerun-tasks 2>&1
 
       - name: Copy APK to workspace root
         run: |
