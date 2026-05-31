@@ -180,8 +180,9 @@ class ServerListFragment : Fragment() {
         override fun getItemCount() = servers.size
 
         fun updateList(newServers: List<ServerProfile>, newSelected: Int) {
+            val copy = ArrayList(newServers)  // always copy to avoid aliasing
             servers.clear()
-            servers.addAll(ArrayList(newServers))  // copy to avoid aliasing bug
+            servers.addAll(copy)
             selectedIndex = newSelected
             notifyDataSetChanged()
         }
