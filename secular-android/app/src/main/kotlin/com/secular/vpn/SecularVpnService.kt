@@ -257,14 +257,14 @@ class SecularVpnService : VpnService() {
 
         if (config.addresses.isEmpty()) {
             lastError = "No server address"
-            return@launch
+            return
         }
 
         if (config.username.isEmpty() || config.password.isEmpty()) {
             lastError = "Server '${config.name}' has no username or password. Edit the server and add credentials."
             addLog("connectToServer: $lastError")
             isConnecting = false
-            return@launch
+            return
         }
 
         // Build VPN TUN interface

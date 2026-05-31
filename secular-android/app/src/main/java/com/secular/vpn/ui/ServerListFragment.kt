@@ -118,7 +118,6 @@ class ServerListFragment : Fragment() {
                 val rv = view?.findViewById<RecyclerView>(R.id.server_list)
                 emptyState?.visibility = View.GONE
                 rv?.visibility = View.VISIBLE
-                }
                 SecularVpnService.addLog("ServerList: loadServers() DONE — showing ${servers.size} servers")
             } catch (e: Throwable) {
                 SecularVpnService.addLog("ServerList: loadServers ERROR: ${e.javaClass.simpleName}: ${e.message}")
