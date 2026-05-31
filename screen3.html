@@ -57,6 +57,47 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .file-upload .file-name.has-file { color: var(--text); }
+  .password-wrap {
+    position: relative;
+  }
+  .password-wrap .password-input {
+    padding-right: 48px;
+  }
+  .password-toggle {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    padding: 4px; display: flex; align-items: center; justify-content: center;
+    transition: color 0.15s;
+  }
+  .password-toggle:hover { color: var(--text); }
+  .password-toggle svg { display: block; }
+
+  .protocol-dropdown {
+    position: relative;
+    width: 100%; background: rgba(255,255,255,0.04); border: 1.5px solid var(--border);
+    border-radius: 12px; font-size: 14px; color: var(--text); outline: none; transition: border-color 0.2s;
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+  }
+  .protocol-dropdown:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,255,102,0.1); }
+  .protocol-selected {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .protocol-options {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #1E1E1E; border: 1.5px solid var(--border); border-radius: 12px;
+    overflow: hidden; z-index: 50; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .protocol-options.open { display: block; }
+  .protocol-option {
+    padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: var(--text); cursor: pointer; transition: background 0.15s;
+  }
+  .protocol-option:hover { background: rgba(0,255,102,0.08); }
+  .protocol-option:active { background: rgba(0,255,102,0.12); }
+  .protocol-arrow { color: var(--text-dim); transition: transform 0.2s; flex-shrink: 0; }
+  .protocol-arrow.open { transform: rotate(180deg); }
   .file-upload .browse-btn {
     flex-shrink: 0; background: rgba(255,255,255,0.08); border: none; border-radius: 8px;
     padding: 6px 12px; color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
@@ -99,8 +140,8 @@
 
   /* Bottom Nav */
   .bottom-nav {
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 32px 36px; flex-shrink: 0; position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 32px 28px; flex-shrink: 0; position: relative;
   }
   .nav-btn {
     flex: 1; display: flex; align-items: center; justify-content: center;
@@ -109,25 +150,6 @@
   }
   .nav-btn.active { color: var(--accent); }
   .nav-btn svg { width: 26px; height: 26px; }
-  .nav-btn.home .home-circle {
-    width: 52px; height: 52px;
-    background: var(--accent); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: #121212;
-    margin-top: -12px; box-shadow: 0 4px 24px rgba(0,255,102,0.35);
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .nav-btn.home:active .home-circle {
-    transform: scale(0.93); box-shadow: 0 2px 12px rgba(0,255,102,0.25);
-  }
-  .nav-btn.add .add-circle {
-    width: 40px; height: 40px;
-    border: 2px solid var(--text-dim); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: var(--text-dim);
-    transition: transform 0.15s;
-  }
-  .nav-btn.add:active .add-circle {
-    transform: scale(0.93); border-color: var(--accent); color: var(--accent);
-  }
 
   .page-label {
     text-align: center; font-size: 11px; color: rgba(255,255,255,0.15);
@@ -164,15 +186,25 @@
   </div>
   <div class="field-group">
     <label class="field-label">Password</label>
-    <input class="field-input" type="password" value="••••••••••••" placeholder="Password" />
+    <div class="password-wrap">
+      <input class="field-input password-input" type="password" value="••••••••••••" placeholder="Password" id="passwordField" />
+      <button class="password-toggle" id="passwordToggle" type="button" aria-label="Reveal password">
+        <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
   </div>
   <div class="field-group">
     <label class="field-label">Protocol</label>
-    <div class="field-input" style="display:flex;align-items:center;gap:8px;">
-      <svg viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:var(--accent);flex-shrink:0;">
-        <path d="M128,72a56,56,0,1,0,56,56A56.06,56.06,0,0,0,128,72Zm0,104a48,48,0,1,1,48-48A48.05,48.05,0,0,1,128,176Z"/>
-      </svg>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:14px;">TrustTunnel</span>
+    <div class="protocol-dropdown" id="protocolDropdown">
+      <div class="protocol-selected" onclick="toggleProtocolDropdown()">
+        <span class="protocol-label" id="protocolValue">HTTPS/2</span>
+        <svg class="protocol-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="protocol-options" id="protocolOptions">
+        <div class="protocol-option" onclick="selectProtocol('HTTPS/2')">HTTPS/2</div>
+        <div class="protocol-option" onclick="selectProtocol('QUIC')">QUIC</div>
+      </div>
     </div>
   </div>
   <div class="field-group">
@@ -209,29 +241,27 @@
 </div>
 
 <nav class="bottom-nav">
-  <button class="nav-btn" onclick="window.location.href='screen2.html'" aria-label="Server list">
-    <svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="2" y="16" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="16" width="8" height="8" rx="1.5"/>
+  <button class="nav-btn" onclick="window.location.href='screen5.html'" aria-label="Query log">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M6 2h10l4 4v16a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+      <path d="M16 2v4a1 1 0 001 1h4"/>
+      <line x1="9" y1="9" x2="15" y2="9"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="15" x2="13" y2="15"/>
+      <path d="M19 4l-4-4v3a1 1 0 001 1h3z" fill="currentColor" stroke="none" opacity="0.12"/>
     </svg>
   </button>
   <button class="nav-btn home" onclick="window.location.href='screen1.html'" aria-label="Home">
-    <div class="home-circle">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-        <path d="M3 9.5l9-7 9 7"/>
-        <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
-      </svg>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M3 9.5l9-7 9 7"/>
+      <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
+    </svg>
   </button>
-  <button class="nav-btn add" onclick="window.location.href='screen4.html'" aria-label="Add server">
-    <div class="add-circle">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20">
-        <line x1="10" y1="4" x2="10" y2="16"/>
-        <line x1="4" y1="10" x2="16" y2="10"/>
-      </svg>
-    </div>
+  <button class="nav-btn" onclick="window.location.href='screen4.html'" aria-label="Add server">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
   </button>
 </nav>
 
@@ -239,6 +269,37 @@
 <div class="toast" id="toast">Saved ✓</div>
 
 <script>
+  // Password toggle
+  const pwToggle = document.getElementById('passwordToggle');
+  const pwField = document.getElementById('passwordField');
+  const eyeIcon = pwToggle.querySelector('.icon-eye');
+  const eyeOffIcon = pwToggle.querySelector('.icon-eye-off');
+  let passwordVisible = false;
+  const realPassword = 'x9Kp2mQ7vBn4';
+  pwToggle.addEventListener('click', () => {
+    passwordVisible = !passwordVisible;
+    pwField.type = passwordVisible ? 'text' : 'password';
+    eyeIcon.style.display = passwordVisible ? 'none' : 'block';
+    eyeOffIcon.style.display = passwordVisible ? 'block' : 'none';
+  });
+
+  // Protocol dropdown
+  function toggleProtocolDropdown() {
+    document.getElementById('protocolOptions').classList.toggle('open');
+    document.querySelector('.protocol-arrow').classList.toggle('open');
+  }
+  function selectProtocol(val) {
+    document.getElementById('protocolValue').textContent = val;
+    document.getElementById('protocolOptions').classList.remove('open');
+    document.querySelector('.protocol-arrow').classList.remove('open');
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.protocol-dropdown')) {
+      document.getElementById('protocolOptions').classList.remove('open');
+      document.querySelector('.protocol-arrow').classList.remove('open');
+    }
+  });
+
   function saveConfig() {
     const btn = document.getElementById('saveBtn');
     btn.classList.add('saved');

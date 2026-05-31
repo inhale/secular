@@ -21,60 +21,60 @@
     position: relative; border: 1px solid var(--border);
   }
   .header {
-    padding: 48px 24px 8px; flex-shrink: 0;
+    padding: 44px 24px 6px; flex-shrink: 0;
   }
   .header h1 { font-size: 18px; font-weight: 700; }
 
-  .content { flex: 1; overflow-y: auto; padding: 20px 24px; scrollbar-width: none; }
+  .content { flex: 1; overflow-y: auto; padding: 12px 24px; scrollbar-width: none; }
   .content::-webkit-scrollbar { display: none; }
 
-  .section { margin-bottom: 24px; }
+  .section { margin-bottom: 14px; }
   .section-label {
-    font-size: 12px; font-weight: 600; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px;
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px;
   }
-  .link-input-row { display: flex; gap: 10px; align-items: center; }
+  .link-input-row { display: flex; gap: 8px; align-items: center; }
   .link-input {
     flex: 1; background: rgba(255,255,255,0.04); border: 1.5px solid var(--border);
-    border-radius: 12px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace;
+    border-radius: 10px; padding: 10px 14px; font-family: 'JetBrains Mono', monospace;
     font-size: 13px; color: var(--text); outline: none; transition: border-color 0.2s;
   }
   .link-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,255,102,0.1); }
   .link-input::placeholder { color: rgba(255,255,255,0.18); font-family: 'Inter', sans-serif; }
   .add-btn {
     flex-shrink: 0; background: var(--accent); color: #121212; border: none;
-    border-radius: 12px; padding: 14px 20px; font-family: 'Inter', sans-serif;
+    border-radius: 10px; padding: 10px 18px; font-family: 'Inter', sans-serif;
     font-size: 14px; font-weight: 700; cursor: pointer;
     transition: transform 0.1s, box-shadow 0.15s;
     box-shadow: 0 2px 16px rgba(0,255,102,0.2); white-space: nowrap;
   }
   .add-btn:active { transform: scale(0.96); box-shadow: 0 1px 8px rgba(0,255,102,0.15); }
-  .hint { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 10px; line-height: 1.5; padding-right: 8px; }
+  .hint { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 6px; line-height: 1.4; }
 
-  .divider { display: flex; align-items: center; gap: 16px; margin: 4px 0 24px; }
+  .divider { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; }
   .divider-line { flex: 1; height: 1px; background: var(--border); }
-  .divider-text { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+  .divider-text { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
 
   .option-btn {
-    width: 100%; padding: 20px; background: rgba(255,255,255,0.04);
-    border: 1.5px solid var(--border); border-radius: 16px; color: var(--text);
-    cursor: pointer; display: flex; flex-direction: column; align-items: center;
-    gap: 12px; transition: border-color 0.2s, background 0.2s;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 15px;
+    width: 100%; padding: 14px 16px; background: rgba(255,255,255,0.04);
+    border: 1.5px solid var(--border); border-radius: 12px; color: var(--text);
+    cursor: pointer; display: flex; flex-direction: row; align-items: center;
+    gap: 14px; transition: border-color 0.2s, background 0.2s;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px;
   }
   .option-btn:active { border-color: var(--accent); background: rgba(0,255,102,0.04); }
-  .option-btn svg { color: var(--accent); }
-  .option-btn .sub { font-size: 12px; font-weight: 400; color: var(--text-dim); }
+  .option-btn svg { color: var(--accent); flex-shrink: 0; }
+  .option-btn .sub { display: none; }
 
   .upload-zone {
-    width: 100%; padding: 28px 20px; border: 2px dashed var(--border); border-radius: 16px;
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    width: 100%; padding: 14px 16px; border: 2px dashed var(--border); border-radius: 12px;
+    display: flex; flex-direction: row; align-items: center; gap: 14px;
     cursor: pointer; transition: border-color 0.2s, background 0.2s; background: rgba(255,255,255,0.02);
   }
   .upload-zone:active { border-color: var(--accent); background: rgba(0,255,102,0.03); }
-  .upload-zone svg { color: var(--text-dim); }
-  .upload-zone .upload-text { font-size: 15px; font-weight: 600; color: var(--text); }
-  .upload-zone .upload-sub { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+  .upload-zone .upload-icon { color: var(--accent); flex-shrink: 0; }
+  .upload-zone .upload-text { font-size: 14px; font-weight: 600; color: var(--text); }
+  .upload-zone .upload-sub { display: none; }
 
   .scanner-overlay {
     display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.92);
@@ -99,8 +99,8 @@
 
   /* Bottom Nav */
   .bottom-nav {
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 32px 36px; flex-shrink: 0; position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 32px 28px; flex-shrink: 0; position: relative;
   }
   .nav-btn {
     flex: 1; display: flex; align-items: center; justify-content: center;
@@ -109,25 +109,6 @@
   }
   .nav-btn.active { color: var(--accent); }
   .nav-btn svg { width: 26px; height: 26px; }
-  .nav-btn.home .home-circle {
-    width: 52px; height: 52px;
-    background: var(--accent); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: #121212;
-    margin-top: -12px; box-shadow: 0 4px 24px rgba(0,255,102,0.35);
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .nav-btn.home:active .home-circle {
-    transform: scale(0.93); box-shadow: 0 2px 12px rgba(0,255,102,0.25);
-  }
-  .nav-btn.add .add-circle {
-    width: 40px; height: 40px;
-    border: 2px solid var(--text-dim); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: var(--text-dim);
-    transition: transform 0.15s;
-  }
-  .nav-btn.add:active .add-circle {
-    transform: scale(0.93); border-color: var(--accent); color: var(--accent);
-  }
 
   .page-label {
     text-align: center; font-size: 11px; color: rgba(255,255,255,0.15);
@@ -164,9 +145,8 @@
   <div class="divider"><div class="divider-line"></div><span class="divider-text">or</span><div class="divider-line"></div></div>
 
   <div class="section">
-    <div class="section-label">Scan QR Code</div>
     <button class="option-btn" onclick="openScanner()">
-      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="44" height="44">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
         <rect x="4" y="4" width="16" height="16" rx="3"/>
         <rect x="28" y="4" width="16" height="16" rx="3"/>
         <rect x="4" y="28" width="16" height="16" rx="3"/>
@@ -182,59 +162,55 @@
   <div class="divider"><div class="divider-line"></div><span class="divider-text">or</span><div class="divider-line"></div></div>
 
   <div class="section">
-    <div class="section-label">Upload Config</div>
     <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
       <input type="file" id="fileInput" hidden accept=".toml,.json,.yaml" />
-      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="40" height="40">
-        <path d="M28 4H12a2 2 0 00-2 2v36a2 2 0 002 2h24a2 2 0 002-2V14L28 4z"/>
-        <polyline points="28,4 28,14 38,14"/>
-        <line x1="16" x2="32" y1="28" y2="28"/>
-        <line x1="16" x2="26" y1="34" y2="34"/>
-      </svg>
-      <div class="upload-text">Upload .toml file</div>
-      <div class="upload-sub">Tap to browse</div>
+      <span class="upload-icon">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+          <path d="M28 4H12a2 2 0 00-2 2v36a2 2 0 002 2h24a2 2 0 002-2V14L28 4z"/>
+          <polyline points="28,4 28,14 38,14"/>
+          <line x1="16" x2="32" y1="28" y2="28"/>
+          <line x1="16" x2="26" y1="34" y2="34"/>
+        </svg>
+      </span>
+      <span class="upload-text">Upload .toml file</span>
     </div>
   </div>
 
   <div class="divider"><div class="divider-line"></div><span class="divider-text">or</span><div class="divider-line"></div></div>
 
   <div class="section">
-    <div class="section-label">Manual Setup</div>
     <button class="option-btn" onclick="window.location.href='screen3.html'">
-      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="44" height="44">
-        <path d="M24 6v36M6 24h36"/>
-        <circle cx="24" cy="24" r="18" stroke-dasharray="4 4" opacity="0.3"/>
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+        <line x1="24" y1="10" x2="24" y2="38"/>
+        <line x1="10" y1="24" x2="38" y2="24"/>
       </svg>
       <span>Add Server Manually</span>
-      <span class="sub">Enter server details by hand</span>
     </button>
   </div>
 </div>
 
 <nav class="bottom-nav">
-  <button class="nav-btn" onclick="window.location.href='screen2.html'" aria-label="Server list">
-    <svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="2" y="16" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="16" width="8" height="8" rx="1.5"/>
+  <button class="nav-btn" onclick="window.location.href='screen5.html'" aria-label="Query log">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M6 2h10l4 4v16a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+      <path d="M16 2v4a1 1 0 001 1h4"/>
+      <line x1="9" y1="9" x2="15" y2="9"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="15" x2="13" y2="15"/>
+      <path d="M19 4l-4-4v3a1 1 0 001 1h3z" fill="currentColor" stroke="none" opacity="0.12"/>
     </svg>
   </button>
   <button class="nav-btn home" onclick="window.location.href='screen1.html'" aria-label="Home">
-    <div class="home-circle">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-        <path d="M3 9.5l9-7 9 7"/>
-        <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
-      </svg>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M3 9.5l9-7 9 7"/>
+      <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
+    </svg>
   </button>
-  <button class="nav-btn add active" aria-label="Add server">
-    <div class="add-circle">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20">
-        <line x1="10" y1="4" x2="10" y2="16"/>
-        <line x1="4" y1="10" x2="16" y2="10"/>
-      </svg>
-    </div>
+  <button class="nav-btn active" aria-label="Add server">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
   </button>
 </nav>
 
@@ -250,7 +226,7 @@
       setTimeout(() => { document.getElementById('linkInput').style.borderColor = ''; }, 1200);
       return;
     }
-    window.location.href = 'screen1.html';
+    window.location.href = 'screen2.html';
   }
 </script>
 </body>

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Screen 5 — Query Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #121212; --surface: #1E1E1E; --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08); --text: #FFFFFF; --text-dim: #8A8A8A;
+    --accent: #00FF66; --red: #FF4D4D; --radius: 14px;
+  }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column;
+    max-width: 390px; height: 844px; margin: 0 auto;
+    position: relative; border: 1px solid var(--border);
+  }
+
+  /* Header */
+  .header {
+    padding: 48px 24px 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-actions { display: flex; gap: 6px; }
+  .header-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px;
+    color: var(--text-dim); font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .header-btn:active { background: rgba(255,255,255,0.1); }
+  .header-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .header-btn.danger:active { background: rgba(255,77,77,0.15); color: var(--red); border-color: rgba(255,77,77,0.3); }
+  .header-btn.filter-btn { position: relative; }
+  .filter-popup {
+    display: none; position: fixed; z-index: 9999;
+    background: #1E1E1E; border: 1px solid var(--border); border-radius: 12px;
+    padding: 6px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    min-width: 150px;
+  }
+  .filter-popup.open { display: block; }
+  .filter-opt {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 8px; cursor: pointer; transition: background 0.15s;
+    font-size: 12px; font-weight: 500; color: var(--text); font-family: 'Inter', sans-serif;
+  }
+  .filter-opt:hover { background: rgba(255,255,255,0.06); }
+  .filter-opt.active { color: var(--accent); }
+  .filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .filter-dot.info { background: #5B9AFF; }
+  .filter-dot.warn { background: #FFD93D; }
+  .filter-dot.err  { background: #FF4D4D; }
+  .filter-dot.ok   { background: var(--accent); }
+  .filter-check { margin-left: auto; font-size: 11px; color: var(--accent); }
+
+  /* Log Window */
+  .log-window {
+    flex: 1; overflow-y: auto;
+    margin: 0 16px 12px;
+    background: #0D0D0D;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+  .log-window::-webkit-scrollbar { width: 5px; }
+  .log-window::-webkit-scrollbar-track { background: transparent; }
+  .log-window::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+  .log-line {
+    display: flex; gap: 10px;
+    padding: 1px 0;
+    cursor: default;
+    user-select: text;
+    border-radius: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-left: -6px;
+    margin-right: -6px;
+  }
+  .log-line:hover { background: rgba(255,255,255,0.03); }
+  .log-line.selected { background: rgba(0,255,102,0.08); }
+  .log-line.selected .log-msg { color: var(--text); }
+
+  .log-time { color: rgba(255,255,255,0.2); flex-shrink: 0; white-space: nowrap; }
+  .log-level { flex-shrink: 0; width: 36px; font-weight: 600; font-size: 10px; }
+  .log-level.info { color: #5B9AFF; }
+  .log-level.ok { color: var(--accent); }
+  .log-level.warn { color: #FFD93D; }
+  .log-level.err { color: var(--red); }
+  .log-msg { color: var(--text-dim); word-break: break-all; flex: 1; }
+
+  /* Scroll-to-bottom indicator */
+  .scroll-hint {
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.1); color: var(--text);
+    font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 20px;
+    cursor: pointer; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; white-space: nowrap;
+    backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);
+  }
+  .scroll-hint.visible { opacity: 1; pointer-events: auto; }
+  .scroll-hint:active { background: rgba(255,255,255,0.15); }
+
+  /* Selection toolbar */
+  .selection-bar {
+    position: absolute; bottom: 80px; left: 16px; right: 16px;
+    background: rgba(30,30,30,0.95); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 14px;
+    display: none; align-items: center; justify-content: space-between;
+    backdrop-filter: blur(12px); z-index: 20;
+  }
+  .selection-bar.visible { display: flex; }
+  .selection-bar .sel-info { font-size: 11px; color: var(--text-dim); font-family: 'Inter', sans-serif; }
+  .selection-bar .sel-actions { display: flex; gap: 6px; }
+  .selection-bar .sel-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px;
+    color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .selection-bar .sel-btn:active { background: rgba(0,255,102,0.1); color: var(--accent); border-color: rgba(0,255,102,0.2); }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 32px 28px; flex-shrink: 0; position: relative;
+  }
+  .nav-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; padding: 10px 0;
+    color: var(--text-dim); transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 26px; height: 26px; }
+
+  .page-label {
+    text-align: center; font-size: 11px; color: rgba(255,255,255,0.15);
+    letter-spacing: 2px; text-transform: uppercase; padding-bottom: 8px;
+  }
+  @media (min-width: 600px) {
+    body { margin: 24px auto; border-radius: 32px; border: 2px solid var(--border); box-shadow: 0 0 60px rgba(0,0,0,0.8); }
+    html { background: #0A0A0A; display: flex; min-height: 100vh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Query Log</h1>
+  <div class="header-actions">
+    <button class="header-btn accent" id="btnCopyAll" onclick="copyAll()" aria-label="Copy all">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    </button>
+    <button class="header-btn danger" onclick="clearLog()" aria-label="Clear log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    </button>
+    <button class="header-btn filter-btn" id="filterBtn" aria-label="Filter log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      <span id="filterBadge" style="display:none;position:absolute;top:-4px;right:-4px;width:8px;height:8px;border-radius:50%;background:var(--accent);"></span>
+    </button>
+    <div class="filter-popup" id="filterPopup">
+      <div class="filter-opt active" onclick="toggleFilterLevel('ok')" data-level="ok">
+        <span class="filter-dot ok"></span> Info <span class="filter-check">✓</span>
+      </div>
+      <div class="filter-opt active" onclick="toggleFilterLevel('warn')" data-level="warn">
+        <span class="filter-dot warn"></span> Warnings <span class="filter-check">✓</span>
+      </div>
+      <div class="filter-opt active" onclick="toggleFilterLevel('err')" data-level="err">
+        <span class="filter-dot err"></span> Errors <span class="filter-check">✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="log-window" id="logWindow">
+  <div id="logContent"></div>
+</div>
+<div class="scroll-hint" id="scrollHint" onClick="scrollToBottom()">↓ New entries</div>
+
+<div class="selection-bar" id="selectionBar">
+  <span class="sel-info" id="selInfo">0 lines selected</span>
+  <div class="sel-actions">
+    <button class="sel-btn" onclick="copySelected()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="5" y="5" width="8" height="8" rx="1.2"/><path d="M3 10H2a1.2 1.2 0 01-1.2-1.2V2A1.2 1.2 0 012 .8h7A1.2 1.2 0 0110.2 2v1"/></svg>
+      Copy
+    </button>
+    <button class="sel-btn" onclick="clearSelection()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="12" height="12"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+      Deselect
+    </button>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" aria-label="Query log">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M6 2h10l4 4v16a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+      <path d="M16 2v4a1 1 0 001 1h4"/>
+      <line x1="9" y1="9" x2="15" y2="9"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="15" x2="13" y2="15"/>
+      <path d="M19 4l-4-4v3a1 1 0 001 1h3z" fill="currentColor" stroke="none" opacity="0.12"/>
+    </svg>
+  </button>
+  <button class="nav-btn home" onclick="window.location.href='screen1.html'" aria-label="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M3 9.5l9-7 9 7"/>
+      <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
+    </svg>
+  </button>
+  <button class="nav-btn" onclick="window.location.href='screen4.html'" aria-label="Add server">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</nav>
+
+<div class="page-label">Screen 5 · Query Log</div>
+
+<script>
+const logContent = document.getElementById('logContent');
+const logWindow = document.getElementById('logWindow');
+const scrollHint = document.getElementById('scrollHint');
+const selectionBar = document.getElementById('selectionBar');
+const selInfo = document.getElementById('selInfo');
+
+let logEntries = [];
+let selectedLines = new Set();
+let isAtBottom = true;
+let lineIdCounter = 0;
+
+const SAMPLE_LINES = [
+  { level: 'ok',   msg: 'TLS handshake completed with de-frankfurt-01.secularvpn.io:8443' },
+  { level: 'info', msg: 'Tunnel established via TrustTunnel protocol v1.2' },
+  { level: 'info', msg: 'Assigned virtual IP: 10.128.47.2/32' },
+  { level: 'info', msg: 'DNS resolved: dns.cloudflare.com → 1.1.1.1' },
+  { level: 'ok',   msg: 'Route table updated: default via tun0 metric 200' },
+  { level: 'info', msg: 'UDP socket bound to port 54321 on 0.0.0.0' },
+  { level: 'info', msg: 'Keepalive sent to gateway (seq #1)' },
+  { level: 'warn', msg: 'Packet retransmit detected (seq #14, retry 1/3)' },
+  { level: 'info', msg: 'MTU negotiation complete: 1420 bytes' },
+  { level: 'ok',   msg: 'Connection stable — RTT 24ms' },
+  { level: 'info', msg: 'DNS query: example.com → 93.184.216.34 (12ms)' },
+  { level: 'info', msg: 'Encrypted: 482 bytes outbound, 1204 bytes inbound' },
+  { level: 'info', msg: 'Keepalive acknowledged (seq #5)' },
+  { level: 'warn', msg: 'Brief latency spike detected: 187ms (resolved in 2.1s)' },
+  { level: 'ok',   msg: 'Route restored after transient network event' },
+  { level: 'info', msg: 'TCP connection pool: 4 active, 1 idle' },
+  { level: 'info', msg: 'TLS session ticket renewed (expiry +3600s)' },
+  { level: 'ok',   msg: 'Bandwidth: ↓ 2.4 MB / ↑ 0.8 MB' },
+  { level: 'info', msg: 'Keepalive sent to gateway (seq #9)' },
+  { level: 'err',  msg: 'Stale socket detected on fd #14 — cleaned up' },
+];
+
+function addLogEntry(entry) {
+  const id = lineIdCounter++;
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0') + ':' +
+             String(now.getMinutes()).padStart(2,'0') + ':' +
+             String(now.getSeconds()).padStart(2,'0') + '.' +
+             String(now.getMilliseconds()).padStart(3,'0');
+  logEntries.push({ id, time: ts, ...entry });
+  renderLine({ id, time: ts, ...entry }, true);
+}
+
+function renderLine(entry, autoScroll) {
+  const el = document.createElement('div');
+  el.className = 'log-line' + (selectedLines.has(entry.id) ? ' selected' : '');
+  el.dataset.id = entry.id;
+  el.innerHTML = `
+    <span class="log-time">${entry.time}</span>
+    <span class="log-level ${entry.level}">${entry.level.toUpperCase()}</span>
+    <span class="log-msg">${entry.msg}</span>
+  `;
+  el.addEventListener('click', (e) => toggleLineSelection(entry.id, el));
+  logContent.appendChild(el);
+
+  if (autoScroll && isAtBottom) {
+    logWindow.scrollTop = logWindow.scrollHeight;
+  }
+}
+
+function toggleLineSelection(id, el) {
+  if (selectedLines.has(id)) {
+    selectedLines.delete(id);
+    el.classList.remove('selected');
+  } else {
+    selectedLines.add(id);
+    el.classList.add('selected');
+  }
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  const count = selectedLines.size;
+  if (count > 0) {
+    selInfo.textContent = count + ' line' + (count > 1 ? 's' : '') + ' selected';
+    selectionBar.classList.add('visible');
+  } else {
+    selectionBar.classList.remove('visible');
+  }
+}
+
+let activeFilters = { ok: true, warn: true, err: true };
+
+// Filter toggle — uses hidden checkbox so clicks work even in scaled iframes
+var filterCheckbox = document.createElement('input');
+filterCheckbox.type = 'hidden';
+filterCheckbox.id = 'filterToggle';
+document.querySelector('.filter-btn').appendChild(filterCheckbox);
+
+document.getElementById('filterBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  var popup = document.getElementById('filterPopup');
+  var isOpen = popup.classList.contains('open');
+  if (!isOpen) {
+    var rect = this.getBoundingClientRect();
+    popup.style.top = (rect.bottom + 6) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+    popup.style.left = 'auto';
+    popup.classList.add('open');
+  } else {
+    popup.classList.remove('open');
+  }
+});
+
+function toggleFilter() {} // no-op fallback
+function toggleFilterLevel(level) {
+  activeFilters[level] = !activeFilters[level];
+  const opt = document.querySelector(`.filter-opt[data-level="${level}"]`);
+  const check = opt.querySelector('.filter-check');
+  if (activeFilters[level]) {
+    opt.classList.add('active');
+    check.style.visibility = 'visible';
+  } else {
+    opt.classList.remove('active');
+    check.style.visibility = 'hidden';
+  }
+  // Show badge if any filter is off
+  const anyOff = !activeFilters.ok || !activeFilters.warn || !activeFilters.err;
+  document.getElementById('filterBadge').style.display = anyOff ? 'block' : 'none';
+  applyFilter();
+}
+function applyFilter() {
+  document.querySelectorAll('.log-line').forEach(el => {
+    const id = parseInt(el.dataset.id);
+    const entry = logEntries.find(e => e.id === id);
+    if (entry) {
+      el.style.display = activeFilters[entry.level] ? '' : 'none';
+    }
+  });
+}
+
+// Close filter popup on outside click
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('filterPopup');
+  const btn = e.target.closest('.filter-btn');
+  const inPopup = e.target.closest('.filter-popup');
+  if (!btn && !inPopup) {
+    popup.classList.remove('open');
+  }
+});
+
+function copySelected() {
+  const lines = [];
+  logEntries.forEach(e => {
+    if (selectedLines.has(e.id)) {
+      lines.push(e.time + ' [' + e.level.toUpperCase() + '] ' + e.msg);
+    }
+  });
+  if (lines.length) {
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = lines.join('\n');
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+  }
+  clearSelection();
+}
+
+function copyAll() {
+  const lines = logEntries.map(e => e.time + ' [' + e.level.toUpperCase() + '] ' + e.msg);
+  if (lines.length) {
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = lines.join('\n');
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+  }
+}
+
+function clearSelection() {
+  selectedLines.clear();
+  document.querySelectorAll('.log-line.selected').forEach(el => el.classList.remove('selected'));
+  updateSelectionBar();
+}
+
+function clearLog() {
+  logEntries = [];
+  selectedLines.clear();
+  logContent.innerHTML = '';
+  updateSelectionBar();
+}
+
+function scrollToBottom() {
+  isAtBottom = true;
+  scrollHint.classList.remove('visible');
+  logWindow.scrollTop = logWindow.scrollHeight;
+}
+
+logWindow.addEventListener('scroll', () => {
+  const atBottom = logWindow.scrollHeight - logWindow.scrollTop - logWindow.clientHeight < 40;
+  if (atBottom !== isAtBottom) {
+    isAtBottom = atBottom;
+    if (atBottom) scrollHint.classList.remove('visible');
+  }
+});
+
+// Smart auto-scroll: if user is at bottom, keep scrolling. If scrolled up, stop.
+const origRenderLine = renderLine;
+function smartRenderLine(entry) {
+  origRenderLine(entry, isAtBottom);
+  if (!isAtBottom) {
+    scrollHint.classList.add('visible');
+  }
+}
+
+// Override renderLine to use smart scroll + filter
+renderLine = function(entry) {
+  smartRenderLine(entry);
+  if (!activeFilters[entry.level]) {
+    const el = logContent.lastElementChild;
+    if (el) el.style.display = 'none';
+  }
+};
+
+// Seed initial log
+SAMPLE_LINES.forEach((l, i) => {
+  setTimeout(() => addLogEntry(l), i * 120);
+});
+
+// Simulate live log entries
+const LIVE_MESSAGES = [
+  { level: 'info', msg: 'Keepalive sent to gateway' },
+  { level: 'ok',   msg: 'Keepalive acknowledged' },
+  { level: 'info', msg: 'Encrypted packet: 1024 bytes outbound' },
+  { level: 'info', msg: 'Decrypted packet: 2048 bytes inbound' },
+  { level: 'info', msg: 'DNS query resolved (8ms)' },
+  { level: 'ok',   msg: 'Connection stable — RTT 24ms' },
+  { level: 'info', msg: 'TCP keep-alive on socket fd #12' },
+  { level: 'warn', msg: 'Minor jitter detected: ±3ms' },
+];
+
+let liveInterval = setInterval(() => {
+  const msg = LIVE_MESSAGES[Math.floor(Math.random() * LIVE_MESSAGES.length)];
+  addLogEntry(msg);
+  // Trim to last 200 lines
+  if (logEntries.length > 200) {
+    const removed = logEntries.shift();
+    selectedLines.delete(removed.id);
+    const firstEl = logContent.firstElementChild;
+    if (firstEl) firstEl.remove();
+  }
+}, 2500);
+</script>
+</body>
+</html>

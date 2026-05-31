@@ -142,15 +142,9 @@
     transform: translate(-50%, -50%);
     transition: opacity 0.5s ease;
   }
-  .logo-dim {
-    opacity: 1;
-  }
-  .logo-bright {
-    opacity: 0;
-  }
-  .connect-btn.connected .logo-dim {
-    opacity: 0;
-  }
+  .logo-dim { opacity: 1; }
+  .logo-bright { opacity: 0; }
+  .connect-btn.connected .logo-dim { opacity: 0; }
   .connect-btn.connected .logo-bright {
     opacity: 1;
     animation: pulse-icon 2s ease-in-out infinite;
@@ -165,101 +159,49 @@
 
   /* Server Card */
   .server-card {
-    margin: 0 24px 16px;
+    margin: -50px 24px 16px;
     padding: 16px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     backdrop-filter: blur(12px);
     cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
   }
-  .server-card .row1 {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
+  .server-card:active {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
   }
   .server-card .server-name {
     font-size: 15px;
     font-weight: 700;
     color: var(--text);
+    margin-bottom: 6px;
   }
-  .server-card .country {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-  .ping-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    flex-shrink: 0;
-  }
-  .ping-dot.good { background: var(--accent); }
-  .server-card .row2 {
+  .server-card .server-meta {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     color: var(--text-dim);
     letter-spacing: 0.3px;
   }
+  .server-card .server-hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    margin-top: 8px;
+  }
 
   /* Bottom Nav */
   .bottom-nav {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 32px 36px;
-    position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 32px 28px; flex-shrink: 0; position: relative;
   }
   .nav-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 10px 0;
-    color: var(--text-dim);
-    transition: color 0.2s;
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; padding: 10px 0;
+    color: var(--text-dim); transition: color 0.2s;
   }
-  .nav-btn:active, .nav-btn.active { color: var(--accent); }
+  .nav-btn.active { color: var(--accent); }
   .nav-btn svg { width: 26px; height: 26px; }
-
-  .nav-btn.home .home-circle {
-    width: 52px; height: 52px;
-    background: var(--accent);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #121212;
-    margin-top: -12px;
-    box-shadow: 0 4px 24px rgba(0,255,102,0.35);
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .nav-btn.home:active .home-circle {
-    transform: scale(0.93);
-    box-shadow: 0 2px 12px rgba(0,255,102,0.25);
-  }
-
-  .nav-btn.add .add-circle {
-    width: 40px; height: 40px;
-    border: 2px solid var(--text-dim);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-dim);
-    transition: transform 0.15s;
-  }
-  .nav-btn.add:active .add-circle {
-    transform: scale(0.93);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
 
   .page-label {
     text-align: center;
@@ -288,12 +230,12 @@
     <span class="label">Session</span>
   </div>
   <div>
-    <span class="val" id="dlSpeed">— MB</span>
-    <span class="label">Download</span>
+    <span class="val" id="dlSpeed">0</span>
+    <span class="label">Download pkts</span>
   </div>
   <div>
-    <span class="val" id="ulSpeed">— MB</span>
-    <span class="label">Upload</span>
+    <span class="val" id="ulSpeed">0</span>
+    <span class="label">Upload pkts</span>
   </div>
 </div>
 
@@ -305,40 +247,33 @@
 </div>
 
 <div class="server-card" id="serverCard" onclick="window.location.href='screen2.html'">
-  <div class="row1">
-    <span class="server-name">Frankfurt #1</span>
-    <div class="country">
-      <span class="ping-dot good" id="pingDot"></span>
-      <span>🇩🇪</span>
-    </div>
-  </div>
-  <div class="row2">TrustTunnel · 185.103.24.4:443</div>
+  <div class="server-name">Frankfurt #1</div>
+  <div class="server-meta">TrustTunnel · 185.103.24.4:443</div>
+  <div class="server-hint">Tap to change server</div>
 </div>
 
 <nav class="bottom-nav">
-  <button class="nav-btn" onclick="window.location.href='screen2.html'" aria-label="Server list">
-    <svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="2" width="8" height="8" rx="1.5"/>
-      <rect x="2" y="16" width="8" height="8" rx="1.5"/>
-      <rect x="16" y="16" width="8" height="8" rx="1.5"/>
+  <button class="nav-btn" onclick="window.location.href='screen5.html'" aria-label="Query log">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M6 2h10l4 4v16a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+      <path d="M16 2v4a1 1 0 001 1h4"/>
+      <line x1="9" y1="9" x2="15" y2="9"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="15" x2="13" y2="15"/>
+      <path d="M19 4l-4-4v3a1 1 0 001 1h3z" fill="currentColor" stroke="none" opacity="0.12"/>
     </svg>
   </button>
-  <button class="nav-btn home" onclick="window.location.href='screen1.html'" aria-label="Home">
-    <div class="home-circle">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-        <path d="M3 9.5l9-7 9 7"/>
-        <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
-      </svg>
-    </div>
+  <button class="nav-btn home active" onclick="window.location.href='screen1.html'" aria-label="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <path d="M3 9.5l9-7 9 7"/>
+      <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/>
+    </svg>
   </button>
-  <button class="nav-btn add" onclick="window.location.href='screen4.html'" aria-label="Add server">
-    <div class="add-circle">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20">
-        <line x1="10" y1="4" x2="10" y2="16"/>
-        <line x1="4" y1="10" x2="16" y2="10"/>
-      </svg>
-    </div>
+  <button class="nav-btn" onclick="window.location.href='screen4.html'" aria-label="Add server">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
   </button>
 </nav>
 
@@ -348,10 +283,11 @@
   const btn = document.getElementById('connectBtn');
   const statusLabel = document.getElementById('statusLabel');
   const metrics = document.getElementById('metrics');
-  const pingDot = document.getElementById('pingDot');
   let connected = false;
   let timerInterval = null;
   let seconds = 0;
+  let dlPackets = 0;
+  let ulPackets = 0;
 
   function formatTime(s) {
     const h = String(Math.floor(s/3600)).padStart(2,'0');
@@ -367,23 +303,25 @@
     statusLabel.classList.toggle('connected', connected);
     if (connected) {
       metrics.style.opacity = '1';
-      pingDot.classList.add('good');
       seconds = 0;
-      document.getElementById('dlSpeed').textContent = '0 MB';
-      document.getElementById('ulSpeed').textContent = '0 MB';
+      dlPackets = 0;
+      ulPackets = 0;
+      document.getElementById('dlSpeed').textContent = '0';
+      document.getElementById('ulSpeed').textContent = '0';
       timerInterval = setInterval(() => {
         seconds++;
         document.getElementById('sessionTime').textContent = formatTime(seconds);
-        document.getElementById('dlSpeed').textContent = (Math.random()*2.4+0.8).toFixed(1)+' MB';
-        document.getElementById('ulSpeed').textContent = (Math.random()*0.8+0.2).toFixed(1)+' MB';
+        dlPackets += Math.floor(Math.random() * 80 + 20);
+        ulPackets += Math.floor(Math.random() * 30 + 10);
+        document.getElementById('dlSpeed').textContent = dlPackets;
+        document.getElementById('ulSpeed').textContent = ulPackets;
       }, 1000);
     } else {
       metrics.style.opacity = '0.35';
-      pingDot.classList.remove('good');
       clearInterval(timerInterval);
       document.getElementById('sessionTime').textContent = '00:00:00';
-      document.getElementById('dlSpeed').textContent = '— MB';
-      document.getElementById('ulSpeed').textContent = '— MB';
+      document.getElementById('dlSpeed').textContent = '0';
+      document.getElementById('ulSpeed').textContent = '0';
     }
   });
 </script>
