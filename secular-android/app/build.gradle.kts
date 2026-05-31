@@ -92,6 +92,9 @@ dependencies {
     // OkHttp — TLS + HTTP/2 for tunnel
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // TrustTunnel native library (AAR with .so files)
+    implementation(files("../../native-libs/trusttunnel-release.aar"))
+
     // ZXing — QR code scanning
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 

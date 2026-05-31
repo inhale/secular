@@ -17,6 +17,7 @@ import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
 import com.secular.vpn.R
+import com.secular.vpn.SecularVpnService
 
 class QrScannerActivity : Activity() {
 
