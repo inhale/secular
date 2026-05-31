@@ -411,7 +411,11 @@ class SecularVpnService : VpnService() {
                 } catch (e: Throwable) {
                     addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
                     // If start throws, we still own the fd — close it to avoid leak
-                    try { android.system.Os.close(detachedFd) } catch (_: Exception) {}
+                    try {
+                        val fdObj = java.io.FileDescriptor()
+                        fdObj.setInt$(detachedFd)
+                        android.system.Os.close(fdObj)
+                    } catch (_: Exception) {}
                     false
                 }
                 addLog("startNative returned: $startResult")
@@ -423,7 +427,11 @@ class SecularVpnService : VpnService() {
                     client.destroy()
                     nativeClient = null
                     // startNative returned false — it didn't take the fd, close it
-                    try { android.system.Os.close(detachedFd) } catch (_: Exception) {}
+                    try {
+                        val fdObj = java.io.FileDescriptor()
+                        fdObj.setInt$(detachedFd)
+                        android.system.Os.close(fdObj)
+                    } catch (_: Exception) {}
                     return@launch
                 }
 
