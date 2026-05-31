@@ -24,6 +24,9 @@ jobs:
           pip3 install conan
           cmake --version
           conan --version
+          # Ensure conan default profile exists
+          conan profile detect --force 2>&1 || true
+          conan profile list 2>&1 || true
 
       - name: Set up Android SDK + NDK
         uses: android-actions/setup-android@v3
@@ -31,96 +34,87 @@ jobs:
       - name: Install NDK 28.1.13356709
         timeout-minutes: 15
         run: |
-          # Auto-accept licenses and install NDK
           yes | sdkmanager --install "ndk;28.1.13356709" 2>&1 || true
-
-          # Locate NDK (varies by SDK install path)
           for base in "$ANDROID_HOME" "$ANDROID_SDK_ROOT" /usr/local/lib/android/sdk; do
             if [ -n "$base" ] && [ -d "$base/ndk/28.1.13356709" ] && [ -f "$base/ndk/28.1.13356709/ndk-build" ]; then
               echo "NDK_DIR=$base/ndk/28.1.13356709" >> "$GITHUB_ENV"
-              echo "Found NDK at $base/ndk/28.1.13356709"
+              echo "Found NDK: $NDK_DIR"
               exit 0
             fi
           done
-
-          echo "ERROR: NDK 28.1.13356709 not found"
-          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "No ndk dir in ANDROID_HOME"
-          exit 1
+          echo "ERROR: NDK not found"; exit 1
 
       - name: Cache Conan packages
         uses: actions/cache@v4
         with:
           path: ~/.conan2/
-          key: conan2-${{ runner.os }}-${{ hashFiles('tt-client/conanfile.py') }}-${{ github.run_id }}
-          restore-keys: conan2-${{ runner.os }}-${{ hashFiles('tt-client/conanfile.py') }}
+          key: conan2-${{ runner.os }}-ndk28-v1-${{ github.run_id }}
+          restore-keys: conan2-${{ runner.os }}-ndk28-v1-
 
       - name: Clone TrustTunnelClient
         run: |
-          git clone --depth 50 --no-single-branch https://github.com/TrustTunnel/TrustTunnelClient.git tt-client
-          echo "HEAD: $(cd tt-client && git rev-parse HEAD)"
-
-      - name: Fix Conan version mismatch
-        run: |
-          cd tt-client
-          # TrustTunnelClient's conanfile.py specifies dns-libs/2.8.51 but DnsLibs latest is 2.8.52
-          # Patch to use available version
-          sed -i 's|self.requires("dns-libs/2.8.51|self.requires("dns-libs/2.8.52|' conanfile.py
-          echo "=== Patched conanfile.py ==="
-          grep -n "dns-libs\|native_libs_common" conanfile.py
+          git clone --depth 1 https://github.com/TrustTunnel/TrustTunnelClient.git tt-client
+          echo "tt-client: $(cd tt-client && git rev-parse HEAD)"
 
       - name: Bootstrap Conan dependencies
         working-directory: tt-client
         timeout-minutes: 30
         run: |
-          # Parse the required version from our patched conanfile.py
-          DNS_VERSION=$(grep -oP 'self\.requires\("dns-libs/\K[0-9.]+' conanfile.py | head -1)
-          NLC_VERSION=$(grep -oP 'self\.requires\("native_libs_common/\K[0-9.]+' conanfile.py | head -1)
-          echo "DnsLibs version: $DNS_VERSION"
-          echo "NativeLibsCommon version: $NLC_VERSION"
+          # The TrustTunnelClient conanfile.py requires:
+          #   dns-libs/2.8.51@adguard/oss  (latest tag is v2.8.52)
+          #   native_libs_common/8.1.28@adguard/oss
 
-          # Clone DnsLibs (full so we can checkout any tag)
-          git clone https://github.com/AdguardTeam/DnsLibs.git dns-libs-tmp
-          cd dns-libs-tmp
-          # Find the closest tag
-          git tag -l "v${DNS_VERSION%.*}*" | tail -5
-          # Export using local version (uses git commit hash, avoids tag checkout issue)
-          python3 scripts/export_conan.py local 2>&1 | tail -5
-          cd ..
+          # ── DnsLibs ──
+          git clone --depth 1 https://github.com/AdguardTeam/DnsLibs.git ../dns-libs
+          # Find latest 2.8.x tag
+          DNS_TAG=$(cd ../dns-libs && git tag -l "v2.8.*" | sort -V | tail -1)
+          DNS_VERSION=${DNS_TAG#v}
+          echo "DnsLibs: using tag $DNS_TAG (version $DNS_VERSION)"
+          cd ../dns-libs && git checkout "$DNS_TAG" 2>&1
+          # Also read nested native_libs_common version from DnsLibs's conanfile
+          DNS_NLC_REQ=$(grep -oP 'self\.requires\("native_libs_common/\K[0-9.]+' conanfile.py | head -1)
+          echo "DnsLibs requires native_libs_common/$DNS_NLC_REQ"
+          python3 scripts/export_conan.py "$DNS_VERSION" 2>&1 | tail -3
+          cd ../tt-client
 
-          # Clone NativeLibsCommon (full so we can checkout any tag)
-          git clone https://github.com/AdguardTeam/NativeLibsCommon.git nlc-tmp
-          cd nlc-tmp
-          git checkout "v${NLC_VERSION}" 2>&1 || (echo "Tag not found, using master" && git checkout master)
-          python3 scripts/export_conan.py "$NLC_VERSION" 2>&1 | tail -5
-          # Also export all recipes (boringssl, openssl, quiche, etc.)
+          # ── NativeLibsCommon ──
+          git clone --depth 1 https://github.com/AdguardTeam/NativeLibsCommon.git ../nlc
+          # Use the version required by TrustTunnelClient (not DnsLibs's requirement)
+          NLC_VERSION="8.1.28"
+          cd ../nlc && git checkout "v${NLC_VERSION}" 2>&1
+          python3 scripts/export_conan.py "$NLC_VERSION" 2>&1 | tail -3
+          # Export all dependency recipes (boringssl, openssl, quiche, nghttp2, etc.)
           for recipe in conan/recipes/*/; do
-            if [ -d "$recipe" ]; then
-              conan export "$recipe" --user adguard --channel oss 2>&1 | tail -2
-            fi
+            [ -d "$recipe" ] && conan export "$recipe" --user adguard --channel oss 2>&1 | tail -1
           done
-          cd ..
+          cd ../tt-client
 
+          # ── Patch conanfile.py to use versions we actually have ──
+          sed -i "s|self.requires(\"dns-libs/2.8.51|self.requires(\"dns-libs/${DNS_VERSION}|" conanfile.py
+          echo "=== Patched conanfile.py ==="
+          grep -n "dns-libs\|native_libs_common" conanfile.py
+
+          # ── Verify Conan can find packages ──
           echo "=== Conan cache ==="
-          ls ~/.conan2/p/ 2>/dev/null | sort | head -30
+          conan list "dns-libs/*@adguard/oss" 2>&1 || true
+          conan list "native_libs_common/*@adguard/oss" 2>&1 || true
 
       - name: Build native library (AAR)
         working-directory: tt-client/platform/android
         timeout-minutes: 30
         run: |
-          # Write local.properties
           echo "cmake.dir=$(dirname $(dirname $(which cmake)))" > local.properties
           echo "ndk.dir=$NDK_DIR" >> local.properties
           echo "sdk.dir=$ANDROID_HOME" >> local.properties
           cat local.properties
-
           chmod +x gradlew
-
-          # Build AAR with all 4 ABIs
-          ./gradlew :lib:assembleRelease --no-daemon 2>&1 | tee /tmp/build.log
-
-          echo "=== Build output ==="
-          find lib/build -name "*.aar" -type f 2>/dev/null
-          find lib/build -name "libtrusttunnel_android.so" -type f 2>/dev/null
+          # Run conan install explicitly first to populate build deps
+          cd ..
+          conan install . --output-folder=build --profile:host=default --profile:build=default 2>&1 | tail -20 || true
+          cd platform/android
+          ./gradlew :lib:assembleRelease --no-daemon 2>&1 | tee /tmp/build.log || true
+          echo "=== Build outputs ==="
+          find lib/build \( -name "*.aar" -o -name "*.so" \) -type f 2>/dev/null
 
       - name: Extract .so files from AAR
         working-directory: tt-client/platform/android
@@ -128,33 +122,25 @@ jobs:
           AAR=$(find lib/build -name "*.aar" -type f | head -1)
           if [ -z "$AAR" ]; then
             echo "ERROR: No AAR produced"
-            echo "=== lib/build contents ==="
             find lib/build -type f | head -30
             exit 1
           fi
-
-          echo "AAR: $AAR ($(stat -c%s "$AAR" 2>/dev/null || stat -f%z "$AAR") bytes)"
-
+          echo "AAR: $AAR"
           rm -rf /tmp/native-libs-extracted
           mkdir -p /tmp/native-libs-extracted
           unzip -o "$AAR" -d /tmp/native-libs-extracted
-
-          echo "=== Extracted ==="
-          find /tmp/native-libs-extracted -name "*.so" -type f | while read f; do
-            echo "  $f ($(stat -c%s "$f" 2>/dev/null || stat -f%z "$f") bytes)"
-          done
-
+          find /tmp/native-libs-extracted -name "*.so" -type f
           zip -j /tmp/trusttunnel-native-lib.zip $(find /tmp/native-libs-extracted -name "*.so" -type f)
           ls -la /tmp/trusttunnel-native-lib.zip
 
-      - name: Upload native lib artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: trusttunnel-native-lib
           path: /tmp/trusttunnel-native-lib.zip
           retention-days: 30
 
-      - name: Upload build logs on failure
+      - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
