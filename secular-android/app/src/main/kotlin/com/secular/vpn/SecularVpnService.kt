@@ -295,16 +295,33 @@ class SecularVpnService : VpnService() {
                     return@launch
                 }
 
-                // Create and start native client
+                // Deferred to wait for async native connection result
+                val connectDeferred = CompletableDeferred<Boolean>()
+
+                // Create native client with a listener that signals the deferred
                 addLog("Creating native client...")
                 val client = try {
                     VpnClient(tomlConfig, object : VpnClient.Listener {
                         override fun onStateChanged(state: Int) {
-                            addLog("State: $state")
+                            addLog("Native state: $state")
                             updateNotificationForState(state)
+                            when (state) {
+                                STATE_CONNECTED -> {
+                                    isTunnelUp = true
+                                    isConnecting = false
+                                    connectDeferred.complete(true)
+                                }
+                                STATE_DISCONNECTED -> {
+                                    isTunnelUp = false
+                                    isConnecting = false
+                                    if (!connectDeferred.isCompleted) {
+                                        connectDeferred.complete(false)
+                                    }
+                                }
+                            }
                         }
                         override fun onConnectionInfo(info: String) {
-                            addLog("Info: $info")
+                            addLog("Native info: $info")
                         }
                     })
                 } catch (e: Throwable) {
@@ -326,8 +343,6 @@ class SecularVpnService : VpnService() {
                 addLog("client.create() returned: $created")
 
                 if (!created) {
-                    // createNative may return ptr=1 on TOML parse failure (known bug).
-                    // The native parser requires non-empty username and password.
                     val errMsg = if (config.username.isEmpty() || config.password.isEmpty()) {
                         "Server config error: username and password are required by TrustTunnel protocol"
                     } else {
@@ -337,35 +352,60 @@ class SecularVpnService : VpnService() {
                     addLog("connectToServer: $errMsg")
                     isConnecting = false
                     client.destroy()
+                    nativeClient = null
                     return@launch
                 }
 
                 addLog("Starting tunnel with fd=${vpn.fd}")
-                val result = try {
+                val startResult = try {
                     client.start(vpn.fd)
                 } catch (e: Throwable) {
                     addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
                     false
                 }
-                addLog("Tunnel stopped: result=$result")
+                addLog("startNative returned: $startResult")
 
-                isTunnelUp = false
-                isConnecting = false
+                if (!startResult) {
+                    lastError = "Tunnel start failed"
+                    isTunnelUp = false
+                    isConnecting = false
+                    client.destroy()
+                    nativeClient = null
+                    return@launch
+                }
 
-                if (!result && lastError == null) {
-                    lastError = "Tunnel disconnected"
+                // Wait for the native connection to complete (up to 15 seconds)
+                addLog("Waiting for native connection...")
+                val connected = try {
+                    withTimeout(15000L) {
+                        connectDeferred.await()
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    addLog("connectToServer: connection timed out after 15s")
+                    false
+                }
+
+                if (connected) {
+                    addLog("connectToServer: CONNECTED!")
+                    // nativeClient is already set, leave it alive for disconnect()
+                } else {
+                    addLog("connectToServer: connection failed")
+                    isTunnelUp = false
+                    isConnecting = false
+                    lastError = lastError ?: "Connection failed"
+                    client.destroy()
+                    nativeClient = null
                 }
 
             } catch (e: CancellationException) {
                 addLog("Connection cancelled")
+                isTunnelUp = false
+                isConnecting = false
             } catch (e: Throwable) {
                 addLog("Connection failed: ${e.javaClass.simpleName}: ${e.message}")
                 lastError = "Connection failed: ${e.message}"
                 isTunnelUp = false
                 isConnecting = false
-            } finally {
-                try { nativeClient?.destroy() } catch (_: Exception) {}
-                nativeClient = null
             }
         }
     }
