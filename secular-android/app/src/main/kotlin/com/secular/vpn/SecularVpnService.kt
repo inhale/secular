@@ -184,6 +184,13 @@ class SecularVpnService : VpnService() {
                 throwable.stackTrace.forEach {
                     crashLog.appendText("  at $it\n")
                 }
+                // Also dump recent log buffer for context
+                crashLog.appendText("\n--- Last log entries ---\n")
+                synchronized(logBuffer) {
+                    logBuffer.takeLast(50).forEach {
+                        crashLog.appendText("  $it\n")
+                    }
+                }
             } catch (_: Exception) {}
             // Re-throw so we still get the native crash dump
             throwable.printStackTrace()
@@ -250,7 +257,14 @@ class SecularVpnService : VpnService() {
 
         if (config.addresses.isEmpty()) {
             lastError = "No server address"
-            return
+            return@launch
+        }
+
+        if (config.username.isEmpty() || config.password.isEmpty()) {
+            lastError = "Server '${config.name}' has no username or password. Edit the server and add credentials."
+            addLog("connectToServer: $lastError")
+            isConnecting = false
+            return@launch
         }
 
         // Build VPN TUN interface
@@ -306,6 +320,11 @@ class SecularVpnService : VpnService() {
                 val tomlConfig = config.toTrustTunnelToml()
                 addLog("TOML config:")
                 tomlConfig.lines().forEach { addLog("  $it") }
+                // Also write TOML to file for post-crash inspection
+                try {
+                    val tomlFile = java.io.File(getExternalFilesDir(null) ?: filesDir, "last_config.toml")
+                    tomlFile.writeText(tomlConfig)
+                } catch (_: Exception) {}
 
                 val vpn = vpnInterface
                 if (vpn == null) {

@@ -75,27 +75,27 @@ class ServerListFragment : Fragment() {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
-        loadServers()
+        // Don't load here — onResume will handle it
     }
-
-    private var serversLoaded = false
 
     override fun onResume() {
         super.onResume()
-        // Always reload on resume to pick up changes from add server screen
-        serversLoaded = false
         loadServers()
     }
 
     private fun loadServers() {
-        if (serversLoaded) return
         SecularVpnService.addLog("ServerList: loadServers() START")
         lifecycleScope.launch {
             try {
                 val loaded = repository.loadServers()
                 SecularVpnService.addLog("ServerList: loadServers() — loaded=${loaded.size} names=${loaded.map { it.name }}")
                 if (loaded.isEmpty()) {
-                    serversLoaded = true
+                    // Show empty state
+                    val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
+                    val rv = view?.findViewById<RecyclerView>(R.id.server_list)
+                    emptyState?.visibility = View.VISIBLE
+                    rv?.visibility = View.GONE
+                    adapter.updateList(emptyList(), -1)
                     return@launch
                 }
                 servers.clear()
@@ -113,16 +113,11 @@ class ServerListFragment : Fragment() {
                 SecularVpnService.addLog("ServerList: calling updateList size=${servers.size} selectedIndex=$selectedIndex")
 
                 adapter.updateList(servers, selectedIndex)
-                serversLoaded = true
 
                 val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
                 val rv = view?.findViewById<RecyclerView>(R.id.server_list)
-                if (servers.isEmpty()) {
-                    emptyState?.visibility = View.VISIBLE
-                    rv?.visibility = View.GONE
-                } else {
-                    emptyState?.visibility = View.GONE
-                    rv?.visibility = View.VISIBLE
+                emptyState?.visibility = View.GONE
+                rv?.visibility = View.VISIBLE
                 }
                 SecularVpnService.addLog("ServerList: loadServers() DONE — showing ${servers.size} servers")
             } catch (e: Throwable) {
