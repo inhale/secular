@@ -271,9 +271,9 @@ class SecularVpnService : VpnService() {
                 // Verify native library is available
                 try {
                     Class.forName("com.adguard.trusttunnel.VpnClient")
-                } catch (e: ClassNotFoundException) {
+                } catch (e: Throwable) {
                     lastError = "Native library not available (build issue)"
-                    addLog("Native VpnClient class not found: ${e.message}")
+                    addLog("Native VpnClient class not found: ${e.javaClass.simpleName}: ${e.message}")
                     isConnecting = false
                     return@launch
                 }
