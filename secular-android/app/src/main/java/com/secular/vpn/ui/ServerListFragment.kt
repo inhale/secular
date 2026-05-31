@@ -85,20 +85,24 @@ class ServerListFragment : Fragment() {
     }
 
     private fun loadServers() {
+        SecularVpnService.addLog("ServerList: loadServers() START")
         lifecycleScope.launch {
             try {
                 val loaded = repository.loadServers()
+                SecularVpnService.addLog("ServerList: loadServers() — loaded=${loaded.size} names=${loaded.map { it.name }}")
                 servers.clear()
                 servers.addAll(loaded)
 
                 // Restore selection
                 val savedName = prefs.getString("selected_server_name", null)
+                SecularVpnService.addLog("ServerList: savedName=$savedName servers=${servers.map { it.name }}")
                 if (savedName != null) {
                     val idx = servers.indexOfFirst { it.name == savedName }
                     if (idx >= 0) selectedIndex = idx
                 } else if (servers.isNotEmpty()) {
                     selectedIndex = 0
                 }
+                SecularVpnService.addLog("ServerList: calling updateList size=${servers.size} selectedIndex=$selectedIndex")
 
                 adapter.updateList(servers, selectedIndex)
 
@@ -111,8 +115,9 @@ class ServerListFragment : Fragment() {
                     emptyState?.visibility = View.GONE
                     rv?.visibility = View.VISIBLE
                 }
-            } catch (e: Exception) {
-                SecularVpnService.addLog("ServerList: loadServers ERROR: ${e.message}")
+                SecularVpnService.addLog("ServerList: loadServers() DONE — showing ${servers.size} servers")
+            } catch (e: Throwable) {
+                SecularVpnService.addLog("ServerList: loadServers ERROR: ${e.javaClass.simpleName}: ${e.message}")
             }
         }
     }
