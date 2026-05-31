@@ -78,18 +78,26 @@ class ServerListFragment : Fragment() {
         loadServers()
     }
 
+    private var serversLoaded = false
+
     override fun onResume() {
         super.onResume()
-        // Reload on resume to pick up any changes
+        // Always reload on resume to pick up changes from add server screen
+        serversLoaded = false
         loadServers()
     }
 
     private fun loadServers() {
+        if (serversLoaded) return
         SecularVpnService.addLog("ServerList: loadServers() START")
         lifecycleScope.launch {
             try {
                 val loaded = repository.loadServers()
                 SecularVpnService.addLog("ServerList: loadServers() — loaded=${loaded.size} names=${loaded.map { it.name }}")
+                if (loaded.isEmpty()) {
+                    serversLoaded = true
+                    return@launch
+                }
                 servers.clear()
                 servers.addAll(loaded)
 
@@ -105,6 +113,7 @@ class ServerListFragment : Fragment() {
                 SecularVpnService.addLog("ServerList: calling updateList size=${servers.size} selectedIndex=$selectedIndex")
 
                 adapter.updateList(servers, selectedIndex)
+                serversLoaded = true
 
                 val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
                 val rv = view?.findViewById<RecyclerView>(R.id.server_list)
