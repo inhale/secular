@@ -30,13 +30,19 @@ class VpnClient(
     }
 
     companion object {
+        @Volatile var nativeLibLoaded = false
+            private set
+
         init {
             try {
                 System.loadLibrary("trusttunnel_android")
-                SecularVpnService.addLog("VpnClient: native library loaded")
-            } catch (e: UnsatisfiedLinkError) {
-                SecularVpnService.addLog("VpnClient: FAILED to load libtrusttunnel_android.so: ${e.message}")
-                throw e
+                nativeLibLoaded = true
+                // addLog may not be safe here (service not created yet), use Log directly
+                android.util.Log.d("SecularVPN", "VpnClient: native library loaded")
+            } catch (e: Throwable) {
+                nativeLibLoaded = false
+                android.util.Log.e("SecularVPN", "VpnClient: FAILED to load native lib: ${e.message}")
+                // Don't re-throw — let the app show a nice error instead of crashing
             }
         }
 
@@ -65,17 +71,14 @@ class VpnClient(
     // Called from native code via JNI — protect tunnel socket from VPN
     @Suppress("unused")
     fun protectSocket(socket: Int): Boolean {
-        SecularVpnService.addLog("VpnClient: protectSocket($socket)")
         return try {
             val svc = SecularVpnService.instance
             if (svc != null) {
                 svc.protect(socket)
             } else {
-                SecularVpnService.addLog("VpnClient: no service instance")
                 false
             }
-        } catch (e: Exception) {
-            SecularVpnService.addLog("VpnClient: protectSocket error: ${e.message}")
+        } catch (e: Throwable) {
             false
         }
     }
@@ -90,17 +93,23 @@ class VpnClient(
     // Called from native code via JNI — VPN state changes
     @Suppress("unused")
     fun onStateChanged(state: Int) {
-        SecularVpnService.addLog("VpnClient: state=$state")
-        SecularVpnService.onNativeStateChanged(state)
-        listener?.onStateChanged(state)
+        try {
+            SecularVpnService.onNativeStateChanged(state)
+            listener?.onStateChanged(state)
+        } catch (e: Throwable) {
+            // Don't let listener exceptions crash the native thread
+        }
     }
 
     // Called from native code via JNI — connection events
     @Suppress("unused")
     fun onConnectionInfo(info: String) {
-        SecularVpnService.addLog("VpnClient: $info")
-        SecularVpnService.onNativeConnectionInfo(info)
-        listener?.onConnectionInfo(info)
+        try {
+            SecularVpnService.onNativeConnectionInfo(info)
+            listener?.onConnectionInfo(info)
+        } catch (e: Throwable) {
+            // Don't let listener exceptions crash the native thread
+        }
     }
 
     // Create native client from TOML config string
@@ -145,17 +154,15 @@ class VpnClient(
 
     // Stop tunnel
     fun stop() {
-        if (nativePtr != 0L) {
-            SecularVpnService.addLog("VpnClient: stop()")
-            stopNative(nativePtr)
+        if (nativePtr != 0L && nativeLibLoaded) {
+            try { stopNative(nativePtr) } catch (_: Throwable) {}
         }
     }
 
     // Destroy native client
     fun destroy() {
-        if (nativePtr != 0L) {
-            SecularVpnService.addLog("VpnClient: destroy()")
-            destroyNative(nativePtr)
+        if (nativePtr != 0L && nativeLibLoaded) {
+            try { destroyNative(nativePtr) } catch (_: Throwable) {}
             nativePtr = 0
         }
     }

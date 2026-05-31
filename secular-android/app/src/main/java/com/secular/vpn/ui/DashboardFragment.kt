@@ -118,32 +118,46 @@ class DashboardFragment : Fragment() {
 
     private fun connectVpn() {
         lifecycleScope.launch {
-            val servers = repository.loadServers()
-            if (servers.isEmpty()) {
-                Toast.makeText(requireContext(), "Add a server first", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
+            try {
+                val servers = repository.loadServers()
+                if (servers.isEmpty()) {
+                    Toast.makeText(requireContext(), "Add a server first", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
 
-            // Use selected server, or fall back to first
-            val savedName = prefs.getString("selected_server_name", null)
-            val server = if (savedName != null) {
-                servers.find { it.name == savedName } ?: servers[0]
-            } else {
-                servers[0]
-            }
-            SecularVpnService.addLog("Connect tapped: server=${server.name} addr=${server.displayAddress}")
+                // Use selected server, or fall back to first
+                val savedName = prefs.getString("selected_server_name", null)
+                val server = if (savedName != null) {
+                    servers.find { it.name == savedName } ?: servers[0]
+                } else {
+                    servers[0]
+                }
+                SecularVpnService.addLog("Connect tapped: server=${server.name} addr=${server.displayAddress}")
 
-            val prepareIntent = VpnService.prepare(requireContext())
-            if (prepareIntent != null) {
-                SecularVpnService.addLog("VPN not prepared — showing system dialog")
-                isConnected = true // optimistically
-                updateUiConnecting()
-                vpnPrepareLauncher.launch(prepareIntent)
-            } else {
-                SecularVpnService.addLog("VPN already prepared — starting service directly")
-                isConnected = true
-                updateUiConnecting()
-                startVpnService()
+                val prepareIntent = try {
+                    VpnService.prepare(requireContext())
+                } catch (e: Throwable) {
+                    SecularVpnService.addLog("VpnService.prepare() failed: ${e.message}")
+                    Toast.makeText(requireContext(), "VPN not available: ${e.message}", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                if (prepareIntent != null) {
+                    SecularVpnService.addLog("VPN not prepared — showing system dialog")
+                    isConnected = true
+                    updateUiConnecting()
+                    vpnPrepareLauncher.launch(prepareIntent)
+                } else {
+                    SecularVpnService.addLog("VPN already prepared — starting service directly")
+                    isConnected = true
+                    updateUiConnecting()
+                    startVpnService()
+                }
+            } catch (e: Throwable) {
+                SecularVpnService.addLog("connectVpn error: ${e.javaClass.simpleName}: ${e.message}")
+                isConnected = false
+                view?.let { updateUiDisconnected(it) }
+                try { Toast.makeText(requireContext(), "Connection error: ${e.message}", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
             }
         }
     }
@@ -168,8 +182,8 @@ class DashboardFragment : Fragment() {
                 SecularVpnService.addLog("Dashboard: calling startService...")
                 requireContext().startService(intent)
                 startStatePolling()
-            } catch (e: Exception) {
-                SecularVpnService.addLog("startVpnService error: ${e.message}")
+            } catch (e: Throwable) {
+                SecularVpnService.addLog("startVpnService error: ${e.javaClass.simpleName}: ${e.message}")
             }
         }
     }

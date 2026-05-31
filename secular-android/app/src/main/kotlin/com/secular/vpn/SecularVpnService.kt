@@ -234,20 +234,30 @@ class SecularVpnService : VpnService() {
 
         // Build VPN TUN interface
         addLog("Building VPN interface...")
-        val builder = Builder()
-            .setSession("Secular VPN")
-            .setMtu(1500)
-            .addAddress("172.20.2.13", 32)
-            .addAddress("fdfd:29::2", 64)
-            .addRoute("0.0.0.0", 0)
-            .addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
-            .setBlocking(true)
+        val builder = try {
+            Builder()
+                .setSession("Secular VPN")
+                .setMtu(1500)
+                .addAddress("172.20.2.13", 32)
+                .addAddress("fdfd:29::2", 64)
+                .addRoute("0.0.0.0", 0)
+                .addDnsServer(java.net.InetAddress.getByName("9.9.9.9"))
+                .setBlocking(true)
+        } catch (e: Throwable) {
+            addLog("Builder failed: ${e.javaClass.simpleName}: ${e.message}")
+            lastError = "Failed to build VPN interface: ${e.message}"
+            return
+        }
 
         try {
             builder.addDisallowedApplication(packageName)
         } catch (_: Exception) {}
 
-        vpnInterface = builder.establish()
+        vpnInterface = try { builder.establish() } catch (e: Throwable) {
+            addLog("establish() failed: ${e.javaClass.simpleName}: ${e.message}")
+            lastError = "VPN permission not granted"
+            return
+        }
         if (vpnInterface == null) {
             addLog("builder.establish() returned null — VPN not prepared?")
             lastError = "VPN permission not granted"
@@ -284,13 +294,9 @@ class SecularVpnService : VpnService() {
                 }
 
                 // Verify native library is available
-                addLog("Pre-check: loading VpnClient class...")
-                try {
-                    Class.forName("com.adguard.trusttunnel.VpnClient")
-                    addLog("Pre-check: VpnClient class loaded OK")
-                } catch (e: Throwable) {
-                    lastError = "Native library not available (build issue)"
-                    addLog("Pre-check FAILED: ${e.javaClass.simpleName}: ${e.message}")
+                if (!VpnClient.nativeLibLoaded) {
+                    lastError = "Native VPN library not available (missing .so for this device architecture)"
+                    addLog("connectToServer: native library not loaded — cannot connect")
                     isConnecting = false
                     return@launch
                 }
