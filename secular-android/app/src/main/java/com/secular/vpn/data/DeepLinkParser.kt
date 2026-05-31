@@ -135,6 +135,11 @@ object DeepLinkParser {
             val data = Base64.decode(padded, Base64.DEFAULT)
             if (data.size < 4) return null
 
+            // TrustTunnel TLV requires version byte 0x00 as first tag.
+            // Without this check, random base64-decoded data (e.g. URL params)
+            // can produce false positives when bytes happen to contain 0x01/0x02 tags.
+            if ((data[0].toInt() and 0xFF) != 0x00) return null
+
             val fields = mutableMapOf<Int, ByteArray>()
             var pos = 0
             while (pos + 2 <= data.size) {

@@ -290,7 +290,7 @@ class SecularVpnService : VpnService() {
                             addLog("Info: $info")
                         }
                     })
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     addLog("VpnClient creation failed: ${e.javaClass.simpleName}: ${e.message}")
                     lastError = "Tunnel init failed: ${e.message}"
                     isConnecting = false
@@ -320,7 +320,7 @@ class SecularVpnService : VpnService() {
 
             } catch (e: CancellationException) {
                 addLog("Connection cancelled")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 addLog("Connection failed: ${e.javaClass.simpleName}: ${e.message}")
                 lastError = "Connection failed: ${e.message}"
                 isTunnelUp = false
