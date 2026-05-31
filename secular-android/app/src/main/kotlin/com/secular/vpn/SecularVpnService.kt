@@ -181,8 +181,8 @@ class SecularVpnService : VpnService() {
             try {
                 val crashLog = File(getExternalFilesDir(null) ?: filesDir, "crash.log")
                 crashLog.appendText("[${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date())}] FATAL on ${thread.name}: ${throwable.javaClass.name}: ${throwable.message}\n")
-                throwable.forEach {
-                    crashLog.appendText("  at ${it}\n")
+                throwable.stackTrace.forEach {
+                    crashLog.appendText("  at $it\n")
                 }
             } catch (_: Exception) {}
             // Re-throw so we still get the native crash dump
