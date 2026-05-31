@@ -109,8 +109,12 @@ class VpnClient(
         SecularVpnService.addLog("VpnClient: create() — config preview: ${config.take(200)}")
         try {
             nativePtr = createNative(config)
-            if (nativePtr == 0L) {
-                SecularVpnService.addLog("VpnClient: createNative FAILED (returned 0)")
+            // BUG WORKAROUND: createNative returns 1 (not 0) on TOML parse failure.
+            // Any value that's not a valid heap pointer is treated as failure.
+            // Valid pointers from make_unique are at least a few KB into heap.
+            if (nativePtr == 0L || nativePtr == 1L) {
+                SecularVpnService.addLog("VpnClient: createNative FAILED (returned $nativePtr)")
+                nativePtr = 0
                 return false
             }
             SecularVpnService.addLog("VpnClient: created ptr=$nativePtr")

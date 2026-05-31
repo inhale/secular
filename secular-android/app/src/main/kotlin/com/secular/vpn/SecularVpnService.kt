@@ -326,7 +326,15 @@ class SecularVpnService : VpnService() {
                 addLog("client.create() returned: $created")
 
                 if (!created) {
-                    lastError = "Failed to create native client"
+                    // createNative may return ptr=1 on TOML parse failure (known bug).
+                    // The native parser requires non-empty username and password.
+                    val errMsg = if (config.username.isEmpty() || config.password.isEmpty()) {
+                        "Server config error: username and password are required by TrustTunnel protocol"
+                    } else {
+                        "Failed to create native client (TOML config rejected by native library)"
+                    }
+                    lastError = errMsg
+                    addLog("connectToServer: $errMsg")
                     isConnecting = false
                     client.destroy()
                     return@launch
