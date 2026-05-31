@@ -25,14 +25,9 @@ class ServerListFragment : Fragment() {
 
     private lateinit var repository: ServersRepository
     private lateinit var adapter: ServerAdapter
-    private var servers = mutableListOf<ServerProfile>()
+    private val servers = mutableListOf<ServerProfile>()
     private var selectedIndex = -1
     private lateinit var prefs: SharedPreferences
-
-    companion object {
-        private const val PREFS_NAME = "secular_vpn_prefs"
-        private const val KEY_SELECTED_SERVER = "selected_server_name"
-    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_server_list, container, false)
@@ -41,22 +36,23 @@ class ServerListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
         repository = ServersRepository(requireContext())
-        prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.server_list)
         adapter = ServerAdapter(
             servers = servers,
+            selectedIndex = selectedIndex,
             onItemClick = { index ->
                 selectedIndex = index
-                adapter.notifyDataSetChanged()
+                adapter.updateSelected(index)
                 val server = servers.getOrNull(index)
                 if (server != null) {
-                    prefs.edit().putString(KEY_SELECTED_SERVER, server.name).apply()
-                    SecularVpnService.addLog("ServerList: selected server=${server.name}")
+                    prefs.edit().putString("selected_server_name", server.name).apply()
                 }
-                recyclerView.postDelayed({
+                // Pop back to dashboard after selection
+                view.postDelayed({
                     try { findNavController().popBackStack() } catch (_: Exception) {}
-                }, 400)
+                }, 300)
             },
             onGearClick = { index ->
                 try {
@@ -79,32 +75,32 @@ class ServerListFragment : Fragment() {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
-        SecularVpnService.addLog("ServerList: onViewCreated — loading servers")
+        loadServers()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload on resume to pick up any changes
         loadServers()
     }
 
     private fun loadServers() {
-        SecularVpnService.addLog("ServerList: loadServers() START")
         lifecycleScope.launch {
             try {
                 val loaded = repository.loadServers()
-                SecularVpnService.addLog("ServerList: loaded ${loaded.size} servers: ${loaded.map { it.name }}")
                 servers.clear()
                 servers.addAll(loaded)
 
-                // Restore selected index by saved name
-                val savedName = prefs.getString(KEY_SELECTED_SERVER, null)
+                // Restore selection
+                val savedName = prefs.getString("selected_server_name", null)
                 if (savedName != null) {
                     val idx = servers.indexOfFirst { it.name == savedName }
                     if (idx >= 0) selectedIndex = idx
-                    SecularVpnService.addLog("ServerList: restored selection=${savedName} at idx=$selectedIndex")
                 } else if (servers.isNotEmpty()) {
                     selectedIndex = 0
-                    SecularVpnService.addLog("ServerList: auto-selected idx=0")
                 }
 
-                adapter.notifyDataSetChanged()
-                SecularVpnService.addLog("ServerList: adapter updated, count=${servers.size}")
+                adapter.updateList(servers, selectedIndex)
 
                 val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
                 val rv = view?.findViewById<RecyclerView>(R.id.server_list)
@@ -121,32 +117,20 @@ class ServerListFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        SecularVpnService.addLog("ServerList: onResume — reloading")
-        loadServers()
-    }
-
     private val flagEmojis = listOf(
-        "\uD83C\uDDE9\uD83C\uDDEA", // 🇩🇪
-        "\uD83C\uDDEC\uD83C\uDDE7", // 🇬🇧
-        "\uD83C\uDDEB\uD83C\uDDF7", // 🇫🇷
-        "\uD83C\uDDE8\uD83C\uDDF3", // 🇨🇳
-        "\uD83C\uDDEF\uD83C\uDDF5", // 🇯🇵
-        "\uD83C\uDDF5\uD83C\uDDF1", // 🇵🇱
-        "\uD83C\uDDF9\uD83C\uDDED", // 🇹🇭
-        "\uD83C\uDDF3\uD83C\uDDF4", // 🇳🇴
-        "\uD83C\uDDFA\uD83C\uDDF8", // 🇺🇸
-        "\uD83C\uDDE8\u200D\uD83C\uDDE6", // (extra)
+        "\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEB\uD83C\uDDF7",
+        "\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDF5\uD83C\uDDF1",
+        "\uD83C\uDDF9\uD83C\uDDED", "\uD83C\uDDF3\uD83C\uDDF4", "\uD83C\uDDFA\uD83C\uDDF8",
+        "\uD83C\uDDE8\u200D\uD83C\uDDE6",
     )
 
     private fun flagForServer(serverName: String): String {
-        val hash = serverName.hashCode()
-        return flagEmojis[Math.floorMod(hash, flagEmojis.size)]
+        return flagEmojis[Math.floorMod(serverName.hashCode(), flagEmojis.size)]
     }
 
     inner class ServerAdapter(
-        private val servers: List<ServerProfile>,
+        private val servers: MutableList<ServerProfile>,
+        private var selectedIndex: Int,
         private val onItemClick: (Int) -> Unit,
         private val onGearClick: (Int) -> Unit
     ) : RecyclerView.Adapter<ServerAdapter.ViewHolder>() {
@@ -162,15 +146,13 @@ class ServerListFragment : Fragment() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_server, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_server, parent, false)
             return ViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             try {
                 val server = servers[position]
-                SecularVpnService.addLog("ServerList: bind pos=$position name=${server.name}")
                 holder.flagText.text = flagForServer(server.name)
                 holder.name.text = server.name
                 holder.meta.text = "TrustTunnel · ${server.displayAddress}"
@@ -188,6 +170,20 @@ class ServerListFragment : Fragment() {
         }
 
         override fun getItemCount() = servers.size
+
+        fun updateList(newServers: List<ServerProfile>, newSelected: Int) {
+            servers.clear()
+            servers.addAll(newServers)
+            selectedIndex = newSelected
+            notifyDataSetChanged()
+        }
+
+        fun updateSelected(newSelected: Int) {
+            val old = selectedIndex
+            selectedIndex = newSelected
+            if (old >= 0 && old < servers.size) notifyItemChanged(old)
+            if (newSelected >= 0 && newSelected < servers.size) notifyItemChanged(newSelected)
+        }
 
         private fun getPingDrawable(ping: Int): Int = when {
             ping < 40 -> R.drawable.ping_dot_excellent

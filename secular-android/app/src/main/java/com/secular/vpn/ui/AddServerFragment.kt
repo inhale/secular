@@ -35,9 +35,7 @@ class AddServerFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                parseTomlFile(uri)
-            }
+            result.data?.data?.let { uri -> parseTomlFile(uri) }
         }
     }
 
@@ -52,17 +50,10 @@ class AddServerFragment : Fragment() {
 
         linkInput = view.findViewById(R.id.field_link)
 
-        // Add from link
-        view.findViewById<Button>(R.id.btn_add_link).setOnClickListener {
-            addFromLink()
-        }
-
-        // Scan QR code
+        view.findViewById<Button>(R.id.btn_add_link).setOnClickListener { addFromLink() }
         view.findViewById<Button>(R.id.btn_scan_qr).setOnClickListener {
             Toast.makeText(requireContext(), "QR Scanner coming soon", Toast.LENGTH_SHORT).show()
         }
-
-        // Upload config file
         view.findViewById<LinearLayout>(R.id.btn_upload_config).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -71,8 +62,6 @@ class AddServerFragment : Fragment() {
             }
             tomlPickerLauncher.launch(intent)
         }
-
-        // Manual setup
         view.findViewById<Button>(R.id.btn_manual_setup).setOnClickListener {
             val bundle = Bundle().apply { putInt("serverIndex", -1) }
             findNavController().navigate(R.id.action_addServer_to_serverConfig, bundle)
@@ -95,25 +84,25 @@ class AddServerFragment : Fragment() {
             return
         }
 
-        SecularVpnService.addLog("AddServer: addFromLink() called with: ${link.take(60)}...")
+        SecularVpnService.addLog("AddServer: addFromLink() → parsing link")
         val profile = DeepLinkParser.parse(link)
         if (profile != null) {
-            SecularVpnService.addLog("AddServer: parsed OK — name=${profile.name} host=${profile.hostname} addr=${profile.addresses}")
+            SecularVpnService.addLog("AddServer: parsed OK name=${profile.name} host=${profile.hostname}")
             lifecycleScope.launch {
-                SecularVpnService.addLog("AddServer: calling addServer for ${profile.name}")
                 val idx = repository.addServer(profile)
-                SecularVpnService.addLog("AddServer: addServer returned idx=$idx")
+                SecularVpnService.addLog("AddServer: added server idx=$idx, navigating to server list")
                 prefs.edit().putString("selected_server_name", profile.name).apply()
-                navigateBack()
+                // Navigate: pop back to dashboard, then go to server list
+                findNavController().popBackStack(R.id.dashboardFragment, false)
+                findNavController().navigate(R.id.action_dashboard_to_serverList)
             }
         } else {
-            SecularVpnService.addLog("AddServer: parse FAILED for: ${link.take(120)}")
-            Toast.makeText(requireContext(), "Invalid link format. Check Log screen for details.", Toast.LENGTH_LONG).show()
+            SecularVpnService.addLog("AddServer: FAILED to parse link")
+            Toast.makeText(requireContext(), "Invalid link format. Check Log screen.", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun parseTomlFile(uri: Uri) {
-        SecularVpnService.addLog("AddServer: parseTomlFile() uri=$uri")
         lifecycleScope.launch {
             try {
                 val inputStream = requireContext().contentResolver.openInputStream(uri)
@@ -121,23 +110,18 @@ class AddServerFragment : Fragment() {
                     val profile = TomlFileParser.parse(inputStream)
                     inputStream.close()
                     if (profile != null) {
-                        SecularVpnService.addLog("AddServer: TOML parsed OK — name=${profile.name}")
-                        val idx = repository.addServer(profile)
-                        SecularVpnService.addLog("AddServer: TOML addServer returned idx=$idx")
+                        SecularVpnService.addLog("AddServer: TOML parsed name=${profile.name}")
+                        repository.addServer(profile)
                         prefs.edit().putString("selected_server_name", profile.name).apply()
-                        navigateBack()
+                        findNavController().popBackStack(R.id.dashboardFragment, false)
+                        findNavController().navigate(R.id.action_dashboard_to_serverList)
                     } else {
                         Toast.makeText(requireContext(), "Invalid TOML config", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error reading file: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
-    }
-
-    private fun navigateBack() {
-        SecularVpnService.addLog("AddServer: navigateBack() — popping to previous")
-        findNavController().popBackStack()
     }
 }

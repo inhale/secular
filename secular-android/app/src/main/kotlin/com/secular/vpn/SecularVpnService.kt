@@ -117,12 +117,11 @@ class SecularVpnService : VpnService() {
             sb.appendLine()
 
             // [listener.tun]
-            sb.appendLine("[listener]")
             sb.appendLine("[listener.tun]")
             sb.appendLine("included_routes = [\"0.0.0.0/0\", \"::/0\"]")
             sb.appendLine("excluded_routes = []")
             sb.appendLine("mtu_size = 1500")
-            sb.appendLine("change_system_dns = true")
+            sb.appendLine("change_system_dns = false")
             sb.appendLine()
 
             // [endpoint] — server connection
