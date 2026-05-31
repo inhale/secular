@@ -159,10 +159,13 @@ class DashboardFragment : Fragment() {
                 } else {
                     servers[0]
                 }
+                val json = com.google.gson.Gson().toJson(server)
+                SecularVpnService.addLog("Dashboard: startVpnService server=${server.name} jsonLen=${json.length}")
                 val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
                     action = SecularVpnService.ACTION_CONNECT
-                    putExtra("server_json", com.google.gson.Gson().toJson(server))
+                    putExtra("server_json", json)
                 }
+                SecularVpnService.addLog("Dashboard: calling startService...")
                 requireContext().startService(intent)
                 startStatePolling()
             } catch (e: Exception) {
