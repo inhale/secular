@@ -61,6 +61,11 @@ class DashboardFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
+        android.util.Log.d("SecularVPN", "DashboardFragment onViewCreated — NEW CODE v0.2.15")
+        // Verify new layout elements exist
+        val logoBright = view.findViewById<android.widget.ImageView>(com.secular.vpn.R.id.logo_bright)
+        val connectGlow = view.findViewById<android.view.View>(com.secular.vpn.R.id.connect_glow)
+        android.util.Log.d("SecularVPN", "DashboardFragment: logo_bright=$logoBright connect_glow=$connectGlow")
         repository = ServersRepository(requireContext())
         prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
