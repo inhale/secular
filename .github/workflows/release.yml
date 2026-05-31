@@ -67,7 +67,7 @@ jobs:
         run: |
           java -version 2>&1
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -50
+          ./gradlew assembleDebug --no-daemon 2>&1
 
       - name: Copy APK to workspace root
         run: |
