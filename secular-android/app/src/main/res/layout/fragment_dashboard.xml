@@ -131,31 +131,60 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Connect Button: large circle with thin gray border -->
+    <!-- Connect Button: large circle with dual-logo and glow -->
     <FrameLayout
-        android:layout_width="180dp"
-        android:layout_height="180dp"
+        android:id="@+id/connect_btn_container"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:layout_marginBottom="24dp">
+
+        <!-- Glow layer (visible when connected) -->
+        <View
+            android:id="@+id/connect_glow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/connect_glow_bg"
+            android:visibility="invisible"
+            android:alpha="0" />
 
         <!-- Spinning ring (connected state) -->
         <View
             android:id="@+id/connect_ring"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_margin="8dp"
             android:background="@drawable/connect_ring"
             android:visibility="invisible" />
 
-        <!-- Main button circle: thin gray border, dark fill, white logo -->
+        <!-- Main button circle -->
         <ImageButton
             android:id="@+id/connect_btn"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:layout_gravity="center"
             android:background="@drawable/connect_btn_bg"
-            android:src="@drawable/logo_white"
-            android:scaleType="fitCenter"
-            android:padding="50dp"
             android:contentDescription="Toggle VPN connection"
             android:stateListAnimator="@null" />
+
+        <!-- Logo: white (dim, shown when disconnected) -->
+        <ImageView
+            android:id="@+id/logo_dim"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center"
+            android:src="@drawable/logo_white"
+            android:alpha="1"
+            android:importantForAccessibility="no" />
+
+        <!-- Logo: green (bright, shown when connected) -->
+        <ImageView
+            android:id="@+id/logo_bright"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center"
+            android:src="@drawable/logo_green"
+            android:alpha="0"
+            android:importantForAccessibility="no" />
     </FrameLayout>
 
     <!-- Spacer between connect button and server card -->

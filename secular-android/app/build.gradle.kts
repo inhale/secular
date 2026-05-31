@@ -80,6 +80,9 @@ dependencies {
     // Material Design 3
     implementation("com.google.android.material:material:1.11.0")
 
+    // RecyclerView
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
@@ -88,6 +91,9 @@ dependencies {
 
     // OkHttp — TLS + HTTP/2 for tunnel
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // ZXing — QR code scanning
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

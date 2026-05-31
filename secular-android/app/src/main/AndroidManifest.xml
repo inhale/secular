@@ -46,5 +46,12 @@
                 android:value="vpn" />
         </service>
 
+        <!-- QR Scanner Activity -->
+        <activity
+            android:name=".ui.QrScannerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Secular" />
+
     </application>
 </manifest>

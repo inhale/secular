@@ -39,6 +39,18 @@ class AddServerFragment : Fragment() {
         }
     }
 
+    private val qrLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val qrText = result.data?.getStringExtra(QrScannerActivity.QR_RESULT)
+            if (qrText != null) {
+                linkInput.setText(qrText)
+                addFromLink()
+            }
+        }
+    }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, arguments: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_add_server, container, false)
     }
@@ -52,7 +64,8 @@ class AddServerFragment : Fragment() {
 
         view.findViewById<Button>(R.id.btn_add_link).setOnClickListener { addFromLink() }
         view.findViewById<Button>(R.id.btn_scan_qr).setOnClickListener {
-            Toast.makeText(requireContext(), "QR Scanner coming soon", Toast.LENGTH_SHORT).show()
+            val intent = Intent(requireContext(), QrScannerActivity::class.java)
+            qrLauncher.launch(intent)
         }
         view.findViewById<LinearLayout>(R.id.btn_upload_config).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {

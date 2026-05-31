@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scan line gradient — green with transparent edges -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#0000FF66"
+        android:centerColor="#00FF66"
+        android:endColor="#0000FF66"
+        android:type="linear"
+        android:angle="0" />
+    <corners android:radius="1dp" />
+</shape>

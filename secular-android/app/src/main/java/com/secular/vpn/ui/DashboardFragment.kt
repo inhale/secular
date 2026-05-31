@@ -200,18 +200,7 @@ class DashboardFragment : Fragment() {
                         resources.getColor(R.color.accent, null)
                     )
                     v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
-                    v.findViewById<ImageButton>(R.id.connect_btn)
-                        ?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
-                    val ring = v.findViewById<View>(R.id.connect_ring)
-                    ring?.visibility = View.VISIBLE
-                    android.animation.ObjectAnimator.ofFloat(ring, "rotation", 0f, 360f).apply {
-                        duration = 3000
-                        interpolator = LinearInterpolator()
-                        repeatCount = android.animation.ValueAnimator.INFINITE
-                        start()
-                    }
-                    v.findViewById<View>(R.id.ping_dot)
-                        ?.setBackgroundResource(R.drawable.ping_dot_excellent)
+                    animateConnect(v)
                     startMetricsPolling()
                 } else if (SecularVpnService.lastError != null) {
                     val v = view ?: return
@@ -264,17 +253,82 @@ class DashboardFragment : Fragment() {
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.5f
     }
 
+    private fun animateConnect(v: View) {
+        // Button bg → green border
+        v.findViewById<ImageButton>(R.id.connect_btn)
+            ?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+
+        // Glow fade in
+        val glow = v.findViewById<View>(R.id.connect_glow)
+        glow?.visibility = View.VISIBLE
+        glow?.animate()?.alpha(1f)?.setDuration(600)?.start()
+
+        // Ring spin
+        val ring = v.findViewById<View>(R.id.connect_ring)
+        ring?.visibility = View.VISIBLE
+        android.animation.ObjectAnimator.ofFloat(ring, "rotation", 0f, 360f).apply {
+            duration = 3000
+            interpolator = LinearInterpolator()
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            start()
+        }
+
+        // Logo crossfade: white dim → green bright
+        val logoDim = v.findViewById<View>(R.id.logo_dim)
+        val logoBright = v.findViewById<View>(R.id.logo_bright)
+        logoDim?.animate()?.alpha(0f)?.setDuration(500)?.start()
+        logoBright?.animate()?.alpha(1f)?.setDuration(500)?.start()
+
+        // Logo pulse animation (breathing)
+        logoBright?.let { lv ->
+            lv.scaleX = 1f
+            lv.scaleY = 1f
+            android.animation.ObjectAnimator.ofFloat(lv, "scaleX", 1f, 1.08f, 1f).apply {
+                duration = 2000
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                start()
+            }
+            android.animation.ObjectAnimator.ofFloat(lv, "scaleY", 1f, 1.08f, 1f).apply {
+                duration = 2000
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                start()
+            }
+        }
+
+        // Ping dot
+        v.findViewById<View>(R.id.ping_dot)
+            ?.setBackgroundResource(R.drawable.ping_dot_excellent)
+    }
+
+    private fun animateDisconnect(v: View) {
+        // Button bg → gray border
+        v.findViewById<ImageButton>(R.id.connect_btn)
+            ?.setBackgroundResource(R.drawable.connect_btn_bg)
+
+        // Glow fade out
+        v.findViewById<View>(R.id.connect_glow)
+            ?.animate()?.alpha(0f)?.setDuration(400)?.withEndAction {
+                v.findViewById<View>(R.id.connect_glow)?.visibility = View.INVISIBLE
+            }?.start()
+
+        // Ring hide
+        v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
+
+        // Logo crossfade: green bright → white dim
+        v.findViewById<View>(R.id.logo_dim)?.animate()?.alpha(1f)?.setDuration(500)?.start()
+        v.findViewById<View>(R.id.logo_bright)?.animate()?.alpha(0f)?.setDuration(500)?.start()
+
+        // Ping dot
+        v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_bg)
+    }
+
     private fun updateUiConnected(v: View) {
         v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
         v.findViewById<TextView>(R.id.status_label)?.setTextColor(
             resources.getColor(R.color.accent, null)
         )
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
-        v.findViewById<ImageButton>(R.id.connect_btn)
-            ?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
-        v.findViewById<View>(R.id.connect_ring)?.visibility = View.VISIBLE
-        v.findViewById<View>(R.id.ping_dot)
-            ?.setBackgroundResource(R.drawable.ping_dot_excellent)
+        animateConnect(v)
     }
 
     private fun updateUiDisconnected(v: View) {
@@ -283,10 +337,7 @@ class DashboardFragment : Fragment() {
             resources.getColor(R.color.text_dim, null)
         )
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.35f
-        v.findViewById<ImageButton>(R.id.connect_btn)
-            ?.setBackgroundResource(R.drawable.connect_btn_bg)
-        v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
-        v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_bg)
+        animateDisconnect(v)
         v.findViewById<TextView>(R.id.session_time)?.text = "00:00:00"
         v.findViewById<TextView>(R.id.dl_speed)?.text = "0 B"
         v.findViewById<TextView>(R.id.ul_speed)?.text = "0 B"
@@ -295,18 +346,7 @@ class DashboardFragment : Fragment() {
     private fun disconnectVpn() {
         isConnected = false
         view?.let { v ->
-            v.findViewById<TextView>(R.id.status_label)?.text = "Disconnected"
-            v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-                resources.getColor(R.color.text_dim, null)
-            )
-            v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.35f
-            v.findViewById<ImageButton>(R.id.connect_btn)
-                ?.setBackgroundResource(R.drawable.connect_btn_bg)
-            v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
-            v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_bg)
-            v.findViewById<TextView>(R.id.session_time)?.text = "00:00:00"
-            v.findViewById<TextView>(R.id.dl_speed)?.text = "0 B"
-            v.findViewById<TextView>(R.id.ul_speed)?.text = "0 B"
+            updateUiDisconnected(v)
         }
 
         timerRunnable?.let { handler.removeCallbacks(it) }

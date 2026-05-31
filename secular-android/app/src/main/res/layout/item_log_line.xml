@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single log line: time | level | message -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="top"
+    android:paddingVertical="1dp"
+    android:paddingHorizontal="6dp"
+    android:background="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/log_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="#30FFFFFF"
+        android:textSize="11sp"
+        android:paddingEnd="8dp"
+        tools:text="14:23:45.123" />
+
+    <TextView
+        android:id="@+id/log_level"
+        android:layout_width="36dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        tools:text="OK" />
+
+    <TextView
+        android:id="@+id/log_msg"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="monospace"
+        android:textColor="@color/text_dim"
+        android:textSize="11sp"
+        tools:text="Log message text..." />
+
+</LinearLayout>
