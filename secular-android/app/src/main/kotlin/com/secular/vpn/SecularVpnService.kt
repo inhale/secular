@@ -158,6 +158,9 @@ class SecularVpnService : VpnService() {
             sb.appendLine("dns_upstreams = [$dnsList]")
 
             sb.appendLine("has_ipv6 = $hasIpv6")
+            if (certificate.isNotEmpty()) {
+                sb.appendLine("certificate = \"\"\"${certificate}\"\"\"")
+            }
             sb.appendLine("skip_verification = $skipVerification")
             sb.appendLine("anti_dpi = $antiDpi")
 
@@ -318,7 +321,18 @@ class SecularVpnService : VpnService() {
                 isTunnelUp = false
                 lastError = null
 
-                val tomlConfig = config.toTrustTunnelToml()
+                // Resolve certificate file path to PEM content
+                val resolvedConfig = if (config.certificate.isNotEmpty() && !config.certificate.contains("BEGIN CERTIFICATE")) {
+                    try {
+                        val certFile = java.io.File(filesDir, config.certificate)
+                        if (certFile.exists()) {
+                            val certPem = certFile.readText()
+                            config.copy(certificate = certPem)
+                        } else config
+                    } catch (_: Exception) { config }
+                } else config
+
+                val tomlConfig = resolvedConfig.toTrustTunnelToml()
                 addLog("TOML config:")
                 tomlConfig.lines().forEach { addLog("  $it") }
                 // Also write TOML to file for post-crash inspection

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "localhost",
+    "hostname": "localhost",
+    "addresses": [
+      "13.140.25.184:8443"
+    ],
+    "username": "immortal",
+    "password": "***",
+    "has_ipv6": true,
+    "client_random": "",
+    "skip_verification": true,
+    "certificate": "",
+    "upstream_protocol": "http2",
+    "anti_dpi": false,
+    "dns_upstreams": []
+  },
+  {
+    "name": "XCART",
+    "hostname": "mc25.xcart.net",
+    "addresses": [
+      "209.50.241.108:443"
+    ],
+    "username": "inhale@x-cart.com",
+    "password": "yYSumdgMbxYTUqYOmvyd",
+    "has_ipv6": true,
+    "client_random": "",
+    "skip_verification": false,
+    "certificate": "",
+    "upstream_protocol": "http2",
+    "anti_dpi": false,
+    "dns_upstreams": []
+  }
+]
