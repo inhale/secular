@@ -66,11 +66,16 @@ class VpnClient(
     @Suppress("unused")
     fun protectSocket(socket: Int): Boolean {
         SecularVpnService.addLog("VpnClient: protectSocket($socket)")
-        val svc = SecularVpnService.instance
-        return if (svc != null) {
-            svc.protectSocket(socket)
-        } else {
-            SecularVpnService.addLog("VpnClient: no service instance")
+        return try {
+            val svc = SecularVpnService.instance
+            if (svc != null) {
+                svc.protect(socket)
+            } else {
+                SecularVpnService.addLog("VpnClient: no service instance")
+                false
+            }
+        } catch (e: Exception) {
+            SecularVpnService.addLog("VpnClient: protectSocket error: ${e.message}")
             false
         }
     }
