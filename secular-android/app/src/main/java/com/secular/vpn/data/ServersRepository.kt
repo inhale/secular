@@ -31,6 +31,13 @@ class ServersRepository(private val context: Context) {
             // Filter out stale entries with no name and no address
             val originalSize = loaded.size
             loaded.removeAll { it.name.isEmpty() && it.hostname.isEmpty() && it.addresses.isEmpty() }
+            // Deduplicate by name (keep first occurrence, update with latest data)
+            val seen = mutableSetOf<String>()
+            loaded.removeAll { server ->
+                if (server.name.isEmpty()) false
+                else if (seen.contains(server.name)) true
+                else { seen.add(server.name); false }
+            }
             if (loaded.size != originalSize) saveServers(loaded)
             loaded
         } catch (e: Exception) {
@@ -48,10 +55,17 @@ class ServersRepository(private val context: Context) {
 
     suspend fun addServer(server: ServerProfile): Int = writeMutex.withLock {
         val servers = loadServers()
-        // Dedup: don't add if same name + address already exists
-        val exists = servers.any { it.name == server.name && it.displayAddress == server.displayAddress }
-        if (exists) {
-            return servers.indexOfFirst { it.name == server.name && it.displayAddress == server.displayAddress }
+        // Dedup: skip if same name OR same hostname+address
+        val existsIdx = servers.indexOfFirst {
+            it.name == server.name ||
+            (it.hostname == server.hostname && it.hostname.isNotEmpty() &&
+             it.addresses == server.addresses && server.addresses.isNotEmpty())
+        }
+        if (existsIdx >= 0) {
+            // Update existing entry instead of duplicating
+            servers[existsIdx] = server
+            saveServers(servers)
+            return existsIdx
         }
         servers.add(server)
         saveServers(servers)

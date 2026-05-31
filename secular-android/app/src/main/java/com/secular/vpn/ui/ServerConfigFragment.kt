@@ -236,8 +236,10 @@ class ServerConfigFragment : Fragment() {
     }
 
     private fun navigateToServerList() {
-        // Pop back through config → add → dashboard, then navigate to server list
-        findNavController().popBackStack()
+        // Pop back to the start destination (dashboard), then navigate to server list
+        // This clears the add/config flow from the back stack
+        findNavController().popBackStack(R.id.dashboardFragment, false)
+        findNavController().navigate(R.id.action_dashboard_to_serverList)
     }
 
     private fun showDeleteConfirmation() {

@@ -268,22 +268,42 @@ class SecularVpnService : VpnService() {
                     return@launch
                 }
 
+                // Verify native library is available
+                try {
+                    Class.forName("com.adguard.trusttunnel.VpnClient")
+                } catch (e: ClassNotFoundException) {
+                    lastError = "Native library not available (build issue)"
+                    addLog("Native VpnClient class not found: ${e.message}")
+                    isConnecting = false
+                    return@launch
+                }
+
                 // Create and start native client
-                val client = VpnClient(tomlConfig, object : VpnClient.Listener {
-                    override fun onStateChanged(state: Int) {
-                        addLog("State: $state")
-                        updateNotificationForState(state)
-                    }
-                    override fun onConnectionInfo(info: String) {
-                        addLog("Info: $info")
-                    }
-                })
+                addLog("Creating native client...")
+                val client = try {
+                    VpnClient(tomlConfig, object : VpnClient.Listener {
+                        override fun onStateChanged(state: Int) {
+                            addLog("State: $state")
+                            updateNotificationForState(state)
+                        }
+                        override fun onConnectionInfo(info: String) {
+                            addLog("Info: $info")
+                        }
+                    })
+                } catch (e: Exception) {
+                    addLog("VpnClient creation failed: ${e.javaClass.simpleName}: ${e.message}")
+                    lastError = "Tunnel init failed: ${e.message}"
+                    isConnecting = false
+                    return@launch
+                }
 
                 nativeClient = client
 
+                addLog("Calling client.create()...")
                 if (!client.create()) {
                     lastError = "Failed to create native client"
                     isConnecting = false
+                    client.destroy()
                     return@launch
                 }
 

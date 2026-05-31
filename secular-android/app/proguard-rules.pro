@@ -19,6 +19,15 @@
 # UniFFI / JNI
 -keep class com.secular.vpn.core.** { *; }
 
+# TrustTunnel native bridge — JNI callbacks + native lib loading
+-keep class com.adguard.trusttunnel.** { *; }
+-keepclassmembers class com.adguard.trusttunnel.VpnClient {
+    *;
+}
+-keepclassmembers class com.adguard.trusttunnel.DeepLink {
+    *;
+}
+
 # Gson
 -keepattributes Signature
 -keepattributes *Annotation*
