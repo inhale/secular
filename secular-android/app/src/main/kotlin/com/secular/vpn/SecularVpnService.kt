@@ -21,6 +21,7 @@ import com.adguard.trusttunnel.VpnClient
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.io.File
 
 class SecularVpnService : VpnService() {
 
@@ -172,6 +173,21 @@ class SecularVpnService : VpnService() {
         instance = this
         createNotificationChannel()
         addLog("Service created (TrustTunnel native)")
+
+        // Catch anything that escapes our try/catch blocks (Error, not just Exception)
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e(TAG, "FATAL UncaughtExceptionHandler: ${throwable.javaClass.name}: ${throwable.message}")
+            // Write to file since log buffer might not survive
+            try {
+                val crashLog = File(getExternalFilesDir(null) ?: filesDir, "crash.log")
+                crashLog.appendText("[${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date())}] FATAL on ${thread.name}: ${throwable.javaClass.name}: ${throwable.message}\n")
+                throwable.forEach {
+                    crashLog.appendText("  at ${it}\n")
+                }
+            } catch (_: Exception) {}
+            // Re-throw so we still get the native crash dump
+            throwable.printStackTrace()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -268,11 +284,13 @@ class SecularVpnService : VpnService() {
                 }
 
                 // Verify native library is available
+                addLog("Pre-check: loading VpnClient class...")
                 try {
                     Class.forName("com.adguard.trusttunnel.VpnClient")
+                    addLog("Pre-check: VpnClient class loaded OK")
                 } catch (e: Throwable) {
                     lastError = "Native library not available (build issue)"
-                    addLog("Native VpnClient class not found: ${e.javaClass.simpleName}: ${e.message}")
+                    addLog("Pre-check FAILED: ${e.javaClass.simpleName}: ${e.message}")
                     isConnecting = false
                     return@launch
                 }
@@ -299,7 +317,15 @@ class SecularVpnService : VpnService() {
                 nativeClient = client
 
                 addLog("Calling client.create()...")
-                if (!client.create()) {
+                val created = try {
+                    client.create()
+                } catch (e: Throwable) {
+                    addLog("client.create() THREW: ${e.javaClass.simpleName}: ${e.message}")
+                    false
+                }
+                addLog("client.create() returned: $created")
+
+                if (!created) {
                     lastError = "Failed to create native client"
                     isConnecting = false
                     client.destroy()
@@ -307,7 +333,12 @@ class SecularVpnService : VpnService() {
                 }
 
                 addLog("Starting tunnel with fd=${vpn.fd}")
-                val result = client.start(vpn.fd)
+                val result = try {
+                    client.start(vpn.fd)
+                } catch (e: Throwable) {
+                    addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
+                    false
+                }
                 addLog("Tunnel stopped: result=$result")
 
                 isTunnelUp = false

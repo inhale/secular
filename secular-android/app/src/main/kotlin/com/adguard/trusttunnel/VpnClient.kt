@@ -105,24 +105,38 @@ class VpnClient(
 
     // Create native client from TOML config string
     fun create(): Boolean {
-        SecularVpnService.addLog("VpnClient: create()")
-        nativePtr = createNative(config)
-        if (nativePtr == 0L) {
-            SecularVpnService.addLog("VpnClient: createNative FAILED")
+        SecularVpnService.addLog("VpnClient: create() — calling createNative, config length=${config.length}")
+        SecularVpnService.addLog("VpnClient: create() — config preview: ${config.take(200)}")
+        try {
+            nativePtr = createNative(config)
+            if (nativePtr == 0L) {
+                SecularVpnService.addLog("VpnClient: createNative FAILED (returned 0)")
+                return false
+            }
+            SecularVpnService.addLog("VpnClient: created ptr=$nativePtr")
+            return true
+        } catch (e: Throwable) {
+            SecularVpnService.addLog("VpnClient: createNative THREW: ${e.javaClass.simpleName}: ${e.message}")
+            nativePtr = 0
             return false
         }
-        SecularVpnService.addLog("VpnClient: created ptr=$nativePtr")
-        return true
     }
 
     // Start tunnel with TUN file descriptor
     fun start(tunFd: Int): Boolean {
-        SecularVpnService.addLog("VpnClient: start(fd=$tunFd)")
+        SecularVpnService.addLog("VpnClient: start(fd=$tunFd) — calling startNative, ptr=$nativePtr")
         if (nativePtr == 0L) {
-            SecularVpnService.addLog("VpnClient: not created yet")
+            SecularVpnService.addLog("VpnClient: start() called with null nativePtr")
             return false
         }
-        return startNative(nativePtr, tunFd)
+        try {
+            val result = startNative(nativePtr, tunFd)
+            SecularVpnService.addLog("VpnClient: startNative returned $result")
+            return result
+        } catch (e: Throwable) {
+            SecularVpnService.addLog("VpnClient: startNative THREW: ${e.javaClass.simpleName}: ${e.message}")
+            return false
+        }
     }
 
     // Stop tunnel
