@@ -323,6 +323,12 @@ class DashboardFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         view?.let { loadSelectedServer(it) }
+        // Sync connection state with actual service state
+        if (!SecularVpnService.isTunnelUp && !SecularVpnService.isConnecting && isConnected) {
+            // Service was disconnected (e.g., process death, DISCONNECT race)
+            isConnected = false
+            view?.let { updateUiDisconnected(it) }
+        }
     }
 
     override fun onDestroyView() {

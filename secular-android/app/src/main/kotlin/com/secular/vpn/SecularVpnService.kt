@@ -191,8 +191,17 @@ class SecularVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        addLog("onStartCommand: action=${intent?.action}")
-        return when (intent?.action) {
+        val action = intent?.action
+        addLog("onStartCommand: action=$action, isTunnelUp=$isTunnelUp, isConnecting=$isConnecting")
+
+        // Race condition guard: if we get DISCONNECT while still connecting,
+        // ignore it — the connect coroutine will handle its own cleanup
+        if (action == ACTION_DISCONNECT && isConnecting && !isTunnelUp) {
+            addLog("onStartCommand: ignoring DISCONNECT while connecting")
+            return START_NOT_STICKY
+        }
+
+        return when (action) {
             ACTION_CONNECT -> {
                 val serverJson = intent.getStringExtra("server_json")
                 connect(serverJson)
@@ -203,14 +212,26 @@ class SecularVpnService : VpnService() {
                 START_NOT_STICKY
             }
             else -> {
-                addLog("Unknown action: ${intent?.action}")
+                addLog("Unknown action: $action")
                 START_NOT_STICKY
             }
         }
     }
 
     private fun connect(serverJson: String?) {
-        addLog("connect() called")
+        addLog("connect() called, isTunnelUp=$isTunnelUp, isConnecting=$isConnecting")
+
+        // If tunnel is already up, don't try to reconnect — just return
+        if (isTunnelUp) {
+            addLog("connect() — tunnel already up, ignoring")
+            return
+        }
+
+        // If already connecting, don't start another attempt
+        if (isConnecting) {
+            addLog("connect() — already connecting, ignoring")
+            return
+        }
 
         val config = try {
             if (serverJson != null) {
@@ -473,7 +494,7 @@ class SecularVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        addLog("Service destroyed")
+        addLog("Service destroyed, wasConnected=$isTunnelUp")
         instance = null
         disconnect()
         serviceScope.cancel()
