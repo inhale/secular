@@ -88,20 +88,22 @@ jobs:
   release:
     needs: build-android
     runs-on: ubuntu-latest
-    if: always()
+    if: needs.build-android.result == 'success'
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-      - run: find ./artifacts -type f | sort
+      - run: find ./artifacts -type f -name "*.apk" | sort
       - name: Rename APK artifact
         run: |
-          for f in ./artifacts/secular-android/*.apk; do
-            [ -f "$f" ] && cp "$f" "./secular-android-debug.apk" && echo "Copied: $f"
-          done
+          APK=$(find ./artifacts -name "*.apk" -type f | head -1)
+          if [ -n "$APK" ]; then
+            cp "$APK" ./secular-android-debug.apk
+            echo "Copied: $APK"
+          else
+            echo "No APK found"
+            exit 1
+          fi
       - uses: softprops/action-gh-release@v2
         with:
           files: secular-android-debug.apk
-          generate_release_notes: true
-          draft: false
-          prerelease: false
