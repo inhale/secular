@@ -95,24 +95,25 @@ class AddServerFragment : Fragment() {
             return
         }
 
-        SecularVpnService.addLog("Parsing link: ${link.take(60)}...")
+        SecularVpnService.addLog("AddServer: addFromLink() called with: ${link.take(60)}...")
         val profile = DeepLinkParser.parse(link)
         if (profile != null) {
-            SecularVpnService.addLog("Link parsed OK: name=${profile.name} host=${profile.hostname} addr=${profile.addresses}")
+            SecularVpnService.addLog("AddServer: parsed OK — name=${profile.name} host=${profile.hostname} addr=${profile.addresses}")
             lifecycleScope.launch {
+                SecularVpnService.addLog("AddServer: calling addServer for ${profile.name}")
                 val idx = repository.addServer(profile)
+                SecularVpnService.addLog("AddServer: addServer returned idx=$idx")
                 prefs.edit().putString("selected_server_name", profile.name).apply()
-                SecularVpnService.addLog("Server added at index $idx: ${profile.name}")
-                navigateToServerListWithServer(idx)
+                navigateBack()
             }
         } else {
-            SecularVpnService.addLog("Link parse FAILED for: ${link.take(120)}")
-            SecularVpnService.addLog("Expected formats: tt://base64data, tt://hostname=x&..., or TLV binary")
+            SecularVpnService.addLog("AddServer: parse FAILED for: ${link.take(120)}")
             Toast.makeText(requireContext(), "Invalid link format. Check Log screen for details.", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun parseTomlFile(uri: Uri) {
+        SecularVpnService.addLog("AddServer: parseTomlFile() uri=$uri")
         lifecycleScope.launch {
             try {
                 val inputStream = requireContext().contentResolver.openInputStream(uri)
@@ -120,9 +121,11 @@ class AddServerFragment : Fragment() {
                     val profile = TomlFileParser.parse(inputStream)
                     inputStream.close()
                     if (profile != null) {
+                        SecularVpnService.addLog("AddServer: TOML parsed OK — name=${profile.name}")
                         val idx = repository.addServer(profile)
+                        SecularVpnService.addLog("AddServer: TOML addServer returned idx=$idx")
                         prefs.edit().putString("selected_server_name", profile.name).apply()
-                        navigateToServerListWithServer(idx)
+                        navigateBack()
                     } else {
                         Toast.makeText(requireContext(), "Invalid TOML config", Toast.LENGTH_LONG).show()
                     }
@@ -133,8 +136,8 @@ class AddServerFragment : Fragment() {
         }
     }
 
-    private fun navigateToServerListWithServer(serverIndex: Int) {
-        // Just pop back — the server list will read selection from SharedPreferences
+    private fun navigateBack() {
+        SecularVpnService.addLog("AddServer: navigateBack() — popping to previous")
         findNavController().popBackStack()
     }
 }

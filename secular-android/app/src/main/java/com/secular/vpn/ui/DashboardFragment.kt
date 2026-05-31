@@ -92,11 +92,11 @@ class DashboardFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val servers = repository.loadServers()
+                SecularVpnService.addLog("Dashboard: loadSelectedServer — count=${servers.size} names=${servers.map { it.name }}")
                 val nameTv = view.findViewById<TextView>(R.id.server_card_name)
                 val metaTv = view.findViewById<TextView>(R.id.server_card_meta)
 
                 if (servers.isNotEmpty()) {
-                    // Try to find the user-selected server first
                     val savedName = prefs.getString("selected_server_name", null)
                     selectedServerName = savedName
                     val server = if (savedName != null) {
@@ -104,6 +104,7 @@ class DashboardFragment : Fragment() {
                     } else {
                         servers[0]
                     }
+                    SecularVpnService.addLog("Dashboard: showing server=${server.name}")
                     nameTv.text = server.name
                     metaTv.text = "TrustTunnel · ${server.displayAddress}"
                 } else {

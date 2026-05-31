@@ -2,20 +2,21 @@
 // Parse tt:// deep-link URIs into ServerProfile
 // Supports 3 formats:
 //   1. Base64-encoded TOML
-//   2. TrustTunnel native binary TLV
+//   2. TrustTunnel native binary TLV (starts with version byte 0x00)
 //   3. URL-encoded key=value pairs
 
 package com.secular.vpn.data
 
 import android.net.Uri
 import android.util.Base64
+import com.secular.vpn.SecularVpnService
 
 object DeepLinkParser {
 
     fun parse(uriString: String): ServerProfile? {
         val trimmed = uriString.trim()
         if (trimmed.isEmpty()) return null
-        android.util.Log.d("DeepLinkParser", "Parsing: ${trimmed.take(80)}")
+        SecularVpnService.addLog("DeepLinkParser: input=${trimmed.take(80)}")
 
         val qs: String
         when {
@@ -26,18 +27,29 @@ object DeepLinkParser {
         }
 
         if (qs.isEmpty()) return null
-        android.util.Log.d("DeepLinkParser", "qs length=${qs.length}, qs=${qs.take(80)}")
+        SecularVpnService.addLog("DeepLinkParser: qs=${qs.take(80)}")
 
-    // Try all 3 formats in order
+        // Try all 3 formats in order
         val r1 = parseBase64Toml(qs)
-        if (r1 != null) return r1
-        android.util.Log.d("DeepLinkParser", "base64 TOML: no match")
+        if (r1 != null) {
+            SecularVpnService.addLog("DeepLinkParser: MATCHED format 1 (base64 TOML) name=${r1.name}")
+            return r1
+        }
+        SecularVpnService.addLog("DeepLinkParser: format 1 (base64 TOML) no match")
+
         val r2 = parseTlv(qs)
-        if (r2 != null) return r2
-        android.util.Log.d("DeepLinkParser", "TLV: no match")
+        if (r2 != null) {
+            SecularVpnService.addLog("DeepLinkParser: MATCHED format 2 (TLV) name=${r2.name}")
+            return r2
+        }
+        SecularVpnService.addLog("DeepLinkParser: format 2 (TLV) no match")
+
         val r3 = parseUrlEncoded(qs)
-        if (r3 != null) return r3
-        android.util.Log.d("DeepLinkParser", "URL-encoded: no match")
+        if (r3 != null) {
+            SecularVpnService.addLog("DeepLinkParser: MATCHED format 3 (URL-encoded) name=${r3.name}")
+            return r3
+        }
+        SecularVpnService.addLog("DeepLinkParser: format 3 (URL-encoded) no match")
 
         return null
     }
@@ -69,7 +81,7 @@ object DeepLinkParser {
                 val value = t.substring(eq + 1).trim().trim('"').trim('\'')
                 val fullKey = if (currentSection.isNotEmpty()) "$currentSection.$key" else key
                 fields[fullKey] = value
-                fields[key] = value // also store without section prefix
+                fields[key] = value
             }
         }
         return fields
@@ -119,15 +131,7 @@ object DeepLinkParser {
     }
 
     // ── Format 2: TrustTunnel binary TLV ──
-    // Wire format: sequence of [tag:1][len:1][value:N]
-    // Tag 0x00 = version byte (1 byte value)
-    // Tag 0x01 = name/hostname
-    // Tag 0x02 = address (ip:port)
-    // Tag 0x05 = username
-    // Tag 0x06 = password
-    // Tag 0x08+ = certificate PEM chunks (binary) — concatenated into certificate field
-    // Tag 0x0c = display name suffix
-    // ── Format 2: TrustTunnel binary TLV ──
+    // Wire format: [0x00][0x01][version_byte][0x01][len:name][name...][0x02][len:addr][addr...]
     private fun parseTlv(qs: String): ServerProfile? {
         return try {
             val padLen = (4 - qs.length % 4) % 4
@@ -135,10 +139,11 @@ object DeepLinkParser {
             val data = Base64.decode(padded, Base64.DEFAULT)
             if (data.size < 4) return null
 
-            // TrustTunnel TLV requires version byte 0x00 as first tag.
-            // Without this check, random base64-decoded data (e.g. URL params)
-            // can produce false positives when bytes happen to contain 0x01/0x02 tags.
+            // Require version tag 0x00 as first TLV entry — this distinguishes
+            // real TrustTunnel binary links from random base64-decoded query strings.
             if ((data[0].toInt() and 0xFF) != 0x00) return null
+            val version = data[1].toInt() and 0xFF
+            SecularVpnService.addLog("DeepLinkParser: TLV version=$version, totalBytes=${data.size}")
 
             val fields = mutableMapOf<Int, ByteArray>()
             var pos = 0
@@ -188,7 +193,10 @@ object DeepLinkParser {
                 certificate = certBuilder.toString(),
                 upstreamProtocol = "http2", dnsUpstreams = emptyList()
             )
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            SecularVpnService.addLog("DeepLinkParser: TLV error: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
     }
 
     // ── Format 3: URL-encoded key=value ──
@@ -196,20 +204,22 @@ object DeepLinkParser {
         return try {
             val uri = Uri.parse("http://localhost?$qs")
             val hostname = uri.getQueryParameter("hostname") ?: return null
-        val addresses = parseList(uri.getQueryParameter("addresses") ?: "")
-        val name = uri.getQueryParameter("name") ?: hostname
-        ServerProfile(
-            name = name, hostname = hostname, addresses = addresses,
-            username = uri.getQueryParameter("username") ?: "",
-            password = uri.getQueryParameter("password") ?: "",
-            hasIpv6 = uri.getQueryParameter("has_ipv6")?.lowercase() != "false",
-            clientRandom = uri.getQueryParameter("client_random") ?: "",
-            certificate = uri.getQueryParameter("certificate") ?: "",
-            skipVerification = uri.getQueryParameter("skip_verification")?.lowercase() == "true",
-            upstreamProtocol = uri.getQueryParameter("upstream_protocol") ?: "http2",
-            antiDpi = uri.getQueryParameter("anti_dpi")?.lowercase() == "true",
-            dnsUpstreams = uri.getQueryParameters("dns_upstream").ifEmpty { emptyList() }
+            val addresses = parseList(uri.getQueryParameter("addresses") ?: "")
+            val name = uri.getQueryParameter("name") ?: hostname
+            val profile = ServerProfile(
+                name = name, hostname = hostname, addresses = addresses,
+                username = uri.getQueryParameter("username") ?: "",
+                password = uri.getQueryParameter("password") ?: "",
+                hasIpv6 = uri.getQueryParameter("has_ipv6")?.lowercase() != "false",
+                clientRandom = uri.getQueryParameter("client_random") ?: "",
+                certificate = uri.getQueryParameter("certificate") ?: "",
+                skipVerification = uri.getQueryParameter("skip_verification")?.lowercase() == "true",
+                upstreamProtocol = uri.getQueryParameter("upstream_protocol") ?: "http2",
+                antiDpi = uri.getQueryParameter("anti_dpi")?.lowercase() == "true",
+                dnsUpstreams = uri.getQueryParameters("dns_upstream").ifEmpty { emptyList() }
             )
+            SecularVpnService.addLog("DeepLinkParser: URL-encoded parsed name=$name host=$hostname addr=$addresses")
+            profile
         } catch (_: Exception) { null }
     }
 

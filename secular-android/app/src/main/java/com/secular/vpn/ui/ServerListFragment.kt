@@ -43,19 +43,12 @@ class ServerListFragment : Fragment() {
         repository = ServersRepository(requireContext())
         prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Check if we should auto-select a server (from AddServerFragment)
-        val selectNew = arguments?.getBoolean("selectNewServer", false) ?: false
-        val newServerIndex = arguments?.getInt("serverIndex", -1) ?: -1
-        SecularVpnService.addLog("ServerList: selectNew=$selectNew newServerIndex=$newServerIndex")
-
-        // Setup RecyclerView
         val recyclerView = view.findViewById<RecyclerView>(R.id.server_list)
         adapter = ServerAdapter(
             servers = servers,
             onItemClick = { index ->
                 selectedIndex = index
                 adapter.notifyDataSetChanged()
-                // Persist selection by name
                 val server = servers.getOrNull(index)
                 if (server != null) {
                     prefs.edit().putString(KEY_SELECTED_SERVER, server.name).apply()
@@ -75,12 +68,10 @@ class ServerListFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
 
-        // Empty state button
         view.findViewById<Button>(R.id.btn_add_first_server)?.setOnClickListener {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
-        // Bottom nav
         view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
         }
@@ -88,33 +79,32 @@ class ServerListFragment : Fragment() {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
-        loadServers(selectNew, newServerIndex)
+        SecularVpnService.addLog("ServerList: onViewCreated — loading servers")
+        loadServers()
     }
 
-    private fun loadServers(selectNew: Boolean = false, newServerIndex: Int = -1) {
+    private fun loadServers() {
+        SecularVpnService.addLog("ServerList: loadServers() START")
         lifecycleScope.launch {
             try {
+                val loaded = repository.loadServers()
+                SecularVpnService.addLog("ServerList: loaded ${loaded.size} servers: ${loaded.map { it.name }}")
                 servers.clear()
-                servers.addAll(repository.loadServers())
+                servers.addAll(loaded)
 
-                if (selectNew && newServerIndex in servers.indices) {
-                    // Auto-select the newly added server
-                    selectedIndex = newServerIndex
-                    val server = servers[newServerIndex]
-                    prefs.edit().putString(KEY_SELECTED_SERVER, server.name).apply()
-                    SecularVpnService.addLog("ServerList: auto-selected new server=${server.name}")
-                } else {
-                    // Restore selected index by saved name
-                    val savedName = prefs.getString(KEY_SELECTED_SERVER, null)
-                    if (savedName != null) {
-                        val idx = servers.indexOfFirst { it.name == savedName }
-                        if (idx >= 0) selectedIndex = idx
-                    } else if (servers.isNotEmpty()) {
-                        selectedIndex = 0
-                    }
+                // Restore selected index by saved name
+                val savedName = prefs.getString(KEY_SELECTED_SERVER, null)
+                if (savedName != null) {
+                    val idx = servers.indexOfFirst { it.name == savedName }
+                    if (idx >= 0) selectedIndex = idx
+                    SecularVpnService.addLog("ServerList: restored selection=${savedName} at idx=$selectedIndex")
+                } else if (servers.isNotEmpty()) {
+                    selectedIndex = 0
+                    SecularVpnService.addLog("ServerList: auto-selected idx=0")
                 }
 
                 adapter.notifyDataSetChanged()
+                SecularVpnService.addLog("ServerList: adapter updated, count=${servers.size}")
 
                 val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
                 val rv = view?.findViewById<RecyclerView>(R.id.server_list)
@@ -125,18 +115,18 @@ class ServerListFragment : Fragment() {
                     emptyState?.visibility = View.GONE
                     rv?.visibility = View.VISIBLE
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                SecularVpnService.addLog("ServerList: loadServers ERROR: ${e.message}")
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // Don't re-load on resume if we came from add (to preserve selection)
-        // Only reload if returning from config (server may have been edited)
-        loadServers(false, -1)
+        SecularVpnService.addLog("ServerList: onResume — reloading")
+        loadServers()
     }
 
-    // Deterministic flag emojis — same server name always gets same flag
     private val flagEmojis = listOf(
         "\uD83C\uDDE9\uD83C\uDDEA", // 🇩🇪
         "\uD83C\uDDEC\uD83C\uDDE7", // 🇬🇧
@@ -180,24 +170,18 @@ class ServerListFragment : Fragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             try {
                 val server = servers[position]
-
-                // Deterministic flag based on server name
+                SecularVpnService.addLog("ServerList: bind pos=$position name=${server.name}")
                 holder.flagText.text = flagForServer(server.name)
                 holder.name.text = server.name
                 holder.meta.text = "TrustTunnel · ${server.displayAddress}"
-
-                // Simulate ping
                 val ping = (20..200).random()
                 holder.pingText.text = "${ping}ms"
                 holder.pingDot.setBackgroundResource(getPingDrawable(ping))
-
-                // Selected state
                 if (position == selectedIndex) {
                     holder.container.setBackgroundResource(R.drawable.server_item_selected_bg)
                 } else {
                     holder.container.setBackgroundResource(R.drawable.server_item_bg)
                 }
-
                 holder.container.setOnClickListener { onItemClick(position) }
                 holder.gearBtn.setOnClickListener { onGearClick(position) }
             } catch (_: Exception) {}
