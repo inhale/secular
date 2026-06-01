@@ -1,8 +1,7 @@
 // Secular Desktop — Dark Theme v3 (matches Android)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-shell';
 
 /* ─── Types ─── */
 type ConnState = 'disconnected' | 'connecting' | 'connected';
@@ -323,21 +322,19 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
   };
 
   const handleTomlUpload = async () => {
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'TOML', extensions: ['toml'] }],
-      });
-      if (!selected) return;
-      // Read the file content via invoke
-      const content: string = await invoke('read_file', { path: selected });
-      // Parse simple TOML: [server] host=... port=... sni=... auth_token=...
-      const config: ServerConfig = parseTomlConfig(content);
+    // Use hidden file input to pick a .toml file
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.toml';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const config = parseTomlConfig(text);
       onAddServer(config);
       onNav('dashboard');
-    } catch (err) {
-      console.error('TOML upload failed:', err);
-    }
+    };
+    input.click();
   };
 
   return (
