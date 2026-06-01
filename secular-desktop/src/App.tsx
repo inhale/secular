@@ -1,177 +1,637 @@
-// Secular Desktop — Main App Component (from design system)
+// Secular Desktop — Dark Theme v2 (matches Android exactly)
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+/* ─── Types ─── */
 type ConnState = 'disconnected' | 'connecting' | 'connected';
+type Screen = 'dashboard' | 'server-list' | 'add-server' | 'server-config' | 'query-log';
 
-const ConnStates: Record<ConnState, ConnState> = {
-  disconnected: 'disconnected',
-  connecting: 'connecting',
-  connected: 'connected',
-};
+interface ServerConfig {
+  host: string;
+  port: number;
+  sni: string;
+  auth_token: string;
+  protocol: string;
+  allow_ipv6: boolean;
+}
 
-const App: React.FC = () => {
-  const [connState, setConnState] = useState<ConnState>(ConnStates.disconnected);
-  const [server, setServer] = useState('');
-  const [port, setPort] = useState('443');
-  const [sni, setSni] = useState('');
-  const [token, setToken] = useState('');
-  const [protocol, setProtocol] = useState('h2');
-  const [allowIpv6, setAllowIpv6] = useState(false);
+interface ServerInfo {
+  id: string;
+  name: string;
+  meta: string;
+  config: ServerConfig;
+  isDefault: boolean;
+}
 
-  const handleConnect = async () => {
-    try {
-      if (connState === ConnStates.connected) {
-        await invoke('disconnect');
-        setConnState(ConnStates.disconnected);
-      } else if (connState === ConnStates.disconnected) {
-        setConnState(ConnStates.connecting);
-        await invoke('connect', {
-          config: {
-            host: server,
-            port: parseInt(port, 10) || 443,
-            sni: sni || server,
-            auth_token: token,
-            protocol,
-            allow_ipv6: allowIpv6,
-          },
-        });
-        setConnState(ConnStates.connected);
-      }
-    } catch (err) {
-      console.error('Connection error:', err);
-      setConnState(ConnStates.disconnected);
-    }
-  };
+interface LogLine {
+  time: string;
+  level: 'ok' | 'info' | 'warn' | 'error';
+  message: string;
+}
 
-  const btnLabel = connState === ConnStates.connected ? 'Disconnect'
-    : connState === ConnStates.connecting ? 'Connecting...'
-    : 'Connect';
+/* ─── SVG Icons ─── */
+const IconHome = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+    <path d="M9 21V12h6v9" />
+  </svg>
+);
 
-  const btnClass = connState === ConnStates.connected ? 'connect-btn disconnected'
-    : connState === ConnStates.connecting ? 'connect-btn connecting'
-    : 'connect-btn';
+const IconLog = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+    <path d="M14 2v6h6" />
+    <path d="M16 13H8" />
+    <path d="M16 17H8" />
+    <path d="M10 9H8" />
+  </svg>
+);
+
+const IconAdd = () => (
+  <svg viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 8v8" />
+    <path d="M8 12h8" />
+  </svg>
+);
+
+const IconGear = () => (
+  <svg viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+  </svg>
+);
+
+const IconScan = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M3 7V5a2 2 0 012-2h2" />
+    <path d="M17 3h2a2 2 0 012 2v2" />
+    <path d="M21 17v2a2 2 0 01-2 2h-2" />
+    <path d="M7 21H5a2 2 0 01-2-2v-2" />
+    <path d="M7 12h10" />
+  </svg>
+);
+
+const IconUpload = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+const IconEdit = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const IconCopy = () => (
+  <svg viewBox="0 0 24 24">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg viewBox="0 0 24 24">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+  </svg>
+);
+
+/* ─── S Logo SVG ─── */
+const SLogo = ({ color = 'currentColor', size = 64 }: { color?: string; size?: number }) => (
+  <svg className="s-logo-svg" width={size} height={size} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <g className="s-path" fill={color}>
+      <path d="M320.4 66.0 c-15.8 5.9 -23.2 16.5 -23.2 33.4 0.0 13.7 6.5 23.6 19.5 30.2 12.1 6.3 20.8 6.3 32.8 -0.0 17.6 -9.3 23.9 -29.5 15.0 -46.9 -7.8 -15.4 -27.6 -22.8 -44.0 -16.7 z" />
+      <path d="M214.6 74.4 c-41.0 13.9 -66.8 42.5 -68.8 75.9 -0.9 12.4 0.0 16.3 4.8 26.3 12.6 25.6 38.0 41.2 104.1 64.2 21.5 7.4 44.5 16.1 51.2 19.5 13.2 6.7 27.3 20.6 29.5 29.3 1.5 6.5 1.3 6.3 10.2 2.0 13.7 -7.2 23.0 -16.3 29.5 -29.5 5.9 -11.5 6.7 -15.6 6.7 -30.8 0.0 -21.3 -5.6 -35.4 -20.0 -49.7 -14.3 -14.1 -29.5 -21.7 -73.3 -36.0 -44.3 -14.5 -53.8 -20.2 -61.0 -35.8 -5.2 -11.5 -5.2 -20.0 0.2 -30.6 2.4 -4.8 4.3 -8.9 4.3 -9.1 0.0 -1.3 -3.7 -0.4 -17.6 4.3 z" />
+      <path d="M177.9 229.5 c-23.9 15.2 -33.8 34.9 -32.1 63.1 1.3 20.0 6.7 33.4 18.9 45.6 12.1 12.1 32.1 21.7 73.3 34.7 50.1 15.8 63.3 25.8 65.3 48.8 0.7 9.5 0.0 13.7 -3.5 19.7 -2.6 4.1 -3.7 7.6 -2.8 7.6 6.5 -0.0 35.4 -11.9 45.1 -18.7 34.7 -23.9 48.4 -59.0 34.5 -88.7 -6.5 -14.1 -25.2 -31.2 -43.8 -40.8 -8.2 -4.1 -34.1 -14.1 -57.3 -22.1 -43.6 -15.0 -67.7 -25.8 -75.7 -34.5 -2.4 -2.6 -6.3 -8.5 -8.5 -12.8 l-3.9 -8.0 -9.5 6.1 z" />
+      <path d="M175.7 388.8 c-22.6 11.5 -25.8 40.4 -6.7 56.6 14.8 12.4 34.3 12.1 49.0 -0.9 18.2 -16.1 14.1 -45.1 -8.0 -56.0 -12.4 -5.9 -22.3 -5.9 -34.3 0.2 z" />
+    </g>
+    <circle cx="320.4" cy="66.1" r="14.0" fill={color} />
+    <circle cx="175.7" cy="388.8" r="14.0" fill={color} />
+  </svg>
+);
+
+/* ─── Bottom Navigation ─── */
+interface BottomNavProps {
+  active: Screen;
+  onNav: (s: Screen) => void;
+}
+
+const BottomNav: React.FC<BottomNavProps> = ({ active, onNav }) => {
+  const navItems: { key: Screen; icon: React.ReactNode }[] = [
+    { key: 'query-log', icon: <IconLog /> },
+    { key: 'dashboard', icon: <IconHome /> },
+    { key: 'add-server', icon: <IconAdd /> },
+  ];
 
   return (
-    <div>
-      {/* Logo */}
-      <div className="logo-container">
-        <svg className="logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-          <rect width="512" height="512" rx="96" fill="#F5F7FA"/>
-          <g fill="#242424">
-            <path d="M320.4 66.0 c-15.8 5.9 -23.2 16.5 -23.2 33.4 0.0 13.7 6.5 23.6 19.5 30.2 12.1 6.3 20.8 6.3 32.8 -0.0 17.6 -9.3 23.9 -29.5 15.0 -46.9 -7.8 -15.4 -27.6 -22.8 -44.0 -16.7 z"/>
-            <path d="M214.6 74.4 c-41.0 13.9 -66.8 42.5 -68.8 75.9 -0.9 12.4 0.0 16.3 4.8 26.3 12.6 25.6 38.0 41.2 104.1 64.2 21.5 7.4 44.5 16.1 51.2 19.5 13.2 6.7 27.3 20.6 29.5 29.3 1.5 6.5 1.3 6.3 10.2 2.0 13.7 -7.2 23.0 -16.3 29.5 -29.5 5.9 -11.5 6.7 -15.6 6.7 -30.8 0.0 -21.3 -5.6 -35.4 -20.0 -49.7 -14.3 -14.1 -29.5 -21.7 -73.3 -36.0 -44.3 -14.5 -53.8 -20.2 -61.0 -35.8 -5.2 -11.5 -5.2 -20.0 0.2 -30.6 2.4 -4.8 4.3 -8.9 4.3 -9.1 0.0 -1.3 -3.7 -0.4 -17.6 4.3 z"/>
-            <path d="M177.9 229.5 c-23.9 15.2 -33.8 34.9 -32.1 63.1 1.3 20.0 6.7 33.4 18.9 45.6 12.1 12.1 32.1 21.7 73.3 34.7 50.1 15.8 63.3 25.8 65.3 48.8 0.7 9.5 0.0 13.7 -3.5 19.7 -2.6 4.1 -3.7 7.6 -2.8 7.6 6.5 -0.0 35.4 -11.9 45.1 -18.7 34.7 -23.9 48.4 -59.0 34.5 -88.7 -6.5 -14.1 -25.2 -31.2 -43.8 -40.8 -8.2 -4.1 -34.1 -14.1 -57.3 -22.1 -43.6 -15.0 -67.7 -25.8 -75.7 -34.5 -2.4 -2.6 -6.3 -8.5 -8.5 -12.8 l-3.9 -8.0 -9.5 6.1 z"/>
-            <path d="M175.7 388.8 c-22.6 11.5 -25.8 40.4 -6.7 56.6 14.8 12.4 34.3 12.1 49.0 -0.9 18.2 -16.1 14.1 -45.1 -8.0 -56.0 -12.4 -5.9 -22.3 -5.9 -34.3 0.2 z"/>
-          </g>
-          <g fill="#d02b57">
-            <circle cx="320.4" cy="66.1" r="14.0"/>
-            <circle cx="175.7" cy="388.8" r="14.0"/>
-          </g>
-        </svg>
-      </div>
-
-      {/* Status */}
-      <div className="status-section">
-        <div className="status-label">Status</div>
-        <div className={`status-value ${connState}`}>
-          {connState === ConnStates.connected ? 'Connected'
-            : connState === ConnStates.connecting ? 'Connecting'
-            : 'Disconnected'}
+    <div className="bottom-nav">
+      {navItems.map(({ key, icon }) => (
+        <div
+          key={key}
+          className={`nav-icon ${active === key ? 'active' : ''}`}
+          onClick={() => onNav(key)}
+        >
+          {icon}
         </div>
-      </div>
+      ))}
+    </div>
+  );
+};
 
-      {/* Connect Button — pill shape */}
-      <div className="connect-section">
-        <button className={btnClass} onClick={handleConnect}>
-          {btnLabel}
-        </button>
-      </div>
+/* ─── Screen: Dashboard ─── */
+interface DashboardProps {
+  connState: ConnState;
+  onToggleConnect: () => void;
+  onNav: (s: Screen) => void;
+  activeServer: ServerInfo | null;
+}
 
-      {/* Server Info */}
-      {connState === ConnStates.connected && (
-        <div className="server-section">
-          <div className="server-card">
-            <div className="server-row">
-              <span className="server-row-label">Server</span>
-              <span className="server-row-value">{server}:{port}</span>
-            </div>
-            <div className="server-row">
-              <span className="server-row-label">Protocol</span>
-              <span className="server-row-value">{protocol.toUpperCase()}</span>
+const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, activeServer }) => {
+  const isActive = connState === 'connecting' || connState === 'connected';
+
+  return (
+    <div className="screen">
+      <div className="screen-content status-padding">
+        {/* Status label */}
+        <div className={`status-label ${connState}`}>
+          {connState === 'connected' ? 'Connected' : connState === 'connecting' ? 'Connecting' : 'Disconnected'}
+        </div>
+
+        {/* Metrics row */}
+        <div className="metrics-row">
+          <div className="metric-item">
+            <span className="metric-value">0</span>
+            <span className="metric-label">SESSION</span>
+          </div>
+          <div className="metric-item">
+            <span className="metric-value">0</span>
+            <span className="metric-label">DOWNLOAD PKTS</span>
+          </div>
+          <div className="metric-item">
+            <span className="metric-value">0</span>
+            <span className="metric-label">UPLOAD PKTS</span>
+          </div>
+        </div>
+
+        {/* Connect button */}
+        <div className="connect-area">
+          <div className={`connect-circle ${connState}`} onClick={onToggleConnect}>
+            {isActive && <div className="spinner-ring" />}
+            <div className="s-logo-container">
+              <SLogo color={isActive ? '#00FF66' : '#FFFFFF'} size={64} />
             </div>
           </div>
         </div>
-      )}
 
-      {/* Settings */}
-      <div className="settings-section">
-        <div className="settings-row">
-          <span className="settings-label">Server</span>
-          <input
-            className="settings-input"
-            value={server}
-            onChange={e => setServer(e.target.value)}
-            placeholder="vpn.example.com"
-          />
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Port</span>
-          <input
-            className="settings-input"
-            value={port}
-            onChange={e => setPort(e.target.value)}
-            placeholder="443"
-          />
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">SNI</span>
-          <input
-            className="settings-input"
-            value={sni}
-            onChange={e => setSni(e.target.value)}
-            placeholder="optional sni hostname"
-          />
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Auth Token</span>
-          <input
-            className="settings-input"
-            type="password"
-            value={token}
-            onChange={e => setToken(e.target.value)}
-            placeholder="auth token"
-          />
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Protocol</span>
-          <select
-            className="settings-select"
-            value={protocol}
-            onChange={e => setProtocol(e.target.value)}
-          >
-            <option value="h2">HTTP/2</option>
-            <option value="quic">QUIC</option>
-          </select>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Allow IPv6</span>
-          <button
-            className={`toggle ${allowIpv6 ? 'active' : ''}`}
-            onClick={() => setAllowIpv6(!allowIpv6)}
-          />
+        {/* Server card */}
+        <div className="server-card" onClick={() => onNav('server-list')}>
+          <div className="server-card-name">
+            {activeServer ? activeServer.name : 'No server selected'}
+          </div>
+          <div className="server-card-meta">
+            {activeServer
+              ? `${activeServer.config.host}:${activeServer.config.port} / ${activeServer.config.protocol.toUpperCase()}`
+              : 'Configure a server to connect'}
+          </div>
+          <div className="server-card-hint">Tap to change server</div>
         </div>
       </div>
-
-      {/* Footer Tabs */}
-      <div className="footer">
-        <div className="footer-tab active">Home</div>
-        <div className="footer-tab">History</div>
-        <div className="footer-tab">Settings</div>
-      </div>
-
-      <div className="version-footer">Secular v0.1.0</div>
+      <BottomNav active="dashboard" onNav={onNav} />
     </div>
+  );
+};
+
+/* ─── Screen: Server List ─── */
+interface ServerListProps {
+  servers: ServerInfo[];
+  onNav: (s: Screen) => void;
+  onSetDefault: (id: string) => void;
+}
+
+const ServerList: React.FC<ServerListProps> = ({ servers, onNav, onSetDefault }) => {
+  return (
+    <div className="screen">
+      <div className="header-row">
+        <h1 className="screen-title">My Servers</h1>
+        <div className="gear-icon">
+          <IconGear />
+        </div>
+      </div>
+      <div className="screen-content">
+        <div className="server-list">
+          {servers.length === 0 ? (
+            <div className="empty-servers">
+              No servers configured.<br />Tap the + button to add one.
+            </div>
+          ) : (
+            servers.map((srv) => (
+              <div
+                key={srv.id}
+                className="server-item"
+                onClick={() => {
+                  onSetDefault(srv.id);
+                  onNav('dashboard');
+                }}
+              >
+                <div className="server-item-row">
+                  <span className="server-item-name">{srv.name}</span>
+                  <span className="server-item-default">{srv.isDefault ? '* DEFAULT' : ''}</span>
+                </div>
+                <div className="server-item-meta">{srv.meta}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      <BottomNav active="server-list" onNav={onNav} />
+    </div>
+  );
+};
+
+/* ─── Screen: Add Server ─── */
+interface AddServerProps {
+  onNav: (s: Screen) => void;
+  onAddServer: (config: ServerConfig) => void;
+}
+
+const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer }) => {
+  const [link, setLink] = useState('');
+
+  const handleAdd = () => {
+    if (!link.trim()) return;
+    // Try to parse secular:// link or plain host:port
+    const config: ServerConfig = {
+      host: link.replace('secular://', '').split(':')[0] || link,
+      port: parseInt(link.split(':')[1], 10) || 443,
+      sni: '',
+      auth_token: '',
+      protocol: 'h2',
+      allow_ipv6: false,
+    };
+    onAddServer(config);
+    setLink('');
+    onNav('server-list');
+  };
+
+  return (
+    <div className="screen">
+      <div className="add-header">
+        <h1>Add Connection</h1>
+      </div>
+      <div className="screen-content">
+        {/* Link input */}
+        <div className="link-section">
+          <div className="field-label">Insert Link</div>
+          <div className="link-input-row">
+            <input
+              className="link-input"
+              value={link}
+              onChange={e => setLink(e.target.value)}
+              placeholder="secular://server?token=..."
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            />
+            <button className="link-add-btn" onClick={handleAdd}>Add</button>
+          </div>
+        </div>
+
+        {/* OR divider */}
+        <div className="or-divider">
+          <div className="or-line" />
+          <span className="or-text">OR</span>
+          <div className="or-line" />
+        </div>
+
+        {/* Action buttons */}
+        <button className="action-btn" onClick={() => {}}>
+          <span className="action-btn-icon"><IconScan /></span>
+          Scan QR Code
+        </button>
+        <button className="action-btn" onClick={() => {}}>
+          <span className="action-btn-icon"><IconUpload /></span>
+          Upload .toml file
+        </button>
+        <button className="action-btn" onClick={() => {
+          const config: ServerConfig = {
+            host: '',
+            port: 443,
+            sni: '',
+            auth_token: '',
+            protocol: 'h2',
+            allow_ipv6: false,
+          };
+          onAddServer(config);
+        }}>
+          <span className="action-btn-icon"><IconEdit /></span>
+          Add Server Manually
+        </button>
+      </div>
+      <BottomNav active="add-server" onNav={onNav} />
+    </div>
+  );
+};
+
+/* ─── Screen: Server Config ─── */
+interface ServerConfigScreenProps {
+  server: ServerInfo;
+  onSave: (config: ServerInfo) => void;
+  onDelete: (id: string) => void;
+  onNav: (s: Screen) => void;
+}
+
+const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, onSave, onDelete, onNav }) => {
+  const [name, setName] = useState(server.name);
+  const [host, setHost] = useState(server.config.host);
+  const [port, setPort] = useState(String(server.config.port));
+  const [username, setUsername] = useState(server.config.auth_token);
+  const [password, setPassword] = useState('');
+  const [sni, setSni] = useState(server.config.sni);
+
+  const handleSave = () => {
+    onSave({
+      ...server,
+      name,
+      config: {
+        ...server.config,
+        host,
+        port: parseInt(port, 10) || 443,
+        auth_token: username,
+        sni,
+      },
+    });
+    onNav('server-list');
+  };
+
+  return (
+    <div className="screen">
+      <div className="config-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 }}>
+        <h1>Server Config</h1>
+        <button
+          onClick={handleSave}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+            borderRadius: 10,
+            padding: '6px 16px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontFamily: 'var(--font)',
+          }}
+        >
+          Save
+        </button>
+      </div>
+      <div className="screen-content config-content">
+        <div className="config-field">
+          <div className="config-field-label">Name</div>
+          <input className="config-field-input" value={name} onChange={e => setName(e.target.value)} placeholder="My Server" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">Address</div>
+          <input className="config-field-input" value={host} onChange={e => setHost(e.target.value)} placeholder="vpn.example.com" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">Port</div>
+          <input className="config-field-input" value={port} onChange={e => setPort(e.target.value)} placeholder="443" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">Username / Token</div>
+          <input className="config-field-input" value={username} onChange={e => setUsername(e.target.value)} placeholder="auth token" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">Password</div>
+          <input className="config-field-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">SNI</div>
+          <input className="config-field-input" value={sni} onChange={e => setSni(e.target.value)} placeholder="SNI hostname" />
+        </div>
+
+        <div className="config-delete-row">
+          <button className="delete-btn" onClick={() => { onDelete(server.id); onNav('server-list'); }}>
+            Delete Server
+          </button>
+        </div>
+      </div>
+      <BottomNav active="server-config" onNav={onNav} />
+    </div>
+  );
+};
+
+/* ─── Screen: Query Log ─── */
+interface QueryLogProps {
+  logs: LogLine[];
+  onNav: (s: Screen) => void;
+  onClear: () => void;
+}
+
+const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
+  const handleCopy = () => {
+    const text = logs.map(l => `[${l.time}] ${l.level.toUpperCase()} ${l.message}`).join('\n');
+    navigator.clipboard?.writeText(text).catch(() => {});
+  };
+
+  return (
+    <div className="screen">
+      <div className="log-header">
+        <div className="log-header-left">
+          <h1>Query Log</h1>
+          <span className="log-filter-badge">All</span>
+        </div>
+        <div className="log-header-right">
+          <div className="log-action-icon" title="Copy" onClick={handleCopy}>
+            <IconCopy />
+          </div>
+          <div className="log-action-icon" title="Clear" onClick={onClear}>
+            <IconTrash />
+          </div>
+        </div>
+      </div>
+      <div className="screen-content" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="log-card" style={{ margin: '0 0 16px' }}>
+          <div className="log-lines">
+            {logs.length === 0 ? (
+              <div className="log-empty-msg" style={{ textAlign: 'center', padding: '32px 0', color: '#8A8A8A', opacity: 0.4 }}>
+                No logs yet.<br />Events will appear here when connecting.
+              </div>
+            ) : (
+              logs.map((line, i) => (
+                <div key={i} className="log-line">
+                  <span className="log-time">{line.time}</span>
+                  <span className={`log-msg-level-${line.level}`}>{line.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+      <BottomNav active="query-log" onNav={onNav} />
+    </div>
+  );
+};
+
+/* ─── Main App ─── */
+const DEFAULT_SERVERS: ServerInfo[] = [
+  {
+    id: '1',
+    name: 'Default Server',
+    meta: '1.2.3.4:443 / H2',
+    isDefault: true,
+    config: {
+      host: '1.2.3.4',
+      port: 443,
+      sni: '',
+      auth_token: '',
+      protocol: 'h2',
+      allow_ipv6: false,
+    },
+  },
+  {
+    id: '2',
+    name: 'Backup Server',
+    meta: '5.6.7.8:443 / H2',
+    isDefault: false,
+    config: {
+      host: '5.6.7.8',
+      port: 443,
+      sni: '',
+      auth_token: '',
+      protocol: 'h2',
+      allow_ipv6: false,
+    },
+  },
+];
+
+const App: React.FC = () => {
+  const [screen, setScreen] = useState<Screen>('dashboard');
+  const [connState, setConnState] = useState<ConnState>('disconnected');
+  const [servers, setServers] = useState<ServerInfo[]>(DEFAULT_SERVERS);
+  const [logs, setLogs] = useState<LogLine[]>([
+    { time: '12:00:01', level: 'info', message: 'Application started' },
+    { time: '12:00:02', level: 'ok', message: 'Configuration loaded' },
+    { time: '12:00:03', level: 'info', message: 'Ready to connect' },
+  ]);
+
+  const activeServer = servers.find(s => s.isDefault) || servers[0] || null;
+
+  const addLog = (level: LogLine['level'], message: string) => {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    setLogs(prev => [...prev, { time, level, message }]);
+  };
+
+  const handleToggleConnect = async () => {
+    try {
+      if (connState === 'connected') {
+        await invoke('disconnect');
+        setConnState('disconnected');
+        addLog('warn', 'Disconnected from server');
+      } else if (connState === 'disconnected') {
+        if (!activeServer) {
+          addLog('error', 'No server configured');
+          return;
+        }
+        setConnState('connecting');
+        addLog('info', `Connecting to ${activeServer.config.host}:${activeServer.config.port}...`);
+        try {
+          await invoke('connect', { config: activeServer.config });
+          setConnState('connected');
+          addLog('ok', `Connected to ${activeServer.name}`);
+        } catch (err) {
+          setConnState('disconnected');
+          addLog('error', `Connection failed: ${err}`);
+        }
+      }
+    } catch (err) {
+      console.error('Connection error:', err);
+      setConnState('disconnected');
+      addLog('error', `Error: ${err}`);
+    }
+  };
+
+  const handleAddServer = (config: ServerConfig) => {
+    const newServer: ServerInfo = {
+      id: Date.now().toString(),
+      name: config.host || 'New Server',
+      meta: `${config.host || '?'}:${config.port} / ${config.protocol.toUpperCase()}`,
+      isDefault: servers.length === 0,
+      config,
+    };
+    setServers(prev => [...prev, newServer]);
+    addLog('info', `Server "${newServer.name}" added`);
+  };
+
+  const handleSaveServer = (updated: ServerInfo) => {
+    setServers(prev => prev.map(s => s.id === updated.id ? {
+      ...updated,
+      meta: `${updated.config.host}:${updated.config.port} / ${updated.config.protocol.toUpperCase()}`,
+    } : s));
+    addLog('info', `Server "${updated.name}" updated`);
+  };
+
+  const handleDeleteServer = (id: string) => {
+    setServers(prev => prev.filter(s => s.id !== id));
+    addLog('warn', 'Server deleted');
+  };
+
+  const handleSetDefault = (id: string) => {
+    setServers(prev => prev.map(s => ({ ...s, isDefault: s.id === id })));
+    addLog('info', 'Default server changed');
+  };
+
+  const handleClearLogs = () => {
+    setLogs([]);
+  };
+
+  const handleNav = (s: Screen) => {
+    setScreen(s);
+  };
+
+  return (
+    <>
+      {screen === 'dashboard' && (
+        <Dashboard
+          connState={connState}
+          onToggleConnect={handleToggleConnect}
+          onNav={handleNav}
+          activeServer={activeServer}
+        />
+      )}
+      {screen === 'server-list' && (
+        <ServerList
+          servers={servers}
+          onNav={handleNav}
+          onSetDefault={handleSetDefault}
+        />
+      )}
+      {screen === 'add-server' && (
+        <AddServer
+          onNav={handleNav}
+          onAddServer={handleAddServer}
+        />
+      )}
+      {screen === 'server-config' && false && (
+        <ServerConfigScreen
+          server={{} as ServerInfo}
+          onSave={handleSaveServer}
+          onDelete={handleDeleteServer}
+          onNav={handleNav}
+        />
+      )}
+      {screen === 'query-log' && (
+        <QueryLog
+          logs={logs}
+          onNav={handleNav}
+          onClear={handleClearLogs}
+        />
+      )}
+    </>
   );
 };
 
