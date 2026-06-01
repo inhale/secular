@@ -18,6 +18,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.adguard.trusttunnel.VpnClient
+import com.adguard.trusttunnel.VpnClientListener
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
@@ -58,23 +59,11 @@ class SecularVpnService : VpnService() {
         @Volatile
         var instance: SecularVpnService? = null
 
-        // Called from VpnClient.onStateChanged JNI callback
+        // JNI callbacks (not used with AAR VpnClient, but kept for compatibility)
         @JvmStatic
-        fun onNativeStateChanged(state: Int) {
-            Log.d(TAG, "onNativeStateChanged: $state")
-            when (state) {
-                STATE_CONNECTED -> { isTunnelUp = true; isConnecting = false; lastError = null }
-                STATE_DISCONNECTED -> { isTunnelUp = false; isConnecting = false }
-                STATE_CONNECTING -> { isConnecting = true }
-            }
-        }
-
-        // Called from VpnClient.onConnectionInfo JNI callback
+        fun onNativeStateChanged(state: Int) {}
         @JvmStatic
-        fun onNativeConnectionInfo(info: String) {
-            // Verbose per-connection logging — use Log.d only, don't spam addLog buffer
-            // Log.d(TAG, "onNativeConnectionInfo: $info")
-        }
+        fun onNativeConnectionInfo(info: String) {}
 
         // Log buffer for LogFragment UI
         val logBuffer = mutableListOf<String>()
@@ -348,21 +337,20 @@ class SecularVpnService : VpnService() {
                     return@launch
                 }
 
-                // Verify native library is available
-                if (!VpnClient.nativeLibLoaded) {
-                    lastError = "Native VPN library not available (missing .so for this device architecture)"
-                    addLog("connectToServer: native library not loaded — cannot connect")
-                    isConnecting = false
-                    return@launch
-                }
-
                 // Deferred to wait for async native connection result
                 val connectDeferred = CompletableDeferred<Boolean>()
 
-                // Create native client with a listener that signals the deferred
+                // Create native client — AAR's constructor takes (tomlConfig, VpnClientListener)
+                // and calls createNative() internally. If native lib fails to load, this throws.
                 addLog("Creating native client...")
                 val client = try {
-                    VpnClient(tomlConfig, object : VpnClient.Listener {
+                    VpnClient(tomlConfig, object : VpnClientListener {
+                        override fun protectSocket(fd: Int): Boolean {
+                            return try { protect(fd) } catch (_: Exception) { false }
+                        }
+                        override fun verifyCertificate(cert: ByteArray, chain: List<ByteArray>): Boolean {
+                            return true // TODO: implement cert pinning
+                        }
                         override fun onStateChanged(state: Int) {
                             addLog("Native state: $state")
                             updateNotificationForState(state)
@@ -394,51 +382,23 @@ class SecularVpnService : VpnService() {
 
                 nativeClient = client
 
-                addLog("Calling client.create()...")
-                val created = try {
-                    client.create()
-                } catch (e: Throwable) {
-                    addLog("client.create() THREW: ${e.javaClass.simpleName}: ${e.message}")
-                    false
-                }
-                addLog("client.create() returned: $created")
-
-                if (!created) {
-                    val errMsg = if (config.username.isEmpty() || config.password.isEmpty()) {
-                        "Server config error: username and password are required by TrustTunnel protocol"
-                    } else {
-                        "Failed to create native client (TOML config rejected by native library)"
-                    }
-                    lastError = errMsg
-                    addLog("connectToServer: $errMsg")
-                    isConnecting = false
-                    client.destroy()
-                    nativeClient = null
-                    return@launch
-                }
-
-                // Detach fd from ParcelFileDescriptor so Java doesn't close it.
-                // Native code takes ownership of the fd and will close it when done.
-                val detachedFd = vpn.detachFd()
-                addLog("Starting tunnel with detached fd=$detachedFd")
+                // Start the tunnel — AAR uses start(ParcelFileDescriptor), not start(int fd)
+                addLog("Starting tunnel with fd=${vpn.fd}")
                 val startResult = try {
-                    client.start(detachedFd)
+                    client.start(vpn)
                 } catch (e: Throwable) {
                     addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
-                    // If start throws, we still own the fd — close it to avoid leak
-                    try { ParcelFileDescriptor.adoptFd(detachedFd).close() } catch (_: Exception) {}
                     false
                 }
-                addLog("startNative returned: $startResult")
+                addLog("client.start() returned: $startResult")
 
                 if (!startResult) {
                     lastError = "Tunnel start failed"
                     isTunnelUp = false
                     isConnecting = false
-                    client.destroy()
+                    client.stop()
+                    client.close()
                     nativeClient = null
-                    // startNative returned false — it didn't take the fd, close it
-                    try { ParcelFileDescriptor.adoptFd(detachedFd).close() } catch (_: Exception) {}
                     return@launch
                 }
 
@@ -455,13 +415,13 @@ class SecularVpnService : VpnService() {
 
                 if (connected) {
                     addLog("connectToServer: CONNECTED!")
-                    // nativeClient is already set, leave it alive for disconnect()
                 } else {
                     addLog("connectToServer: connection failed")
                     isTunnelUp = false
                     isConnecting = false
                     lastError = lastError ?: "Connection failed"
-                    client.destroy()
+                    client.stop()
+                    client.close()
                     nativeClient = null
                 }
 
@@ -498,7 +458,7 @@ class SecularVpnService : VpnService() {
         vpnJob = null
 
         try { nativeClient?.stop() } catch (_: Exception) {}
-        try { nativeClient?.destroy() } catch (_: Exception) {}
+        try { nativeClient?.close() } catch (_: Exception) {}
         nativeClient = null
 
         // Don't close vpnInterface — fd was already detached and given to native.
