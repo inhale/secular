@@ -18,10 +18,11 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
 
     let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
 
-    // Load the tray icon
-    let icon = tauri::image::Image::from_path(
-        app.path().resolve("icons/icon.png", tauri::path::BaseDirectory::Resource)?
-    ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+    // Load the tray icon — use the app's default window icon (already bundled)
+    let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
+        // Fallback: create a simple 32x32 green circle icon
+        tauri::image::Image::new_rgba(32, 32, vec![0u8; 32 * 32 * 4].into())
+    });
 
     let _tray = TrayIconBuilder::with_id("main-tray")
         .tooltip("Secular — Disconnected")
