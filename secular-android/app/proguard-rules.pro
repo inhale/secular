@@ -28,6 +28,13 @@
     *;
 }
 
+# SLF4J + Logback — used by TrustTunnel AAR at runtime
+-keep class org.slf4j.** { *; }
+-keep class ch.qos.logback.** { *; }
+-keep class com.github.tony19.logback.** { *; }
+-dontwarn org.slf4j.**
+-dontwarn ch.qos.logback.**
+
 # Gson
 -keepattributes Signature
 -keepattributes *Annotation*

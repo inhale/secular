@@ -92,6 +92,11 @@ dependencies {
     // OkHttp — TLS + HTTP/2 for tunnel
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // SLF4J — required by TrustTunnel AAR (VpnClient, NativeLogger)
+    implementation("org.slf4j:slf4j-api:2.0.9")
+    // Logback — SLF4J implementation used by TrustTunnel (logback.xml in AAR assets)
+    implementation("com.github.tony19:logback-android:3.0.0")
+
     // TrustTunnel native library (AAR with .so files)
     implementation(files("../../native-libs/trusttunnel-release.aar"))
 
