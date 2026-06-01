@@ -150,11 +150,10 @@ interface DashboardProps {
   onToggleConnect: () => void;
   onNav: (s: Screen) => void;
   servers: ServerInfo[];
-  activeServer: ServerInfo | null;
   onSetDefault: (id: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, activeServer, onSetDefault }) => {
+const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, onSetDefault }) => {
   const isActive = connState === 'connecting' || connState === 'connected';
 
   return (
@@ -686,7 +685,6 @@ const App: React.FC = () => {
           onToggleConnect={handleToggleConnect}
           onNav={handleNav}
           servers={servers}
-          activeServer={activeServer}
           onSetDefault={handleSetDefault}
         />
       )}
