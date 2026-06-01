@@ -19,10 +19,9 @@ fn main() {
             // to update the tray menu (Connect ↔ Disconnect)
             let handle = app.handle().clone();
             app.listen("tray-state-changed", move |event| {
-                if let Some(payload) = event.payload().as_str() {
-                    let connected = payload == "connected";
-                    let _ = tray::update_tray_state(&handle, connected);
-                }
+                let payload = event.payload().to_string();
+                let connected = payload.contains("connected");
+                let _ = tray::update_tray_state(&handle, connected);
             });
 
             Ok(())

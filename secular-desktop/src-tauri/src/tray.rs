@@ -10,7 +10,7 @@ use tauri::{
 };
 
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // Build the tray menu
+    // Build the tray menu items
     let connect_item = MenuItem::with_id(app, "connect", "Connect", true, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show Secular", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
@@ -54,18 +54,13 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-/// Update the tray menu item text based on connection state
+/// Update the tray tooltip and Connect menu item based on connection state
 pub fn update_tray_state(
     app: &tauri::AppHandle,
     connected: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Update tooltip
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let label = if connected { "Disconnect" } else { "Connect" };
-        if let Some(menu) = tray.menu() {
-            if let Some(item) = menu.get("connect") {
-                let _ = item.set_text(label);
-            }
-        }
         let tooltip = if connected {
             "Secular — Connected ✦"
         } else {
@@ -73,5 +68,11 @@ pub fn update_tray_state(
         };
         let _ = tray.set_tooltip(Some(tooltip));
     }
+
+    // Update the Connect/Disconnect menu item text
+    if let Some(menu_item) = app.menu().and_then(|m| m.get("connect")) {
+        let _ = menu_item.set_text(if connected { "Disconnect" } else { "Connect" });
+    }
+
     Ok(())
 }
