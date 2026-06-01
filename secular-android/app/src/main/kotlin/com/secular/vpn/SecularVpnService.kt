@@ -376,14 +376,10 @@ class SecularVpnService : VpnService() {
                                 STATE_CONNECTED -> {
                                     isTunnelUp = true
                                     isConnecting = false
-                                    connectDeferred.complete(true)
                                 }
                                 STATE_DISCONNECTED -> {
                                     isTunnelUp = false
                                     isConnecting = false
-                                    if (!connectDeferred.isCompleted) {
-                                        connectDeferred.complete(false)
-                                    }
                                 }
                             }
                         }
