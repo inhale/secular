@@ -45,6 +45,7 @@ class LogFragment : Fragment() {
     private lateinit var selectionBar: LinearLayout
     private lateinit var selInfo: TextView
     private lateinit var filterPopupView: LinearLayout
+    private lateinit var filterBadge: View
 
     private var filterOk = true
     private var filterWarn = true
@@ -61,6 +62,7 @@ class LogFragment : Fragment() {
         scrollHint = view.findViewById(R.id.scroll_hint)
         selectionBar = view.findViewById(R.id.selection_bar)
         selInfo = view.findViewById(R.id.sel_info)
+        filterBadge = view.findViewById(R.id.filter_badge)
 
         // Setup RecyclerView
         logLayout = LinearLayoutManager(requireContext())
@@ -184,7 +186,7 @@ class LogFragment : Fragment() {
         }
         // Update filter badge
         val anyOff = !filterOk || !filterWarn || !filterErr
-        // Could show a badge on the filter button — skipping for simplicity
+        filterBadge.visibility = if (anyOff) View.VISIBLE else View.GONE
     }
 
     private fun toggleSelection(entry: LogEntry) {

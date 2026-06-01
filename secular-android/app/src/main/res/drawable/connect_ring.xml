@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Connect ring: spinning green arc shown when connected -->
+<!-- Connect ring: spinning arc shown when connected.
+     Simulates mockup CSS partial arc (border-top + border-right visible).
+     Single dash segment = ~140° visible arc that spins around the button. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="@android:color/transparent" />
     <stroke
         android:width="2dp"
         android:color="@color/accent"
-        android:dashWidth="12dp"
-        android:dashGap="8dp" />
+        android:dashWidth="250dp"
+        android:dashGap="370dp" />
     <size
         android:width="196dp"
         android:height="196dp" />
