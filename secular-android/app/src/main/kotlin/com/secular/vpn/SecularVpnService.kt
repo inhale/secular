@@ -123,7 +123,10 @@ class SecularVpnService : VpnService() {
             }
 
             val addrToml = if (addresses.isNotEmpty()) {
-                addresses.joinToString(", ") { "\"$it\"" }
+                addresses.joinToString(", ") { addr ->
+                    val normalized = if (addr.contains(":")) addr else "$addr:8443"
+                    "\"$normalized\""
+                }
             } else {
                 "\"0.0.0.0:443\""
             }
