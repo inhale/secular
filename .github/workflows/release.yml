@@ -69,7 +69,7 @@ jobs:
       - name: Build Release APK
         working-directory: ./secular-android
         env:
-          KEYSTORE_FILE: app/secular-release.jks
+          KEYSTORE_FILE: secular-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
