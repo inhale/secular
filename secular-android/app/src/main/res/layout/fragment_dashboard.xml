@@ -241,69 +241,50 @@
 
     </LinearLayout>
 
-    <!-- Bottom Nav: icons only -->
-    <FrameLayout
+    <!-- Bottom Nav: flat icon row, active screen = green accent -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="32dp"
-        android:paddingBottom="36dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="48dp"
+        android:paddingVertical="16dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+        <!-- Query log (inactive) -->
+        <ImageButton
+            android:id="@+id/nav_log"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_log"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Query log" />
 
-            <!-- Query Log button -->
-            <ImageButton
-                android:id="@+id/nav_log"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_log"
-                android:scaleType="centerInside"
-                android:tint="@color/text_dim"
-                android:contentDescription="Query log" />
-
-            <!-- Spacer for center button -->
-            <View
-                android:layout_width="56dp"
-                android:layout_height="1dp" />
-
-            <!-- Add Server button -->
-            <ImageButton
-                android:id="@+id/nav_add"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_add_circle_outline"
-                android:scaleType="centerInside"
-                android:tint="@color/text_dim"
-                android:contentDescription="Add server" />
-        </LinearLayout>
-
-        <!-- Home button (green circle, centered, overlapping) -->
-        <FrameLayout
+        <!-- Home (active on Dashboard) -->
+        <ImageButton
             android:id="@+id/nav_home_btn"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="center"
-            android:layout_marginBottom="-8dp"
-            android:background="@drawable/nav_home_circle"
-            android:clickable="true"
-            android:focusable="true"
-            android:elevation="4dp">
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_home"
+            android:scaleType="centerInside"
+            android:tint="@color/accent"
+            android:contentDescription="Home" />
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_home"
-                android:tint="@color/bg"
-                android:importantForAccessibility="no" />
-        </FrameLayout>
-    </FrameLayout>
+        <!-- Add server (inactive) -->
+        <ImageButton
+            android:id="@+id/nav_add"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_add_circle_outline"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Add server" />
+    </LinearLayout>
 
 </LinearLayout>

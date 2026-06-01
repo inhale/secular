@@ -117,7 +117,7 @@ class LogFragment : Fragment() {
         }
 
         // Bottom nav
-        view.findViewById<ImageButton>(R.id.nav_home).setOnClickListener {
+        view.findViewById<ImageButton>(R.id.nav_home_btn).setOnClickListener {
             findNavController().popBackStack()
         }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {

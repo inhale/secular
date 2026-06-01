@@ -62,16 +62,15 @@
         android:clipToPadding="false"
         android:scrollbars="none" />
 
-    <!-- Bottom Nav: same 3-button layout -->
+    <!-- Bottom Nav: flat icon row, no active (sub-screen) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="bottom"
-        android:paddingHorizontal="32dp"
-        android:paddingBottom="36dp">
+        android:gravity="center_vertical"
+        android:paddingHorizontal="48dp"
+        android:paddingVertical="16dp">
 
-        <!-- Query Log button -->
         <ImageButton
             android:id="@+id/nav_log"
             android:layout_width="0dp"
@@ -83,27 +82,17 @@
             android:tint="@color/text_dim"
             android:contentDescription="Query log" />
 
-        <!-- Home button — green circle 56dp -->
-        <FrameLayout
+        <ImageButton
             android:id="@+id/nav_home_btn"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_marginBottom="-8dp"
-            android:layout_marginHorizontal="16dp"
-            android:background="@drawable/nav_home_circle"
-            android:clickable="true"
-            android:focusable="true"
-            android:elevation="4dp">
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_home"
+            android:scaleType="centerInside"
+            android:tint="@color/text_dim"
+            android:contentDescription="Home" />
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_home"
-                android:tint="@color/bg" />
-        </FrameLayout>
-
-        <!-- Add Server button -->
         <ImageButton
             android:id="@+id/nav_add"
             android:layout_width="0dp"
