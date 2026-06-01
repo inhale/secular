@@ -16,6 +16,7 @@ class MainActivity : AppCompatActivity() {
         // Find the NavHostFragment and set up navigation
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        @Suppress("UNUSED_VARIABLE")
         val navController = navHostFragment.navController
     }
 }
