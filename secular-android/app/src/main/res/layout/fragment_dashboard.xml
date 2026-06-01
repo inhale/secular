@@ -9,25 +9,12 @@
     android:gravity="center_horizontal"
     tools:context=".ui.DashboardFragment">
 
-    <!-- Status zone: log button top-right, status below -->
+    <!-- Status zone: no top bar, status below -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="4dp"
-        android:paddingBottom="4dp">
-
-        <ImageButton
-            android:id="@+id/btn_log"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_gravity="center_vertical|end"
-            android:layout_marginEnd="20dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_log"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="VPN Log" />
-    </FrameLayout>
+        android:paddingBottom="4dp" />
 
     <!-- Status Label -->
     <TextView
@@ -250,15 +237,6 @@
                 android:textColor="@color/text_dim"
                 android:alpha="0.5"
                 android:text="Tap to change server" />
-        </LinearLayout>
-
-        <!-- Ping dot -->
-        <View
-            android:id="@+id/ping_dot"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:background="@drawable/ping_dot_bg"
-            android:layout_marginEnd="12dp" />
     </LinearLayout>
 
     <!-- Bottom Nav: icons only -->

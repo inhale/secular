@@ -199,14 +199,41 @@ class DashboardFragment : Fragment() {
         }, 2000)
     }
 
+    private var lastTunDl: Long = 0
+    private var lastTunUl: Long = 0
+
+    private fun readTunBytes(): Pair<Long, Long> {
+        return try {
+            val dev = java.io.File("/proc/net/dev").readText()
+            for (line in dev.lines()) {
+                if (line.trim().startsWith("tun0:")) {
+                    val parts = line.trim().split("\\s+".toRegex())
+                    val rx = parts[1].toLongOrNull() ?: 0L
+                    val tx = parts[9].toLongOrNull() ?: 0L
+                    return Pair(rx, tx)
+                }
+            }
+            Pair(0L, 0L)
+        } catch (_: Exception) {
+            Pair(0L, 0L)
+        }
+    }
+
     private fun startMetricsPolling() {
         metricsRunnable = object : Runnable {
             override fun run() {
                 if (isConnected && view != null) {
-                    val dl = SecularVpnService.bytesDownloaded.get()
-                    val ul = SecularVpnService.bytesUploaded.get()
-                    view?.findViewById<TextView>(R.id.dl_speed)?.text = formatBytes(dl)
-                    view?.findViewById<TextView>(R.id.ul_speed)?.text = formatBytes(ul)
+                    val (tunDl, tunUl) = readTunBytes()
+                    if (lastTunDl == 0L) lastTunDl = tunDl
+                    if (lastTunUl == 0L) lastTunUl = tunUl
+                    val dlDelta = tunDl - lastTunDl
+                    val ulDelta = tunUl - lastTunUl
+                    lastTunDl = tunDl
+                    lastTunUl = tunUl
+                    val dlTotal = SecularVpnService.bytesDownloaded.addAndGet(dlDelta)
+                    val ulTotal = SecularVpnService.bytesUploaded.addAndGet(ulDelta)
+                    view?.findViewById<TextView>(R.id.dl_speed)?.text = formatBytes(dlTotal)
+                    view?.findViewById<TextView>(R.id.ul_speed)?.text = formatBytes(ulTotal)
                     view?.findViewById<TextView>(R.id.session_time)?.text = formatTime(seconds)
                     handler.postDelayed(this, 1000)
                 }
@@ -229,12 +256,17 @@ class DashboardFragment : Fragment() {
         v.findViewById<TextView>(R.id.status_label)?.text = "Connecting..."
         v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.accent, null))
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.5f
+        animateConnecting(v)
     }
 
     private fun updateUiConnected(v: View) {
         v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
         v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.accent, null))
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
+        lastTunDl = 0
+        lastTunUl = 0
+        SecularVpnService.bytesDownloaded.set(0)
+        SecularVpnService.bytesUploaded.set(0)
         animateConnect(v)
     }
 
@@ -248,9 +280,9 @@ class DashboardFragment : Fragment() {
         v.findViewById<TextView>(R.id.ul_speed)?.text = "0 B"
     }
 
-    private fun animateConnect(v: View) {
-        // Button border → green
-        v.findViewById<FrameLayout>(R.id.connect_btn)?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+    private fun animateConnecting(v: View) {
+        // Button border → accent
+        v.findViewById<FrameLayout>(R.id.connect_btn)?.setBackgroundResource(R.drawable.connect_btn_connecting_bg)
 
         // White logo → hide
         v.findViewById<View>(R.id.logo_dim)?.visibility = View.GONE
@@ -278,6 +310,31 @@ class DashboardFragment : Fragment() {
             repeatCount = android.animation.ValueAnimator.INFINITE
             start()
         }
+    }
+
+    private fun animateConnect(v: View) {
+        // Button border → green
+        v.findViewById<FrameLayout>(R.id.connect_btn)?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+
+        // White logo → hide
+        v.findViewById<View>(R.id.logo_dim)?.visibility = View.GONE
+
+        // Green logo → show with fade
+        val logoBright = v.findViewById<View>(R.id.logo_bright)
+        logoBright?.visibility = View.VISIBLE
+        logoBright?.alpha = 0f
+        logoBright?.animate()?.alpha(1f)?.setDuration(500)?.start()
+
+        // Glow → show
+        val glow = v.findViewById<View>(R.id.connect_glow)
+        glow?.visibility = View.VISIBLE
+        glow?.alpha = 0f
+        glow?.animate()?.alpha(1f)?.setDuration(600)?.start()
+
+        // Ring → hide (no spinning when connected)
+        ringAnimator?.cancel()
+        ringAnimator = null
+        v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
 
         // Logo pulse (breathing)
         logoBright?.let { lv ->
@@ -294,9 +351,6 @@ class DashboardFragment : Fragment() {
                 start()
             }
         }
-
-        // Ping dot → green
-        v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_excellent)
     }
 
     private fun animateDisconnect(v: View) {
@@ -318,15 +372,16 @@ class DashboardFragment : Fragment() {
         ringAnimator?.cancel()
         ringAnimator = null
         v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
-
-        // Ping dot → gray
-        v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_bg)
     }
 
     private fun disconnectVpn() {
         isConnected = false
         ringAnimator?.cancel()
         ringAnimator = null
+        lastTunDl = 0
+        lastTunUl = 0
+        SecularVpnService.bytesDownloaded.set(0)
+        SecularVpnService.bytesUploaded.set(0)
         view?.let { updateUiDisconnected(it) }
         timerRunnable?.let { handler.removeCallbacks(it) }
         metricsRunnable?.let { handler.removeCallbacks(it) }

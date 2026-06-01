@@ -68,14 +68,15 @@ class ServerListFragment : Fragment() {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
 
+        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
+            try { findNavController().navigate(R.id.action_serverList_to_log) } catch (_: Exception) {}
+        }
         view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
         }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             try { findNavController().navigate(R.id.action_serverList_to_addServer) } catch (_: Exception) {}
         }
-
-        // Don't load here — onResume will handle it
     }
 
     override fun onResume() {
@@ -90,7 +91,6 @@ class ServerListFragment : Fragment() {
                 val loaded = repository.loadServers()
                 SecularVpnService.addLog("ServerList: loadServers() — loaded=${loaded.size} names=${loaded.map { it.name }}")
                 if (loaded.isEmpty()) {
-                    // Show empty state
                     val emptyState = view?.findViewById<LinearLayout>(R.id.empty_state)
                     val rv = view?.findViewById<RecyclerView>(R.id.server_list)
                     emptyState?.visibility = View.VISIBLE
@@ -125,17 +125,6 @@ class ServerListFragment : Fragment() {
         }
     }
 
-    private val flagEmojis = listOf(
-        "\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEB\uD83C\uDDF7",
-        "\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDF5\uD83C\uDDF1",
-        "\uD83C\uDDF9\uD83C\uDDED", "\uD83C\uDDF3\uD83C\uDDF4", "\uD83C\uDDFA\uD83C\uDDF8",
-        "\uD83C\uDDE8\u200D\uD83C\uDDE6",
-    )
-
-    private fun flagForServer(serverName: String): String {
-        return flagEmojis[Math.floorMod(serverName.hashCode(), flagEmojis.size)]
-    }
-
     inner class ServerAdapter(
         private val servers: MutableList<ServerProfile>,
         private var selectedIndex: Int,
@@ -144,12 +133,9 @@ class ServerListFragment : Fragment() {
     ) : RecyclerView.Adapter<ServerAdapter.ViewHolder>() {
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val flagText: TextView = view.findViewById(R.id.flag_text)
             val defaultBadge: TextView = view.findViewById(R.id.default_badge)
             val name: TextView = view.findViewById(R.id.server_name)
             val meta: TextView = view.findViewById(R.id.server_meta)
-            val pingText: TextView = view.findViewById(R.id.ping_text)
-            val pingDot: View = view.findViewById(R.id.ping_dot)
             val gearBtn: ImageButton = view.findViewById(R.id.gear_btn)
             val container: LinearLayout = view as LinearLayout
         }
@@ -162,14 +148,10 @@ class ServerListFragment : Fragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             try {
                 val server = servers[position]
-                holder.flagText.text = flagForServer(server.name)
                 holder.name.text = server.name
                 holder.meta.text = "TrustTunnel · ${server.displayAddress}"
                 // Show DEFAULT badge for selected server
                 holder.defaultBadge.visibility = if (position == selectedIndex) View.VISIBLE else View.GONE
-                val ping = (20..200).random()
-                holder.pingText.text = "${ping}ms"
-                holder.pingDot.setBackgroundResource(getPingDrawable(ping))
                 if (position == selectedIndex) {
                     holder.container.setBackgroundResource(R.drawable.server_item_selected_bg)
                 } else {
@@ -183,7 +165,7 @@ class ServerListFragment : Fragment() {
         override fun getItemCount() = servers.size
 
         fun updateList(newServers: List<ServerProfile>, newSelected: Int) {
-            val copy = ArrayList(newServers)  // always copy to avoid aliasing
+            val copy = ArrayList(newServers)
             servers.clear()
             servers.addAll(copy)
             selectedIndex = newSelected
@@ -195,13 +177,6 @@ class ServerListFragment : Fragment() {
             selectedIndex = newSelected
             if (old >= 0 && old < servers.size) notifyItemChanged(old)
             if (newSelected >= 0 && newSelected < servers.size) notifyItemChanged(newSelected)
-        }
-
-        private fun getPingDrawable(ping: Int): Int = when {
-            ping < 40 -> R.drawable.ping_dot_excellent
-            ping < 80 -> R.drawable.ping_dot_good
-            ping < 150 -> R.drawable.ping_dot_ok
-            else -> R.drawable.ping_dot_bad
         }
     }
 }
