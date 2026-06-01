@@ -7,13 +7,28 @@ import { listen, emit } from '@tauri-apps/api/event';
 type ConnState = 'disconnected' | 'connecting' | 'connected';
 type Screen = 'dashboard' | 'server-list' | 'add-server' | 'server-config' | 'query-log';
 
+/** Server config matching Android ServerProfile / TrustTunnel TOML */
 interface ServerConfig {
-  host: string;
-  port: number;
-  sni: string;
-  auth_token: string;
-  protocol: string;
-  allow_ipv6: boolean;
+  /** IP:port address (e.g. "185.103.24.4:443") */
+  address: string;
+  /** SNI hostname for TLS handshake */
+  hostname: string;
+  /** Username for TrustTunnel auth */
+  username: string;
+  /** Password for TrustTunnel auth */
+  password: string;
+  /** Protocol: "http2" | "http3" */
+  upstream_protocol: string;
+  /** DNS upstreams (one per line) */
+  dns_upstreams: string[];
+  /** Allow IPv6 traffic */
+  has_ipv6: boolean;
+  /** Certificate PEM or path */
+  certificate: string;
+  /** Skip TLS verification */
+  skip_verification: boolean;
+  /** Anti-DPI */
+  anti_dpi: boolean;
 }
 
 interface ServerInfo {
@@ -106,6 +121,26 @@ const IconBack = () => (
   <svg viewBox="0 0 24 24">
     <path d="M19 12H5" />
     <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const IconEyeOn = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const IconEyeOff = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+const IconCaret = () => (
+  <svg viewBox="0 0 24 24">
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 
@@ -224,7 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
                     {srv.isDefault && <span className="server-deck-dot" />}
                   </div>
                   <div className="server-deck-meta">
-                    {srv.config.host}:{srv.config.port} / {srv.config.protocol.toUpperCase()}
+                    {srv.config.address} / {srv.config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}
                   </div>
                 </div>
                 <div
@@ -308,13 +343,19 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
   const handleAdd = () => {
     if (!link.trim()) return;
     // Try to parse secular:// link or plain host:port
+    const host = link.replace('secular://', '').split(':')[0] || link;
+    const port = parseInt(link.split(':')[1], 10) || 443;
     const config: ServerConfig = {
-      host: link.replace('secular://', '').split(':')[0] || link,
-      port: parseInt(link.split(':')[1], 10) || 443,
-      sni: '',
-      auth_token: '',
-      protocol: 'h2',
-      allow_ipv6: false,
+      address: `${host}:${port}`,
+      hostname: host,
+      username: '',
+      password: '',
+      upstream_protocol: 'http2',
+      dns_upstreams: ['9.9.9.9', '149.112.112.112'],
+      has_ipv6: false,
+      certificate: '',
+      skip_verification: false,
+      anti_dpi: false,
     };
     onAddServer(config);
     setLink('');
@@ -384,38 +425,63 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
   );
 };
 
-/** Minimal TOML parser for [server] section */
+/** TOML parser matching Android TomlFileParser — handles [endpoint] sections */
 function parseTomlConfig(content: string): ServerConfig {
   const config: ServerConfig = {
-    host: '',
-    port: 443,
-    sni: '',
-    auth_token: '',
-    protocol: 'h2',
-    allow_ipv6: false,
+    address: '',
+    hostname: '',
+    username: '',
+    password: '',
+    upstream_protocol: 'http2',
+    dns_upstreams: [],
+    has_ipv6: true,
+    certificate: '',
+    skip_verification: false,
+    anti_dpi: false,
   };
+  const fields: Record<string, string> = {};
   const lines = content.split('\n');
-  let inServer = false;
+  let currentSection = '';
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith('[')) {
-      inServer = trimmed === '[server]' || trimmed === '[connection]';
+    if (trimmed.startsWith('#') || trimmed === '') continue;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      currentSection = trimmed.substring(1, trimmed.length - 1);
       continue;
     }
-    if (!inServer) continue;
-    const [key, ...rest] = trimmed.split('=');
-    const value = rest.join('=').trim().replace(/^"|"$/g, '');
-    if (key.trim() === 'host') config.host = value;
-    else if (key.trim() === 'port') config.port = parseInt(value, 10) || 443;
-    else if (key.trim() === 'sni') config.sni = value;
-    else if (key.trim() === 'auth_token' || key.trim() === 'username') config.auth_token = value;
-    else if (key.trim() === 'protocol') config.protocol = value || 'h2';
-    else if (key.trim() === 'allow_ipv6') config.allow_ipv6 = value === 'true';
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx > 0) {
+      const key = trimmed.substring(0, eqIdx).trim();
+      const rawValue = trimmed.substring(eqIdx + 1).trim().replace(/^"|"$/g, '');
+      const fullKey = currentSection ? `${currentSection}.${key}` : key;
+      fields[fullKey] = rawValue;
+      fields[key] = rawValue; // also store bare key
+    }
   }
+  // Read fields matching Android's fallback chain
+  config.hostname = fields['hostname'] || fields['endpoint.hostname'] || fields['endpoints.hostname'] || '';
+  const addrRaw = fields['addresses'] || fields['endpoint.addresses'] || '';
+  if (addrRaw) {
+    const cleaned = addrRaw.replace(/^\[|\]$/g, '').replace(/"/g, '').replace(/'/g, '');
+    config.address = cleaned.split(',').map((s: string) => s.trim()).filter((s: string) => s)[0] || '';
+  }
+  config.username = fields['username'] || fields['endpoint.username'] || fields['endpoints.username'] || '';
+  config.password = fields['password'] || fields['endpoint.password'] || fields['endpoints.password'] || '';
+  config.upstream_protocol = fields['upstream_protocol'] || fields['endpoint.upstream_protocol'] || 'http2';
+  const dnsRaw = fields['dns_upstreams'] || fields['endpoint.dns_upstreams'] || '';
+  if (dnsRaw) {
+    const cleaned = dnsRaw.replace(/^\[|\]$/g, '').replace(/"/g, '').replace(/'/g, '');
+    config.dns_upstreams = cleaned.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+  }
+  config.has_ipv6 = (fields['has_ipv6'] || fields['endpoint.has_ipv6'] || 'true') === 'true';
+  config.skip_verification = (fields['skip_verification'] || fields['endpoint.skip_verification'] || 'false') === 'true';
+  config.anti_dpi = (fields['anti_dpi'] || fields['endpoint.anti_dpi'] || 'false') === 'true';
+  config.certificate = fields['certificate'] || fields['endpoint.certificate'] || '';
+  // Name is set on ServerInfo by the caller, not stored in ServerConfig
   return config;
 }
 
-/* ─── Screen: Server Config ─── */
+/* ─── Screen: Server Config (matches Android screen3) ─── */
 interface ServerConfigScreenProps {
   server: ServerInfo;
   isNew: boolean;
@@ -426,24 +492,36 @@ interface ServerConfigScreenProps {
 
 const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, onSave, onDelete, onNav }) => {
   const [name, setName] = useState(server.name);
-  const [host, setHost] = useState(server.config.host);
-  const [port, setPort] = useState(String(server.config.port));
-  const [username, setUsername] = useState(server.config.auth_token);
-  const [password, setPassword] = useState('');
-  const [sni, setSni] = useState(server.config.sni);
-  const [protocol, setProtocol] = useState(server.config.protocol);
+  const [address, setAddress] = useState(server.config.address);
+  const [hostname, setHostname] = useState(server.config.hostname);
+  const [username, setUsername] = useState(server.config.username);
+  const [password, setPassword] = useState(server.config.password);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [protocol, setProtocol] = useState(server.config.upstream_protocol === 'http3' ? 1 : 0);
+  const [dns, setDns] = useState(server.config.dns_upstreams.join('\n'));
+  const [hasIpv6, setHasIpv6] = useState(server.config.has_ipv6);
+  const [protocolOpen, setProtocolOpen] = useState(false);
 
   const handleSave = () => {
+    const addr = address.trim();
+    const dnsLines = dns.split('\n').map(l => l.trim()).filter(l => l);
+    if (!name.trim()) {
+      setName(hostname || addr || 'New Server');
+    }
     onSave({
       ...server,
-      name: name || host || 'New Server',
+      name: name.trim() || hostname || addr || 'New Server',
       config: {
-        ...server.config,
-        host,
-        port: parseInt(port, 10) || 443,
-        auth_token: username,
-        sni,
-        protocol,
+        address: addr,
+        hostname: hostname.trim() || addr.split(':')[0],
+        username: username.trim(),
+        password,
+        upstream_protocol: protocol === 1 ? 'http3' : 'http2',
+        dns_upstreams: dnsLines.length ? dnsLines : ['9.9.9.9', '149.112.112.112'],
+        has_ipv6: hasIpv6,
+        certificate: server.config.certificate,
+        skip_verification: server.config.skip_verification,
+        anti_dpi: server.config.anti_dpi,
       },
     });
     onNav('dashboard');
@@ -454,48 +532,121 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
     onNav('dashboard');
   };
 
+  const protocols = ['HTTP/2', 'QUIC'];
+
   return (
     <div className="screen">
       <div className="config-header-bar">
         <div className="config-back" onClick={() => onNav(isNew ? 'add-server' : 'dashboard')}>
           <IconBack />
         </div>
-        <h1>{isNew ? 'New Server' : 'Server Config'}</h1>
+        <h1>{isNew ? 'New Server' : name || 'Server Config'}</h1>
         <button className="config-save-btn" onClick={handleSave}>
-          Save
+          SAVE
         </button>
       </div>
       <div className="screen-content config-content">
+        {/* Server Name */}
         <div className="config-field">
-          <div className="config-field-label">Name</div>
+          <div className="config-field-label">SERVER NAME</div>
           <input className="config-field-input" value={name} onChange={e => setName(e.target.value)} placeholder="My Server" />
         </div>
+
+        {/* IP Address */}
         <div className="config-field">
-          <div className="config-field-label">Address</div>
-          <input className="config-field-input" value={host} onChange={e => setHost(e.target.value)} placeholder="vpn.example.com" />
+          <div className="config-field-label">IP ADDRESS</div>
+          <input className="config-field-input" value={address} onChange={e => setAddress(e.target.value)} placeholder="185.103.24.4:443" />
         </div>
+
+        {/* Hostname (SNI) */}
         <div className="config-field">
-          <div className="config-field-label">Port</div>
-          <input className="config-field-input" type="number" value={port} onChange={e => setPort(e.target.value)} placeholder="443" />
+          <div className="config-field-label">HOSTNAME FOR TLS HANDSHAKE</div>
+          <input className="config-field-input" value={hostname} onChange={e => setHostname(e.target.value)} placeholder="e.g. server.example.com" />
         </div>
+
+        {/* Username */}
         <div className="config-field">
-          <div className="config-field-label">Protocol</div>
-          <div className="protocol-toggle">
-            <button className={`proto-btn ${protocol === 'h2' ? 'active' : ''}`} onClick={() => setProtocol('h2')}>H2</button>
-            <button className={`proto-btn ${protocol === 'quic' ? 'active' : ''}`} onClick={() => setProtocol('quic')}>QUIC</button>
+          <div className="config-field-label">USERNAME</div>
+          <input className="config-field-input" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />
+        </div>
+
+        {/* Password with reveal toggle */}
+        <div className="config-field">
+          <div className="config-field-label">PASSWORD</div>
+          <div className="password-input-row">
+            <input
+              className="config-field-input password-input"
+              type={passwordVisible ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+            />
+            <button className="password-toggle" onClick={() => setPasswordVisible(!passwordVisible)}>
+              {passwordVisible ? <IconEyeOn /> : <IconEyeOff />}
+            </button>
           </div>
         </div>
+
+        {/* Protocol dropdown */}
         <div className="config-field">
-          <div className="config-field-label">Username / Token</div>
-          <input className="config-field-input" value={username} onChange={e => setUsername(e.target.value)} placeholder="auth token" />
+          <div className="config-field-label">PROTOCOL</div>
+          <div className="protocol-dropdown" onClick={() => setProtocolOpen(!protocolOpen)}>
+            <span className="protocol-value">{protocols[protocol]}</span>
+            <span className="protocol-caret"><IconCaret /></span>
+          </div>
+          {protocolOpen && (
+            <div className="protocol-options">
+              {protocols.map((p, i) => (
+                <div key={p} className={`protocol-option ${i === protocol ? 'active' : ''}`} onClick={() => { setProtocol(i); setProtocolOpen(false); }}>
+                  {p}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* DNS Servers */}
         <div className="config-field">
-          <div className="config-field-label">Password</div>
-          <input className="config-field-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" />
+          <div className="config-field-label">DNS SERVERS</div>
+          <textarea
+            className="config-field-textarea"
+            value={dns}
+            onChange={e => setDns(e.target.value)}
+            placeholder="One DNS server per line"
+            rows={3}
+          />
         </div>
+
+        {/* Certificate upload */}
         <div className="config-field">
-          <div className="config-field-label">SNI</div>
-          <input className="config-field-input" value={sni} onChange={e => setSni(e.target.value)} placeholder="SNI hostname" />
+          <div className="config-field-label">CERTIFICATE</div>
+          <button className="cert-upload-btn" onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pem,.crt,.cer';
+            input.onchange = async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              const cert = await file.text();
+              // Store cert in server config
+              onSave({ ...server, config: { ...server.config, certificate: cert } });
+            };
+            input.click();
+          }}>
+            <span className="action-btn-icon"><IconUpload /></span>
+            {server.config.certificate ? 'Certificate loaded ✓' : 'Upload .pem file'}
+          </button>
+        </div>
+
+        {/* IPv6 toggle */}
+        <div className="config-field config-toggle-field">
+          <label className="toggle-label">
+            <span>Allow IPv6 traffic</span>
+            <div className="toggle-switch">
+              <input type="checkbox" checked={hasIpv6} onChange={e => setHasIpv6(e.target.checked)} />
+              <span className="toggle-slider" />
+            </div>
+          </label>
         </div>
 
         {!isNew && (
@@ -666,10 +817,19 @@ const App: React.FC = () => {
           addLog('error', 'No server configured');
           return;
         }
+        const cfg = activeServer.config;
+        if (!cfg.address) {
+          addLog('error', 'Server has no address configured');
+          return;
+        }
+        if (!cfg.username || !cfg.password) {
+          addLog('error', `Server "${activeServer.name}" needs username and password`);
+          return;
+        }
         setConnState('connecting');
-        addLog('info', `Connecting to ${activeServer.config.host}:${activeServer.config.port}...`);
+        addLog('info', `Connecting to ${cfg.address}...`);
         try {
-          await invoke('connect', { config: activeServer.config });
+          await invoke('connect', { config: cfg });
           setConnState('connected');
           addLog('ok', `Connected to ${activeServer.name}`);
         } catch (err) {
@@ -687,8 +847,8 @@ const App: React.FC = () => {
   const handleAddServer = (config: ServerConfig) => {
     const newServer: ServerInfo = {
       id: Date.now().toString(),
-      name: config.host || 'New Server',
-      meta: `${config.host || '?'}:${config.port} / ${config.protocol.toUpperCase()}`,
+      name: config.hostname || config.address || 'New Server',
+      meta: `${config.address} / ${config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}`,
       isDefault: servers.length === 0,
       config,
     };
@@ -699,7 +859,7 @@ const App: React.FC = () => {
   const handleSaveServer = (updated: ServerInfo) => {
     const withMeta = {
       ...updated,
-      meta: `${updated.config.host}:${updated.config.port} / ${updated.config.protocol.toUpperCase()}`,
+      meta: `${updated.config.address} / ${updated.config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}`,
     };
     if (isNewServer) {
       // Adding new server from config screen
@@ -741,12 +901,16 @@ const App: React.FC = () => {
       meta: '',
       isDefault: servers.length === 0,
       config: {
-        host: '',
-        port: 443,
-        sni: '',
-        auth_token: '',
-        protocol: 'h2',
-        allow_ipv6: false,
+        address: '',
+        hostname: '',
+        username: '',
+        password: '',
+        upstream_protocol: 'http2',
+        dns_upstreams: ['9.9.9.9', '149.112.112.112'],
+        has_ipv6: false,
+        certificate: '',
+        skip_verification: false,
+        anti_dpi: false,
       },
     });
     setIsNewServer(true);
