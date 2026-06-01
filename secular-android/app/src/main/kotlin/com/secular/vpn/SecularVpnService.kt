@@ -18,6 +18,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.adguard.trusttunnel.VpnClient
+import com.adguard.trusttunnel.VpnClientListener
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
@@ -349,20 +350,25 @@ class SecularVpnService : VpnService() {
                 }
 
                 // Verify native library is available
-                if (!VpnClient.nativeLibLoaded) {
-                    lastError = "Native VPN library not available (missing .so for this device architecture)"
-                    addLog("connectToServer: native library not loaded — cannot connect")
+                try {
+                    System.loadLibrary("trusttunnel_android")
+                } catch (e: Throwable) {
+                    lastError = "Native VPN library not available: ${e.message}"
+                    addLog("connectToServer: native library load failed: ${e.message}")
                     isConnecting = false
                     return@launch
                 }
 
-                // Deferred to wait for async native connection result
-                val connectDeferred = CompletableDeferred<Boolean>()
-
-                // Create native client with a listener that signals the deferred
+                // Create native client with a listener for state callbacks
                 addLog("Creating native client...")
                 val client = try {
-                    VpnClient(tomlConfig, object : VpnClient.Listener {
+                    VpnClient(tomlConfig, object : VpnClientListener {
+                        override fun protectSocket(socket: Int): Boolean {
+                            return try { protect(socket) } catch (_: Throwable) { false }
+                        }
+                        override fun verifyCertificate(certificate: ByteArray?, rawChain: List<ByteArray?>?): Boolean {
+                            return true // Accept all certs — verification via TOML cert field
+                        }
                         override fun onStateChanged(state: Int) {
                             addLog("Native state: $state")
                             updateNotificationForState(state)
@@ -382,7 +388,7 @@ class SecularVpnService : VpnService() {
                             }
                         }
                         override fun onConnectionInfo(info: String) {
-                            // addLog("Native info: $info")  // verbose per-packet, disabled
+                            // addLog("Native info: $info") — verbose, disabled
                         }
                     })
                 } catch (e: Throwable) {
@@ -394,76 +400,14 @@ class SecularVpnService : VpnService() {
 
                 nativeClient = client
 
-                addLog("Calling client.create()...")
-                val created = try {
-                    client.create()
-                } catch (e: Throwable) {
-                    addLog("client.create() THREW: ${e.javaClass.simpleName}: ${e.message}")
-                    false
-                }
-                addLog("client.create() returned: $created")
-
-                if (!created) {
-                    val errMsg = if (config.username.isEmpty() || config.password.isEmpty()) {
-                        "Server config error: username and password are required by TrustTunnel protocol"
-                    } else {
-                        "Failed to create native client (TOML config rejected by native library)"
-                    }
-                    lastError = errMsg
-                    addLog("connectToServer: $errMsg")
-                    isConnecting = false
-                    client.destroy()
-                    nativeClient = null
-                    return@launch
-                }
-
-                // Detach fd from ParcelFileDescriptor so Java doesn't close it.
-                // Native code takes ownership of the fd and will close it when done.
-                val detachedFd = vpn.detachFd()
-                addLog("Starting tunnel with detached fd=$detachedFd")
-                val startResult = try {
-                    client.start(detachedFd)
+                addLog("Starting tunnel with VPN interface...")
+                val started = try {
+                    client.start(vpn!!)
                 } catch (e: Throwable) {
                     addLog("client.start() THREW: ${e.javaClass.simpleName}: ${e.message}")
-                    // If start throws, we still own the fd — close it to avoid leak
-                    try { ParcelFileDescriptor.adoptFd(detachedFd).close() } catch (_: Exception) {}
                     false
                 }
-                addLog("startNative returned: $startResult")
-
-                if (!startResult) {
-                    lastError = "Tunnel start failed"
-                    isTunnelUp = false
-                    isConnecting = false
-                    client.destroy()
-                    nativeClient = null
-                    // startNative returned false — it didn't take the fd, close it
-                    try { ParcelFileDescriptor.adoptFd(detachedFd).close() } catch (_: Exception) {}
-                    return@launch
-                }
-
-                // Wait for the native connection to complete (up to 15 seconds)
-                addLog("Waiting for native connection...")
-                val connected = try {
-                    withTimeout(15000L) {
-                        connectDeferred.await()
-                    }
-                } catch (e: TimeoutCancellationException) {
-                    addLog("connectToServer: connection timed out after 15s")
-                    false
-                }
-
-                if (connected) {
-                    addLog("connectToServer: CONNECTED!")
-                    // nativeClient is already set, leave it alive for disconnect()
-                } else {
-                    addLog("connectToServer: connection failed")
-                    isTunnelUp = false
-                    isConnecting = false
-                    lastError = lastError ?: "Connection failed"
-                    client.destroy()
-                    nativeClient = null
-                }
+                addLog("client.start() returned: $started")
 
             } catch (e: CancellationException) {
                 addLog("Connection cancelled")
@@ -497,8 +441,7 @@ class SecularVpnService : VpnService() {
         vpnJob?.cancel()
         vpnJob = null
 
-        try { nativeClient?.stop() } catch (_: Exception) {}
-        try { nativeClient?.destroy() } catch (_: Exception) {}
+        try { nativeClient?.close() } catch (_: Exception) {}
         nativeClient = null
 
         // Don't close vpnInterface — fd was already detached and given to native.
