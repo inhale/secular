@@ -63,6 +63,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_add_link"
+                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
                     android:minWidth="72dp"
@@ -71,9 +72,7 @@
                     android:textStyle="bold"
                     android:textSize="13sp"
                     app:backgroundTint="@color/accent"
-                    app:cornerRadius="8dp"
-                    app:insetTop="0dp"
-                    app:insetBottom="0dp" />
+                    app:cornerRadius="8dp" />
             </LinearLayout>
 
             <!-- OR Divider -->
