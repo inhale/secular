@@ -225,6 +225,7 @@ class ServerConfigFragment : Fragment() {
                 // Persist selected server name
                 prefs.edit().putString("selected_server_name", profile.name).apply()
                 SecularVpnService.addLog("Config saved: ${profile.name}, navigating to server list")
+                Toast.makeText(requireContext(), "Saved \u2713", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 SecularVpnService.addLog("Save error: ${e.message}")
             } finally {
