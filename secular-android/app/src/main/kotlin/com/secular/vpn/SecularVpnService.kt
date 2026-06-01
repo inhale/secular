@@ -348,7 +348,7 @@ class SecularVpnService : VpnService() {
                         override fun protectSocket(fd: Int): Boolean {
                             return try { protect(fd) } catch (_: Exception) { false }
                         }
-                        override fun verifyCertificate(cert: ByteArray, chain: List<ByteArray>): Boolean {
+                        override fun verifyCertificate(certificate: ByteArray?, rawChain: List<ByteArray?>?): Boolean {
                             return true // TODO: implement cert pinning
                         }
                         override fun onStateChanged(state: Int) {
