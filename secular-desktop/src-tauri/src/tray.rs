@@ -24,7 +24,6 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "connect" => {
-                // Emit event to frontend to toggle connection
                 let _ = app.emit("tray-connect", ());
             }
             "show" => {
@@ -69,9 +68,11 @@ pub fn update_tray_state(
         let _ = tray.set_tooltip(Some(tooltip));
     }
 
-    // Update the Connect/Disconnect menu item text
+    // Update the Connect/Disconnect menu item text directly
     if let Some(menu_item) = app.menu().and_then(|m| m.get("connect")) {
-        let _ = menu_item.set_text(if connected { "Disconnect" } else { "Connect" });
+        if let tauri::menu::MenuItemKind::MenuItem(item) = menu_item {
+            let _ = item.set_text(if connected { "Disconnect" } else { "Connect" });
+        }
     }
 
     Ok(())
