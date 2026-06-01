@@ -27,8 +27,8 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  width: 360px;
-  height: 780px;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   user-select: none;
