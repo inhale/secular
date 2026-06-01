@@ -8,6 +8,8 @@
 mod commands;
 mod tray;
 
+use tauri::Listener;
+
 fn main() {
     let mut app = tauri::Builder::default()
         .setup(|app| {

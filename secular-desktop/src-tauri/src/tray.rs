@@ -6,7 +6,7 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIconBuilder, MouseButton, MouseButtonState},
-    Manager, Runtime,
+    Emitter, Manager,
 };
 
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -22,36 +22,32 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         .tooltip("Secular — Disconnected")
         .icon_as_template(true) // macOS template icon (auto-inverts in light/dark mode)
         .menu(&menu)
-        .on_menu_event(|app, event| {
-            match event.id().as_ref() {
-                "connect" => {
-                    // Emit event to frontend to toggle connection
-                    let _ = app.emit("tray-connect", ());
-                }
-                "show" => {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
-                _ => {}
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "connect" => {
+                // Emit event to frontend to toggle connection
+                let _ = app.emit("tray-connect", ());
             }
+            "show" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
-            match event {
-                tauri::tray::TrayIconEvent::Click {
-                    button: MouseButton::Left,
-                    button_state: MouseButtonState::Up,
-                    ..
-                } => {
-                    let app = tray.app_handle();
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
+        .on_tray_icon_event(|tray, event| match event {
+            tauri::tray::TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } => {
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
                 }
-                _ => {}
             }
+            _ => {}
         })
         .build(app)?;
 
@@ -59,8 +55,8 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
 }
 
 /// Update the tray menu item text based on connection state
-pub fn update_tray_state<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+pub fn update_tray_state(
+    app: &tauri::AppHandle,
     connected: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(tray) = app.tray_by_id("main-tray") {
