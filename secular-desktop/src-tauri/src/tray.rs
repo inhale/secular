@@ -18,12 +18,13 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
 
     let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
 
-    // Load the tray icon — use the app's default window icon (already bundled)
-    let icon = match app.default_window_icon() {
-        Some(i) => i.clone(),
+    // Load the tray icon — try default_window_icon first, then try loading from bundled icons
+    let icon = app.default_window_icon().cloned();
+
+    let icon = match icon {
+        Some(i) => i,
         None => {
-            // No icon available — skip tray creation, just log
-            tracing::warn!("No default window icon available for tray");
+            tracing::warn!("No default window icon available for tray — skipping tray");
             return Ok(());
         }
     };

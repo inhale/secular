@@ -13,7 +13,11 @@ use tauri::Listener;
 fn main() {
     let mut app = tauri::Builder::default()
         .setup(|app| {
-            tray::setup_tray(app)?;
+            // Tray setup — non-fatal: if tray icon fails (e.g. missing icon file),
+            // the app still works, just without the tray menu
+            if let Err(e) = tray::setup_tray(app) {
+                eprintln!("Warning: tray setup failed: {e}");
+            }
 
             // Listen for connection state changes from frontend
             // to update the tray menu (Connect ↔ Disconnect)
