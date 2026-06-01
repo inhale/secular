@@ -249,39 +249,97 @@ body {
   fill: var(--accent);
 }
 
-/* Server card */
-.server-card {
-  margin: 0 8px 16px;
-  padding: 16px;
+/* Server decks (dashboard — all servers inline) */
+.server-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 16px;
+}
+
+.server-deck {
+  padding: 14px 14px 14px 16px;
   background: #1E1E1E;
   border-radius: 14px;
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.server-card:active {
+.server-deck.active {
+  border: 1.5px solid var(--accent);
+  background: rgba(0, 255, 102, 0.04);
+}
+
+.server-deck:active {
   background: #252525;
 }
 
-.server-card-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
+.server-deck-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
 }
 
-.server-card-meta {
+.server-deck-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.server-deck-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.server-deck-meta {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--text-dim);
-  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.server-card-hint {
-  font-size: 12px;
+.server-deck-gear {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
   color: var(--text-dim);
-  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  transition: color 0.2s;
+}
+
+.server-deck-gear:hover {
+  color: var(--text);
+}
+
+.server-deck-gear svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ===== SERVER LIST ===== */

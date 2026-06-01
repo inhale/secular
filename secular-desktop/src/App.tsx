@@ -149,10 +149,12 @@ interface DashboardProps {
   connState: ConnState;
   onToggleConnect: () => void;
   onNav: (s: Screen) => void;
+  servers: ServerInfo[];
   activeServer: ServerInfo | null;
+  onSetDefault: (id: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, activeServer }) => {
+const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, activeServer, onSetDefault }) => {
   const isActive = connState === 'connecting' || connState === 'connected';
 
   return (
@@ -189,17 +191,47 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
           </div>
         </div>
 
-        {/* Server card */}
-        <div className="server-card" onClick={() => onNav('server-list')}>
-          <div className="server-card-name">
-            {activeServer ? activeServer.name : 'No server selected'}
-          </div>
-          <div className="server-card-meta">
-            {activeServer
-              ? `${activeServer.config.host}:${activeServer.config.port} / ${activeServer.config.protocol.toUpperCase()}`
-              : 'Configure a server to connect'}
-          </div>
-          <div className="server-card-hint">Tap to change server</div>
+        {/* Server decks — all servers inline on dashboard */}
+        <div className="server-decks">
+          {servers.length === 0 ? (
+            <div className="server-deck" onClick={() => onNav('add-server')}>
+              <div className="server-deck-left">
+                <div className="server-deck-name">No server configured</div>
+                <div className="server-deck-meta">Tap to add one</div>
+              </div>
+            </div>
+          ) : (
+            servers.map((srv) => (
+              <div
+                key={srv.id}
+                className={`server-deck ${srv.isDefault ? 'active' : ''}`}
+                onClick={() => {
+                  if (!srv.isDefault) {
+                    onSetDefault(srv.id);
+                  }
+                }}
+              >
+                <div className="server-deck-left">
+                  <div className="server-deck-name">
+                    {srv.name}
+                    {srv.isDefault && <span className="server-deck-dot" />}
+                  </div>
+                  <div className="server-deck-meta">
+                    {srv.config.host}:{srv.config.port} / {srv.config.protocol.toUpperCase()}
+                  </div>
+                </div>
+                <div
+                  className="server-deck-gear"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNav('server-config');
+                  }}
+                >
+                  <IconGear />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
       <BottomNav active="dashboard" onNav={onNav} />
@@ -653,7 +685,9 @@ const App: React.FC = () => {
           connState={connState}
           onToggleConnect={handleToggleConnect}
           onNav={handleNav}
+          servers={servers}
           activeServer={activeServer}
+          onSetDefault={handleSetDefault}
         />
       )}
       {screen === 'server-list' && (

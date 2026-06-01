@@ -33,7 +33,11 @@
       "icons/512x512.png",
       "icons/1024x1024.png",
       "icons/icon.png",
-      "icons/icon.icns"
+      "icons/icon.icns",
+      "icons/tray-active.png",
+      "icons/tray-active@2x.png",
+      "icons/tray-inactive.png",
+      "icons/tray-inactive@2x.png"
     ],
     "macOS": {
       "entitlements": "entitlements.plist",
