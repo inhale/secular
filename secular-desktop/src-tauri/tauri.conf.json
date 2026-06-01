@@ -39,6 +39,12 @@
       "icons/tray-inactive.png",
       "icons/tray-inactive@2x.png"
     ],
+    "resources": [
+      "icons/tray-active.png",
+      "icons/tray-active@2x.png",
+      "icons/tray-inactive.png",
+      "icons/tray-inactive@2x.png"
+    ],
     "macOS": {
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "11.0"
