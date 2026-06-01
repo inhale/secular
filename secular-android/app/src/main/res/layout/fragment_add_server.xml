@@ -84,17 +84,12 @@
             <!-- OR Divider -->
             <include layout="@layout/or_divider" />
 
-            <!-- Section: Scan QR Code -->
-            <TextView
-                style="@style/FieldLabel"
-                android:text="Scan QR Code" />
-
+            <!-- Scan QR Code Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_scan_qr"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="64dp"
-                android:layout_marginTop="6dp"
+                android:minHeight="56dp"
                 android:text="Scan QR Code"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp"
@@ -112,66 +107,42 @@
             <!-- OR Divider -->
             <include layout="@layout/or_divider" />
 
-            <!-- Section: Upload Config -->
-            <TextView
-                style="@style/FieldLabel"
-                android:text="Upload Config" />
-
-            <LinearLayout
+            <!-- Upload .toml file Button -->
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_upload_config"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:minHeight="56dp"
+                android:text="Upload .toml file"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
                 android:gravity="center"
-                android:padding="28dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/upload_zone_bg"
-                android:clickable="true"
-                android:focusable="true">
-
-                <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginBottom="8dp"
-                    android:src="@drawable/ic_file_upload"
-                    android:tint="@color/text_dim" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Upload .toml file"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Tap to browse"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_dim"
-                    android:fontFamily="monospace" />
-            </LinearLayout>
+                app:backgroundTint="#0AFFFFFF"
+                app:strokeColor="@color/border"
+                app:strokeWidth="1dp"
+                app:strokeDashWidth="6dp"
+                app:strokeDashGap="4dp"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_file_upload"
+                app:iconTint="@color/accent"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp" />
 
             <!-- OR Divider -->
             <include layout="@layout/or_divider" />
 
-            <!-- Section: Manual Setup -->
-            <TextView
-                style="@style/FieldLabel"
-                android:text="Manual Setup" />
-
+            <!-- Add Server Manually Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_manual_setup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="64dp"
-                android:layout_marginTop="6dp"
+                android:minHeight="56dp"
                 android:text="Add Server Manually"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold"
+                android:gravity="center"
                 app:backgroundTint="#0AFFFFFF"
                 app:strokeColor="@color/border"
                 app:strokeWidth="1dp"
@@ -180,14 +151,6 @@
                 app:iconTint="@color/accent"
                 app:iconGravity="textStart"
                 app:iconPadding="12dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Enter server details by hand"
-                android:textSize="11sp"
-                android:textColor="@color/text_dim" />
 
         </LinearLayout>
     </ScrollView>

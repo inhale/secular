@@ -67,7 +67,7 @@ class AddServerFragment : Fragment() {
             val intent = Intent(requireContext(), QrScannerActivity::class.java)
             qrLauncher.launch(intent)
         }
-        view.findViewById<LinearLayout>(R.id.btn_upload_config).setOnClickListener {
+        view.findViewById<Button>(R.id.btn_upload_config).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
@@ -81,11 +81,14 @@ class AddServerFragment : Fragment() {
         }
 
         // Bottom nav
-        view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
-            try { findNavController().popBackStack() } catch (_: Exception) {}
+        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
+            try { findNavController().navigate(R.id.action_addServer_to_log) } catch (_: Exception) {}
         }
         view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener {
             try { findNavController().popBackStack() } catch (_: Exception) {}
+        }
+        view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
+            // Already on add screen — do nothing
         }
     }
 
@@ -105,7 +108,6 @@ class AddServerFragment : Fragment() {
                 val idx = repository.addServer(profile)
                 SecularVpnService.addLog("AddServer: added server idx=$idx, navigating to server list")
                 prefs.edit().putString("selected_server_name", profile.name).apply()
-                // Navigate: pop back to dashboard, then go to server list
                 findNavController().popBackStack(R.id.dashboardFragment, false)
                 findNavController().navigate(R.id.action_dashboard_to_serverList)
             }
