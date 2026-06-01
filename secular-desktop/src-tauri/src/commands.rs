@@ -118,3 +118,9 @@ pub async fn set_config(
     *cfg = config;
     Ok(())
 }
+
+/// Read a text file (for TOML upload)
+#[tauri::command]
+pub async fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+}

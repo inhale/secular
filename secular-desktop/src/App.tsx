@@ -1,7 +1,8 @@
-// Secular Desktop — Dark Theme v2 (matches Android exactly)
-import React, { useState, useEffect } from 'react';
+// Secular Desktop — Dark Theme v3 (matches Android)
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-shell';
 
 /* ─── Types ─── */
 type ConnState = 'disconnected' | 'connecting' | 'connected';
@@ -102,6 +103,13 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconBack = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M19 12H5" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
 /* ─── S Logo SVG ─── */
 const SLogo = ({ color = 'currentColor', size = 64 }: { color?: string; size?: number }) => (
   <svg className="s-logo-svg" width={size} height={size} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
@@ -151,9 +159,10 @@ interface DashboardProps {
   onNav: (s: Screen) => void;
   servers: ServerInfo[];
   onSetDefault: (id: string) => void;
+  onEditServer: (id: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, onSetDefault }) => {
+const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, onSetDefault, onEditServer }) => {
   const isActive = connState === 'connecting' || connState === 'connected';
 
   return (
@@ -223,7 +232,7 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
                   className="server-deck-gear"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onNav('server-config');
+                    onEditServer(srv.id);
                   }}
                 >
                   <IconGear />
@@ -243,16 +252,14 @@ interface ServerListProps {
   servers: ServerInfo[];
   onNav: (s: Screen) => void;
   onSetDefault: (id: string) => void;
+  onEditServer: (id: string) => void;
 }
 
-const ServerList: React.FC<ServerListProps> = ({ servers, onNav, onSetDefault }) => {
+const ServerList: React.FC<ServerListProps> = ({ servers, onNav, onSetDefault, onEditServer }) => {
   return (
     <div className="screen">
       <div className="header-row">
         <h1 className="screen-title">My Servers</h1>
-        <div className="gear-icon">
-          <IconGear />
-        </div>
       </div>
       <div className="screen-content">
         <div className="server-list">
@@ -264,15 +271,19 @@ const ServerList: React.FC<ServerListProps> = ({ servers, onNav, onSetDefault })
             servers.map((srv) => (
               <div
                 key={srv.id}
-                className="server-item"
+                className={`server-item ${srv.isDefault ? 'default' : ''}`}
                 onClick={() => {
-                  onSetDefault(srv.id);
-                  onNav('dashboard');
+                  if (!srv.isDefault) onSetDefault(srv.id);
                 }}
               >
                 <div className="server-item-row">
                   <span className="server-item-name">{srv.name}</span>
-                  <span className="server-item-default">{srv.isDefault ? '* DEFAULT' : ''}</span>
+                  <div className="server-item-right">
+                    <span className="server-item-default">{srv.isDefault ? '● DEFAULT' : ''}</span>
+                    <span className="server-item-gear" onClick={(e) => { e.stopPropagation(); onEditServer(srv.id); }}>
+                      <IconGear />
+                    </span>
+                  </div>
                 </div>
                 <div className="server-item-meta">{srv.meta}</div>
               </div>
@@ -289,9 +300,10 @@ const ServerList: React.FC<ServerListProps> = ({ servers, onNav, onSetDefault })
 interface AddServerProps {
   onNav: (s: Screen) => void;
   onAddServer: (config: ServerConfig) => void;
+  onEditNewServer: () => void;
 }
 
-const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer }) => {
+const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServer }) => {
   const [link, setLink] = useState('');
 
   const handleAdd = () => {
@@ -307,7 +319,25 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer }) => {
     };
     onAddServer(config);
     setLink('');
-    onNav('server-list');
+    onNav('dashboard');
+  };
+
+  const handleTomlUpload = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'TOML', extensions: ['toml'] }],
+      });
+      if (!selected) return;
+      // Read the file content via invoke
+      const content: string = await invoke('read_file', { path: selected });
+      // Parse simple TOML: [server] host=... port=... sni=... auth_token=...
+      const config: ServerConfig = parseTomlConfig(content);
+      onAddServer(config);
+      onNav('dashboard');
+    } catch (err) {
+      console.error('TOML upload failed:', err);
+    }
   };
 
   return (
@@ -343,21 +373,11 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer }) => {
           <span className="action-btn-icon"><IconScan /></span>
           Scan QR Code
         </button>
-        <button className="action-btn" onClick={() => {}}>
+        <button className="action-btn" onClick={handleTomlUpload}>
           <span className="action-btn-icon"><IconUpload /></span>
           Upload .toml file
         </button>
-        <button className="action-btn" onClick={() => {
-          const config: ServerConfig = {
-            host: '',
-            port: 443,
-            sni: '',
-            auth_token: '',
-            protocol: 'h2',
-            allow_ipv6: false,
-          };
-          onAddServer(config);
-        }}>
+        <button className="action-btn" onClick={onEditNewServer}>
           <span className="action-btn-icon"><IconEdit /></span>
           Add Server Manually
         </button>
@@ -367,55 +387,84 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer }) => {
   );
 };
 
+/** Minimal TOML parser for [server] section */
+function parseTomlConfig(content: string): ServerConfig {
+  const config: ServerConfig = {
+    host: '',
+    port: 443,
+    sni: '',
+    auth_token: '',
+    protocol: 'h2',
+    allow_ipv6: false,
+  };
+  const lines = content.split('\n');
+  let inServer = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('[')) {
+      inServer = trimmed === '[server]' || trimmed === '[connection]';
+      continue;
+    }
+    if (!inServer) continue;
+    const [key, ...rest] = trimmed.split('=');
+    const value = rest.join('=').trim().replace(/^"|"$/g, '');
+    if (key.trim() === 'host') config.host = value;
+    else if (key.trim() === 'port') config.port = parseInt(value, 10) || 443;
+    else if (key.trim() === 'sni') config.sni = value;
+    else if (key.trim() === 'auth_token' || key.trim() === 'username') config.auth_token = value;
+    else if (key.trim() === 'protocol') config.protocol = value || 'h2';
+    else if (key.trim() === 'allow_ipv6') config.allow_ipv6 = value === 'true';
+  }
+  return config;
+}
+
 /* ─── Screen: Server Config ─── */
 interface ServerConfigScreenProps {
   server: ServerInfo;
+  isNew: boolean;
   onSave: (config: ServerInfo) => void;
   onDelete: (id: string) => void;
   onNav: (s: Screen) => void;
 }
 
-const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, onSave, onDelete, onNav }) => {
+const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, onSave, onDelete, onNav }) => {
   const [name, setName] = useState(server.name);
   const [host, setHost] = useState(server.config.host);
   const [port, setPort] = useState(String(server.config.port));
   const [username, setUsername] = useState(server.config.auth_token);
   const [password, setPassword] = useState('');
   const [sni, setSni] = useState(server.config.sni);
+  const [protocol, setProtocol] = useState(server.config.protocol);
 
   const handleSave = () => {
     onSave({
       ...server,
-      name,
+      name: name || host || 'New Server',
       config: {
         ...server.config,
         host,
         port: parseInt(port, 10) || 443,
         auth_token: username,
         sni,
+        protocol,
       },
     });
-    onNav('server-list');
+    onNav('dashboard');
+  };
+
+  const handleDelete = () => {
+    onDelete(server.id);
+    onNav('dashboard');
   };
 
   return (
     <div className="screen">
-      <div className="config-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 }}>
-        <h1>Server Config</h1>
-        <button
-          onClick={handleSave}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--accent)',
-            color: 'var(--accent)',
-            borderRadius: 10,
-            padding: '6px 16px',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontFamily: 'var(--font)',
-          }}
-        >
+      <div className="config-header-bar">
+        <div className="config-back" onClick={() => onNav(isNew ? 'add-server' : 'dashboard')}>
+          <IconBack />
+        </div>
+        <h1>{isNew ? 'New Server' : 'Server Config'}</h1>
+        <button className="config-save-btn" onClick={handleSave}>
           Save
         </button>
       </div>
@@ -430,7 +479,14 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, onSave,
         </div>
         <div className="config-field">
           <div className="config-field-label">Port</div>
-          <input className="config-field-input" value={port} onChange={e => setPort(e.target.value)} placeholder="443" />
+          <input className="config-field-input" type="number" value={port} onChange={e => setPort(e.target.value)} placeholder="443" />
+        </div>
+        <div className="config-field">
+          <div className="config-field-label">Protocol</div>
+          <div className="protocol-toggle">
+            <button className={`proto-btn ${protocol === 'h2' ? 'active' : ''}`} onClick={() => setProtocol('h2')}>H2</button>
+            <button className={`proto-btn ${protocol === 'quic' ? 'active' : ''}`} onClick={() => setProtocol('quic')}>QUIC</button>
+          </div>
         </div>
         <div className="config-field">
           <div className="config-field-label">Username / Token</div>
@@ -445,13 +501,15 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, onSave,
           <input className="config-field-input" value={sni} onChange={e => setSni(e.target.value)} placeholder="SNI hostname" />
         </div>
 
-        <div className="config-delete-row">
-          <button className="delete-btn" onClick={() => { onDelete(server.id); onNav('server-list'); }}>
-            Delete Server
-          </button>
-        </div>
+        {!isNew && (
+          <div className="config-delete-row">
+            <button className="delete-btn" onClick={handleDelete}>
+              Delete Server
+            </button>
+          </div>
+        )}
       </div>
-      <BottomNav active="server-config" onNav={onNav} />
+      <BottomNav active="dashboard" onNav={onNav} />
     </div>
   );
 };
@@ -547,49 +605,39 @@ const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
   );
 };
 
-/* ─── Main App ─── */
-const DEFAULT_SERVERS: ServerInfo[] = [
-  {
-    id: '1',
-    name: 'Default Server',
-    meta: '1.2.3.4:443 / H2',
-    isDefault: true,
-    config: {
-      host: '1.2.3.4',
-      port: 443,
-      sni: '',
-      auth_token: '',
-      protocol: 'h2',
-      allow_ipv6: false,
-    },
-  },
-  {
-    id: '2',
-    name: 'Backup Server',
-    meta: '5.6.7.8:443 / H2',
-    isDefault: false,
-    config: {
-      host: '5.6.7.8',
-      port: 443,
-      sni: '',
-      auth_token: '',
-      protocol: 'h2',
-      allow_ipv6: false,
-    },
-  },
-];
+/* ─── Persistence helpers ─── */
+const STORAGE_KEY = 'secular-servers';
 
+function loadServers(): ServerInfo[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function saveServers(servers: ServerInfo[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(servers));
+}
+
+/* ─── Main App ─── */
 const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>('dashboard');
   const [connState, setConnState] = useState<ConnState>('disconnected');
-  const [servers, setServers] = useState<ServerInfo[]>(DEFAULT_SERVERS);
+  const [servers, setServers] = useState<ServerInfo[]>(loadServers);
+  const [editingServer, setEditingServer] = useState<ServerInfo | null>(null);
+  const [isNewServer, setIsNewServer] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([
     { time: '12:00:01', level: 'info', message: 'Application started' },
     { time: '12:00:02', level: 'ok', message: 'Configuration loaded' },
-    { time: '12:00:03', level: 'info', message: 'Ready to connect' },
   ]);
 
   const activeServer = servers.find(s => s.isDefault) || servers[0] || null;
+
+  // Persist servers on change
+  useEffect(() => {
+    saveServers(servers);
+  }, [servers]);
 
   // Notify Rust backend about connection state changes (updates tray menu)
   useEffect(() => {
@@ -652,21 +700,60 @@ const App: React.FC = () => {
   };
 
   const handleSaveServer = (updated: ServerInfo) => {
-    setServers(prev => prev.map(s => s.id === updated.id ? {
+    const withMeta = {
       ...updated,
       meta: `${updated.config.host}:${updated.config.port} / ${updated.config.protocol.toUpperCase()}`,
-    } : s));
-    addLog('info', `Server "${updated.name}" updated`);
+    };
+    if (isNewServer) {
+      // Adding new server from config screen
+      setServers(prev => [...prev, withMeta]);
+      addLog('info', `Server "${withMeta.name}" added`);
+    } else {
+      setServers(prev => prev.map(s => s.id === updated.id ? withMeta : s));
+      addLog('info', `Server "${updated.name}" updated`);
+    }
+    setEditingServer(null);
+    setIsNewServer(false);
   };
 
   const handleDeleteServer = (id: string) => {
     setServers(prev => prev.filter(s => s.id !== id));
     addLog('warn', 'Server deleted');
+    setEditingServer(null);
+    setIsNewServer(false);
   };
 
   const handleSetDefault = (id: string) => {
     setServers(prev => prev.map(s => ({ ...s, isDefault: s.id === id })));
     addLog('info', 'Default server changed');
+  };
+
+  const handleEditServer = (id: string) => {
+    const srv = servers.find(s => s.id === id);
+    if (srv) {
+      setEditingServer(srv);
+      setIsNewServer(false);
+      setScreen('server-config');
+    }
+  };
+
+  const handleEditNewServer = () => {
+    setEditingServer({
+      id: Date.now().toString(),
+      name: '',
+      meta: '',
+      isDefault: servers.length === 0,
+      config: {
+        host: '',
+        port: 443,
+        sni: '',
+        auth_token: '',
+        protocol: 'h2',
+        allow_ipv6: false,
+      },
+    });
+    setIsNewServer(true);
+    setScreen('server-config');
   };
 
   const handleClearLogs = () => {
@@ -686,6 +773,7 @@ const App: React.FC = () => {
           onNav={handleNav}
           servers={servers}
           onSetDefault={handleSetDefault}
+          onEditServer={handleEditServer}
         />
       )}
       {screen === 'server-list' && (
@@ -693,17 +781,20 @@ const App: React.FC = () => {
           servers={servers}
           onNav={handleNav}
           onSetDefault={handleSetDefault}
+          onEditServer={handleEditServer}
         />
       )}
       {screen === 'add-server' && (
         <AddServer
           onNav={handleNav}
           onAddServer={handleAddServer}
+          onEditNewServer={handleEditNewServer}
         />
       )}
-      {screen === 'server-config' && false && (
+      {screen === 'server-config' && editingServer && (
         <ServerConfigScreen
-          server={{} as ServerInfo}
+          server={editingServer}
+          isNew={isNewServer}
           onSave={handleSaveServer}
           onDelete={handleDeleteServer}
           onNav={handleNav}
