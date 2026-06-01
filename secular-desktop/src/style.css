@@ -1,16 +1,16 @@
 /* Secular Desktop — Dark Theme v2 (matches Android) */
 /* Palette: BG #121212 | Surface #1E1E1E | Text #FFFFFF | Dim #8A8A8A */
-/* Accent #00FF66 | Glow #4000FF66 | Border #14FFFFFF | Red #FF4D4D */
+/* Accent #00FF66 | Glow rgba(0,255,102,0.25) | Border rgba(255,255,255,0.08) | Red #FF4D4D */
 
 :root {
   --bg: #121212;
   --surface: #1E1E1E;
-  --surface-card: #0AFFFFFF;
+  --surface-card: rgba(255,255,255,0.04);
   --text: #FFFFFF;
   --text-dim: #8A8A8A;
   --accent: #00FF66;
-  --accent-glow: #4000FF66;
-  --border: #14FFFFFF;
+  --accent-glow: rgba(0,255,102,0.25);
+  --border: rgba(255,255,255,0.08);
   --red: #FF4D4D;
   --log-bg: #0D0D0D;
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
@@ -28,7 +28,7 @@ body {
   background: var(--bg);
   color: var(--text);
   width: 360px;
-  height: 520px;
+  height: 780px;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   user-select: none;
@@ -469,8 +469,8 @@ body {
   min-height: 56px;
   padding: 0 18px;
   margin-bottom: 10px;
-  background: #0AFFFFFF;
-  border: none;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
   border-radius: 12px;
   color: var(--text);
   font-size: 14px;
@@ -481,7 +481,7 @@ body {
 }
 
 .action-btn:active {
-  background: #14FFFFFF;
+  background: rgba(255,255,255,0.08);
 }
 
 .action-btn-icon {
@@ -633,6 +633,64 @@ body {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Filter popup */
+.filter-popup {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  background: #1E1E1E;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  min-width: 150px;
+  right: 16px;
+  top: 56px;
+}
+
+.filter-popup.open {
+  display: block;
+}
+
+.filter-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.filter-opt:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.filter-opt.active {
+  color: var(--accent);
+}
+
+.filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.filter-dot.ok { background: var(--accent); }
+.filter-dot.info { background: #5B9AFF; }
+.filter-dot.warn { background: #FFD93D; }
+.filter-dot.err { background: var(--red); }
+
+.filter-check {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--accent);
 }
 
 .log-card {

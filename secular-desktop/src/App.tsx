@@ -432,18 +432,39 @@ interface QueryLogProps {
   onClear: () => void;
 }
 
+const IconFilter = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+  </svg>
+);
+
 const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterLevels, setFilterLevels] = useState<Set<string>>(new Set(['ok', 'info', 'warn', 'error']));
+
+  const toggleLevel = (level: string) => {
+    setFilterLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level); else next.add(level);
+      return next;
+    });
+  };
+
+  const filteredLogs = logs.filter(l => filterLevels.has(l.level));
+
   const handleCopy = () => {
-    const text = logs.map(l => `[${l.time}] ${l.level.toUpperCase()} ${l.message}`).join('\n');
+    const text = filteredLogs.map(l => `[${l.time}] ${l.level.toUpperCase()} ${l.message}`).join('\n');
     navigator.clipboard?.writeText(text).catch(() => {});
   };
+
+  const filterLabel = filterLevels.size === 4 ? 'All' : filterLevels.size === 0 ? 'None' : `${filterLevels.size}`;
 
   return (
     <div className="screen">
       <div className="log-header">
         <div className="log-header-left">
           <h1>Query Log</h1>
-          <span className="log-filter-badge">All</span>
+          <span className="log-filter-badge" onClick={() => setFilterOpen(!filterOpen)}>{filterLabel}</span>
         </div>
         <div className="log-header-right">
           <div className="log-action-icon" title="Copy" onClick={handleCopy}>
@@ -452,17 +473,35 @@ const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
           <div className="log-action-icon" title="Clear" onClick={onClear}>
             <IconTrash />
           </div>
+          <div className="log-action-icon" title="Filter" onClick={() => setFilterOpen(!filterOpen)}>
+            <IconFilter />
+          </div>
         </div>
       </div>
+      {filterOpen && (
+        <div className="filter-popup open">
+          {(['ok', 'info', 'warn', 'error'] as const).map(level => (
+            <div
+              key={level}
+              className={`filter-opt ${filterLevels.has(level) ? 'active' : ''}`}
+              onClick={() => toggleLevel(level)}
+            >
+              <span className={`filter-dot ${level === 'error' ? 'err' : level}`} />
+              <span>{level === 'ok' ? 'OK' : level === 'info' ? 'Info' : level === 'warn' ? 'Warn' : 'Error'}</span>
+              {filterLevels.has(level) && <span className="filter-check">✓</span>}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="screen-content" style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="log-card" style={{ margin: '0 0 16px' }}>
           <div className="log-lines">
-            {logs.length === 0 ? (
+            {filteredLogs.length === 0 ? (
               <div className="log-empty-msg" style={{ textAlign: 'center', padding: '32px 0', color: '#8A8A8A', opacity: 0.4 }}>
                 No logs yet.<br />Events will appear here when connecting.
               </div>
             ) : (
-              logs.map((line, i) => (
+              filteredLogs.map((line, i) => (
                 <div key={i} className="log-line">
                   <span className="log-time">{line.time}</span>
                   <span className={`log-msg-level-${line.level}`}>{line.message}</span>
