@@ -62,12 +62,21 @@ jobs:
           path: ~/.gradle/caches
           key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('secular-android/**/*.kt', 'secular-android/**/*.xml', 'secular-android/**/*.kts') }}
 
-      - name: Build Debug APK
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > secular-android/app/secular-release.jks
+
+      - name: Build Release APK
         working-directory: ./secular-android
+        env:
+          KEYSTORE_FILE: app/secular-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           java -version 2>&1
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --no-build-cache --rerun-tasks 2>&1
+          ./gradlew assembleRelease --no-daemon --no-build-cache --rerun-tasks 2>&1
 
       - name: Copy APK to workspace root
         run: |
@@ -98,7 +107,7 @@ jobs:
         run: |
           APK=$(find ./artifacts -name "*.apk" -type f | head -1)
           if [ -n "$APK" ]; then
-            cp "$APK" ./secular-android-debug.apk
+            cp "$APK" ./secular-android-release.apk
             echo "Copied: $APK"
           else
             echo "No APK found"
@@ -106,4 +115,4 @@ jobs:
           fi
       - uses: softprops/action-gh-release@v2
         with:
-          files: secular-android-debug.apk
+          files: secular-android-release.apk

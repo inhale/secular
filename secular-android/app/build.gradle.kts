@@ -27,10 +27,26 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val ksFile = System.getenv("KEYSTORE_FILE")
+            val ksPwd = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            val keyAlias = System.getenv("KEY_ALIAS") ?: ""
+            val keyPwd = System.getenv("KEY_PASSWORD") ?: ""
+            if (ksFile != null) {
+                storeFile = file(ksFile)
+                storePassword = ksPwd
+                alias = keyAlias
+                keyPassword = keyPwd
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
