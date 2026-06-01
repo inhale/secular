@@ -145,6 +145,7 @@ class ServerListFragment : Fragment() {
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val flagText: TextView = view.findViewById(R.id.flag_text)
+            val defaultBadge: TextView = view.findViewById(R.id.default_badge)
             val name: TextView = view.findViewById(R.id.server_name)
             val meta: TextView = view.findViewById(R.id.server_meta)
             val pingText: TextView = view.findViewById(R.id.ping_text)
@@ -164,6 +165,8 @@ class ServerListFragment : Fragment() {
                 holder.flagText.text = flagForServer(server.name)
                 holder.name.text = server.name
                 holder.meta.text = "TrustTunnel · ${server.displayAddress}"
+                // Show DEFAULT badge for selected server
+                holder.defaultBadge.visibility = if (position == selectedIndex) View.VISIBLE else View.GONE
                 val ping = (20..200).random()
                 holder.pingText.text = "${ping}ms"
                 holder.pingDot.setBackgroundResource(getPingDrawable(ping))

@@ -37,6 +37,23 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
+        <!-- Default badge (shown only for selected/default server) -->
+        <TextView
+            android:id="@+id/default_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/default_badge_bg"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="DEFAULT"
+            android:textColor="@color/accent"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08"
+            android:visibility="gone"
+            tools:text="DEFAULT" />
+
         <TextView
             android:id="@+id/server_name"
             android:layout_width="wrap_content"
