@@ -108,26 +108,28 @@
             <include layout="@layout/or_divider" />
 
             <!-- Upload .toml file Button -->
-            <com.google.android.material.button.MaterialButton
+            <FrameLayout
                 android:id="@+id/btn_upload_config"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="56dp"
-                android:text="Upload .toml file"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:gravity="center"
-                app:backgroundTint="#0AFFFFFF"
-                app:strokeColor="@color/border"
-                app:strokeWidth="1dp"
-                app:strokeDashWidth="6dp"
-                app:strokeDashGap="4dp"
-                app:cornerRadius="12dp"
-                app:icon="@drawable/ic_file_upload"
-                app:iconTint="@color/accent"
-                app:iconGravity="textStart"
-                app:iconPadding="12dp" />
+                android:background="@drawable/upload_zone_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:drawableStart="@drawable/ic_file_upload"
+                    android:drawablePadding="12dp"
+                    android:drawableTint="@color/accent"
+                    android:gravity="center_vertical"
+                    android:text="Upload .toml file"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
 
             <!-- OR Divider -->
             <include layout="@layout/or_divider" />

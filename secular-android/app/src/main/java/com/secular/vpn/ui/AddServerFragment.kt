@@ -67,7 +67,7 @@ class AddServerFragment : Fragment() {
             val intent = Intent(requireContext(), QrScannerActivity::class.java)
             qrLauncher.launch(intent)
         }
-        view.findViewById<Button>(R.id.btn_upload_config).setOnClickListener {
+        view.findViewById<View>(R.id.btn_upload_config).setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
