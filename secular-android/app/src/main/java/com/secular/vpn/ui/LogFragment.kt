@@ -162,7 +162,11 @@ class LogFragment : Fragment() {
             true
         )
 
-        // Position the popup above the button
+        // Dismiss when tapping outside (matches mockup behavior)
+        popup.isOutsideTouchable = true
+        popup.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        // Position the popup below the button
         val location = IntArray(2)
         anchor.getLocationOnScreen(location)
         val popupWidth = (160 * resources.displayMetrics.density).toInt()
@@ -175,6 +179,7 @@ class LogFragment : Fragment() {
         val filtered = allEntries.filter { entry ->
             when (entry.level) {
                 "ok" -> filterOk
+                "info" -> filterOk  // info grouped with ok toggle
                 "warn" -> filterWarn
                 "err" -> filterErr
                 else -> true
@@ -254,8 +259,9 @@ class LogFragment : Fragment() {
 
     /**
      * Detect log level from message content.
-     * Scans for keywords — if none match, defaults to "ok" (shown as info/default).
-     * Lines that don't match ANY keyword are still shown as "ok" level.
+     * Returns "err" for errors, "warn" for warnings, "info" for informational messages,
+     * "ok" for positive status/confirmation messages.
+     * Matches mockup: ok=green, info=blue, warn=yellow, err=red.
      */
     private fun detectLevel(msg: String): String {
         val lower = msg.lowercase()
@@ -263,8 +269,14 @@ class LogFragment : Fragment() {
             lower.contains("error") || lower.contains("err ") || lower.contains("failed") ||
                 lower.contains("fatal") || lower.contains("denied") || lower.contains("crash") -> "err"
             lower.contains("warn") || lower.contains("spike") || lower.contains("retransmit") ||
-                lower.contains("stale") || lower.contains("timeout") || lower.contains("brief") -> "warn"
-            else -> "ok"
+                lower.contains("stale") || lower.contains("timeout") || lower.contains("brief") ||
+                lower.contains("jitter") -> "warn"
+            // Positive status confirmations get "ok"
+            lower.contains("stable") || lower.contains("acknowledged") || lower.contains("completed") ||
+                lower.contains("connected") || lower.contains("established") || lower.contains("restored") ||
+                lower.contains("renewed") || lower.contains("negotiation complete") -> "ok"
+            // Everything else is informational
+            else -> "info"
         }
     }
 
@@ -343,6 +355,7 @@ class LogAdapter(
 
         val levelLabel = when (entry.level) {
             "ok" -> "OK"
+            "info" -> "INFO"
             "warn" -> "WARN"
             "err" -> "ERR"
             else -> "OK"
@@ -350,16 +363,21 @@ class LogAdapter(
         holder.levelTv.text = levelLabel
         holder.levelTv.setTextColor(when (entry.level) {
             "ok" -> 0xFF00FF66.toInt()
+            "info" -> 0xFF5B9AFF.toInt()
             "warn" -> 0xFFFFD93D.toInt()
             "err" -> 0xFFFF4D4D.toInt()
             else -> 0xFF00FF66.toInt()
         })
         holder.msgTv.text = entry.msg
 
-        // Selection highlight
-        holder.root.setBackgroundColor(
-            if (isSelected(entry)) 0x1400FF66.toInt() else 0x00000000.toInt()
-        )
+        // Selection highlight: green tint + brighter text for selected lines
+        if (isSelected(entry)) {
+            holder.root.setBackgroundColor(0x1400FF66.toInt())
+            holder.msgTv.setTextColor(0xFFFFFFFF.toInt())
+        } else {
+            holder.root.setBackgroundColor(0x00000000.toInt())
+            holder.msgTv.setTextColor(0xFF8A8A8A.toInt())
+        }
 
         holder.root.setOnClickListener { onItemClick(entry) }
     }
