@@ -11,7 +11,7 @@ mod tray;
 use tauri::Listener;
 
 fn main() {
-    let mut app = tauri::Builder::default()
+    let app = tauri::Builder::default()
         .setup(|app| {
             // Tray setup — non-fatal: if tray icon fails (e.g. missing icon file),
             // the app still works, just without the tray menu
