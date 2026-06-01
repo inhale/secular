@@ -1,6 +1,7 @@
 // Secular Desktop — Dark Theme v2 (matches Android exactly)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, emit } from '@tauri-apps/api/event';
 
 /* ─── Types ─── */
 type ConnState = 'disconnected' | 'connecting' | 'connected';
@@ -519,6 +520,19 @@ const App: React.FC = () => {
   ]);
 
   const activeServer = servers.find(s => s.isDefault) || servers[0] || null;
+
+  // Notify Rust backend about connection state changes (updates tray menu)
+  useEffect(() => {
+    emit('tray-state-changed', connState === 'connected' ? 'connected' : 'disconnected');
+  }, [connState]);
+
+  // Listen for tray-connect event (user clicked Connect/Disconnect in tray menu)
+  useEffect(() => {
+    const unlisten = listen('tray-connect', () => {
+      handleToggleConnect();
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
 
   const addLog = (level: LogLine['level'], message: string) => {
     const now = new Date();

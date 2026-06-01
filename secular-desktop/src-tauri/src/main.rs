@@ -12,6 +12,17 @@ fn main() {
     let mut app = tauri::Builder::default()
         .setup(|app| {
             tray::setup_tray(app)?;
+
+            // Listen for connection state changes from frontend
+            // to update the tray menu (Connect ↔ Disconnect)
+            let handle = app.handle().clone();
+            app.listen("tray-state-changed", move |event| {
+                if let Some(payload) = event.payload().as_str() {
+                    let connected = payload == "connected";
+                    let _ = tray::update_tray_state(&handle, connected);
+                }
+            });
+
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())
