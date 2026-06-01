@@ -123,10 +123,7 @@ class SecularVpnService : VpnService() {
             }
 
             val addrToml = if (addresses.isNotEmpty()) {
-                addresses.joinToString(", ") { addr ->
-                    val normalized = if (addr.contains(":")) addr else "$addr:8443"
-                    "\"$normalized\""
-                }
+                addresses.joinToString(", ") { "\"$it\"" }
             } else {
                 "\"0.0.0.0:443\""
             }
@@ -258,6 +255,15 @@ class SecularVpnService : VpnService() {
 
         if (config.username.isEmpty() || config.password.isEmpty()) {
             lastError = "Server '${config.name}' has no username or password. Edit the server and add credentials."
+            addLog("connectToServer: $lastError")
+            isConnecting = false
+            return
+        }
+
+        // Validate addresses have port numbers
+        val missingPort = config.addresses.firstOrNull { !it.contains(":") }
+        if (missingPort != null) {
+            lastError = "Server '${config.name}' address '$missingPort' is missing a port. Use format: host:port (e.g. $missingPort:443)"
             addLog("connectToServer: $lastError")
             isConnecting = false
             return
