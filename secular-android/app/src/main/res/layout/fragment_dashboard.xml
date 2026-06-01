@@ -9,11 +9,12 @@
     android:gravity="center_horizontal"
     tools:context=".ui.DashboardFragment">
 
-    <!-- Status Bar spacer with log button -->
+    <!-- Status zone: log button top-right, status below -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="4dp">
+        android:layout_height="wrap_content"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
         <ImageButton
             android:id="@+id/btn_log"
@@ -37,8 +38,7 @@
         android:textSize="15sp"
         android:textStyle="bold"
         android:letterSpacing="0.02"
-        android:textColor="@color/text_dim"
-        android:layout_marginBottom="8dp" />
+        android:textColor="@color/text_dim" />
 
     <!-- Metrics Row -->
     <LinearLayout
@@ -47,9 +47,11 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:alpha="0.35"
-        android:layout_marginBottom="8dp">
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp"
+        android:alpha="0.35">
 
+        <!-- Session -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -68,13 +70,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Session"
+                android:text="SESSION"
                 android:textSize="10sp"
                 android:textColor="@color/text_dim"
                 android:letterSpacing="0.1"
                 android:textAllCaps="true" />
         </LinearLayout>
 
+        <!-- Download -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -85,7 +88,7 @@
                 android:id="@+id/dl_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="— MB"
+                android:text="0"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
@@ -93,13 +96,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Download"
+                android:text="DOWNLOAD PKTS"
                 android:textSize="10sp"
                 android:textColor="@color/text_dim"
                 android:letterSpacing="0.1"
                 android:textAllCaps="true" />
         </LinearLayout>
 
+        <!-- Upload -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -109,7 +113,7 @@
                 android:id="@+id/ul_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="— MB"
+                android:text="0"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
@@ -117,7 +121,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Upload"
+                android:text="UPLOAD PKTS"
                 android:textSize="10sp"
                 android:textColor="@color/text_dim"
                 android:letterSpacing="0.1"
@@ -131,60 +135,63 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Connect Button: large circle with dual-logo and glow -->
+    <!-- Connect Button Area -->
     <FrameLayout
         android:id="@+id/connect_btn_container"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="24dp">
 
-        <!-- Glow layer (visible when connected) -->
+        <!-- Glow background (visible when connected, behind everything) -->
         <View
             android:id="@+id/connect_glow"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_gravity="center"
             android:background="@drawable/connect_glow_bg"
-            android:visibility="invisible"
-            android:alpha="0" />
+            android:visibility="gone" />
 
-        <!-- Spinning ring (connected state) -->
-        <View
-            android:id="@+id/connect_ring"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_margin="8dp"
-            android:background="@drawable/connect_ring"
-            android:visibility="invisible" />
-
-        <!-- Main button circle -->
-        <ImageButton
+        <!-- The actual clickable button: circle with border, contains logo images -->
+        <FrameLayout
             android:id="@+id/connect_btn"
             android:layout_width="180dp"
             android:layout_height="180dp"
             android:layout_gravity="center"
             android:background="@drawable/connect_btn_bg"
-            android:contentDescription="Toggle VPN connection"
-            android:stateListAnimator="@null" />
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Toggle VPN connection">
 
-        <!-- Logo: white (dim, shown when disconnected) -->
-        <ImageView
-            android:id="@+id/logo_dim"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:src="@drawable/logo_white"
-            android:alpha="1"
-            android:importantForAccessibility="no" />
+            <!-- White logo (shown when disconnected) -->
+            <ImageView
+                android:id="@+id/logo_dim"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:src="@drawable/logo_white"
+                android:scaleType="fitCenter"
+                android:importantForAccessibility="no" />
 
-        <!-- Logo: green (bright, shown when connected) -->
-        <ImageView
-            android:id="@+id/logo_bright"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            <!-- Green logo (shown when connected) -->
+            <ImageView
+                android:id="@+id/logo_bright"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:src="@drawable/logo_green"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+
+        <!-- Spinning ring overlay (visible when connected) -->
+        <View
+            android:id="@+id/connect_ring"
+            android:layout_width="196dp"
+            android:layout_height="196dp"
             android:layout_gravity="center"
-            android:src="@drawable/logo_green"
-            android:alpha="0"
-            android:importantForAccessibility="no" />
+            android:background="@drawable/connect_ring"
+            android:visibility="gone" />
     </FrameLayout>
 
     <!-- Spacer between connect button and server card -->
@@ -198,7 +205,7 @@
         android:id="@+id/server_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
+        android:layout_marginHorizontal="24dp"
         android:layout_marginBottom="16dp"
         android:background="@drawable/server_card_bg"
         android:orientation="horizontal"
@@ -234,6 +241,15 @@
                 android:fontFamily="monospace"
                 android:letterSpacing="0.02"
                 tools:text="TrustTunnel · 185.103.24.4:443" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textSize="11sp"
+                android:textColor="@color/text_dim"
+                android:alpha="0.5"
+                android:text="Tap to change server" />
         </LinearLayout>
 
         <!-- Ping dot -->
@@ -242,53 +258,59 @@
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:background="@drawable/ping_dot_bg"
-            android:layout_marginEnd="8dp" />
-
-        <!-- Flag circle -->
-        <FrameLayout
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:background="@drawable/flag_circle_bg">
-
-            <TextView
-                android:id="@+id/flag_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textSize="16sp"
-                tools:text="🇩🇪"
-                tools:ignore="HardcodedText" />
-        </FrameLayout>
+            android:layout_marginEnd="12dp" />
     </LinearLayout>
 
-    <!-- Bottom Nav: 3 buttons with center green circle home -->
-    <LinearLayout
+    <!-- Bottom Nav: icons only -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="bottom"
         android:paddingHorizontal="32dp"
         android:paddingBottom="36dp">
 
-        <!-- Grid / Server List button -->
-        <ImageButton
-            android:id="@+id/nav_servers"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_grid"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="Server list" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <!-- Home button — green circle 56dp -->
+            <!-- Query Log button -->
+            <ImageButton
+                android:id="@+id/nav_log"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_log"
+                android:scaleType="centerInside"
+                android:tint="@color/text_dim"
+                android:contentDescription="Query log" />
+
+            <!-- Spacer for center button -->
+            <View
+                android:layout_width="56dp"
+                android:layout_height="1dp" />
+
+            <!-- Add Server button -->
+            <ImageButton
+                android:id="@+id/nav_add"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add_circle_outline"
+                android:scaleType="centerInside"
+                android:tint="@color/text_dim"
+                android:contentDescription="Add server" />
+        </LinearLayout>
+
+        <!-- Home button (green circle, centered, overlapping) -->
         <FrameLayout
             android:id="@+id/nav_home_btn"
             android:layout_width="56dp"
             android:layout_height="56dp"
+            android:layout_gravity="center"
             android:layout_marginBottom="-8dp"
-            android:layout_marginHorizontal="16dp"
             android:background="@drawable/nav_home_circle"
             android:clickable="true"
             android:focusable="true"
@@ -299,20 +321,9 @@
                 android:layout_height="24dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_home"
-                android:tint="@color/bg" />
+                android:tint="@color/bg"
+                android:importantForAccessibility="no" />
         </FrameLayout>
-
-        <!-- Add Server button -->
-        <ImageButton
-            android:id="@+id/nav_add"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_add_circle_outline"
-            android:scaleType="centerInside"
-            android:tint="@color/text_dim"
-            android:contentDescription="Add server" />
-    </LinearLayout>
+    </FrameLayout>
 
 </LinearLayout>

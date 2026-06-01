@@ -7,7 +7,7 @@
         android:width="2dp"
         android:color="@color/accent"
         android:dashWidth="12dp"
-        android:dashGap="6dp" />
+        android:dashGap="8dp" />
     <size
         android:width="196dp"
         android:height="196dp" />

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Connect button disconnected state: thin gray border, dark fill -->
+<!-- Connect button disconnected: transparent bg, gray border -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#1A1A1A" />
+    <solid android:color="@android:color/transparent" />
     <stroke
-        android:width="3dp"
+        android:width="4dp"
         android:color="#8A8A8A" />
 </shape>

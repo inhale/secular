@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Connect button glow — radial green glow behind button when connected -->
+<!-- Connect button glow: radial green glow behind button -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <gradient
         android:type="radial"
-        android:gradientRadius="100dp"
-        android:centerColor="#4000FF66"
+        android:gradientRadius="110dp"
+        android:centerColor="#3000FF66"
         android:endColor="#0000FF66"
-        android:startColor="#6000FF66" />
+        android:startColor="#5000FF66" />
     <size
-        android:width="200dp"
-        android:height="200dp" />
+        android:width="220dp"
+        android:height="220dp" />
 </shape>

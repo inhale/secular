@@ -35,8 +35,8 @@ class DashboardFragment : Fragment() {
     private var timerRunnable: Runnable? = null
     private var metricsRunnable: Runnable? = null
     private var selectedServerName: String? = null
+    private var ringAnimator: android.animation.ObjectAnimator? = null
 
-    // VPN prepare launcher — shows system "Allow VPN?" dialog
     private lateinit var vpnPrepareLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,15 +61,10 @@ class DashboardFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, arguments)
-        android.util.Log.d("SecularVPN", "DashboardFragment onViewCreated — NEW CODE v0.2.15")
-        // Verify new layout elements exist
-        val logoBright = view.findViewById<android.widget.ImageView>(com.secular.vpn.R.id.logo_bright)
-        val connectGlow = view.findViewById<android.view.View>(com.secular.vpn.R.id.connect_glow)
-        android.util.Log.d("SecularVPN", "DashboardFragment: logo_bright=$logoBright connect_glow=$connectGlow")
         repository = ServersRepository(requireContext())
         prefs = requireContext().getSharedPreferences("secular_vpn_prefs", Context.MODE_PRIVATE)
 
-        view.findViewById<ImageButton>(R.id.connect_btn).setOnClickListener {
+        view.findViewById<FrameLayout>(R.id.connect_btn).setOnClickListener {
             if (isConnected) disconnectVpn() else connectVpn()
         }
 
@@ -77,17 +72,15 @@ class DashboardFragment : Fragment() {
             findNavController().navigate(R.id.action_dashboard_to_serverList)
         }
 
-        view.findViewById<ImageButton>(R.id.nav_servers).setOnClickListener {
-            findNavController().navigate(R.id.action_dashboard_to_serverList)
+        view.findViewById<ImageButton>(R.id.btn_log).setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_log)
+        }
+        view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_log)
         }
         view.findViewById<FrameLayout>(R.id.nav_home_btn).setOnClickListener { /* already home */ }
         view.findViewById<ImageButton>(R.id.nav_add).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_addServer)
-        }
-
-        // Log button
-        view.findViewById<ImageButton>(R.id.btn_log).setOnClickListener {
-            findNavController().navigate(R.id.action_dashboard_to_log)
         }
 
         loadSelectedServer(view)
@@ -97,7 +90,6 @@ class DashboardFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val servers = repository.loadServers()
-                SecularVpnService.addLog("Dashboard: loadSelectedServer — count=${servers.size} names=${servers.map { it.name }}")
                 val nameTv = view.findViewById<TextView>(R.id.server_card_name)
                 val metaTv = view.findViewById<TextView>(R.id.server_card_meta)
 
@@ -109,7 +101,6 @@ class DashboardFragment : Fragment() {
                     } else {
                         servers[0]
                     }
-                    SecularVpnService.addLog("Dashboard: showing server=${server.name}")
                     nameTv.text = server.name
                     metaTv.text = "TrustTunnel · ${server.displayAddress}"
                 } else {
@@ -129,15 +120,13 @@ class DashboardFragment : Fragment() {
                     Toast.makeText(requireContext(), "Add a server first", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-
-                // Use selected server, or fall back to first
                 val savedName = prefs.getString("selected_server_name", null)
                 val server = if (savedName != null) {
                     servers.find { it.name == savedName } ?: servers[0]
                 } else {
                     servers[0]
                 }
-                SecularVpnService.addLog("Connect tapped: server=${server.name} addr=${server.displayAddress}")
+                SecularVpnService.addLog("Connect tapped: server=${server.name}")
 
                 val prepareIntent = try {
                     VpnService.prepare(requireContext())
@@ -148,12 +137,10 @@ class DashboardFragment : Fragment() {
                 }
 
                 if (prepareIntent != null) {
-                    SecularVpnService.addLog("VPN not prepared — showing system dialog")
                     isConnected = true
                     updateUiConnecting()
                     vpnPrepareLauncher.launch(prepareIntent)
                 } else {
-                    SecularVpnService.addLog("VPN already prepared — starting service directly")
                     isConnected = true
                     updateUiConnecting()
                     startVpnService()
@@ -179,12 +166,10 @@ class DashboardFragment : Fragment() {
                     servers[0]
                 }
                 val json = com.google.gson.Gson().toJson(server)
-                SecularVpnService.addLog("Dashboard: startVpnService server=${server.name} jsonLen=${json.length}")
                 val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
                     action = SecularVpnService.ACTION_CONNECT
                     putExtra("server_json", json)
                 }
-                SecularVpnService.addLog("Dashboard: calling startService...")
                 requireContext().startService(intent)
                 startStatePolling()
             } catch (e: Throwable) {
@@ -197,26 +182,16 @@ class DashboardFragment : Fragment() {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 if (!isConnected || view == null) return
-
                 if (SecularVpnService.isTunnelUp) {
                     val v = view ?: return
-                    v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
-                    v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-                        resources.getColor(R.color.accent, null)
-                    )
-                    v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
-                    animateConnect(v)
+                    updateUiConnected(v)
                     startMetricsPolling()
                 } else if (SecularVpnService.lastError != null) {
                     val v = view ?: return
                     val err = SecularVpnService.lastError ?: "Connection failed"
                     v.findViewById<TextView>(R.id.status_label)?.text = err
-                    v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-                        resources.getColor(R.color.red, null)
-                    )
+                    v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.red, null))
                     disconnectVpn()
-                } else if (SecularVpnService.isConnecting) {
-                    handler.postDelayed(this, 1000)
                 } else {
                     handler.postDelayed(this, 1000)
                 }
@@ -252,39 +227,59 @@ class DashboardFragment : Fragment() {
     private fun updateUiConnecting() {
         val v = view ?: return
         v.findViewById<TextView>(R.id.status_label)?.text = "Connecting..."
-        v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-            resources.getColor(R.color.accent, null)
-        )
+        v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.accent, null))
         v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.5f
     }
 
-    private fun animateConnect(v: View) {
-        // Button bg → green border
-        v.findViewById<ImageButton>(R.id.connect_btn)
-            ?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+    private fun updateUiConnected(v: View) {
+        v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
+        v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.accent, null))
+        v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
+        animateConnect(v)
+    }
 
-        // Glow fade in
+    private fun updateUiDisconnected(v: View) {
+        v.findViewById<TextView>(R.id.status_label)?.text = "Disconnected"
+        v.findViewById<TextView>(R.id.status_label)?.setTextColor(resources.getColor(R.color.text_dim, null))
+        v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.35f
+        animateDisconnect(v)
+        v.findViewById<TextView>(R.id.session_time)?.text = "00:00:00"
+        v.findViewById<TextView>(R.id.dl_speed)?.text = "0 B"
+        v.findViewById<TextView>(R.id.ul_speed)?.text = "0 B"
+    }
+
+    private fun animateConnect(v: View) {
+        // Button border → green
+        v.findViewById<FrameLayout>(R.id.connect_btn)?.setBackgroundResource(R.drawable.connect_btn_connected_bg)
+
+        // White logo → hide
+        v.findViewById<View>(R.id.logo_dim)?.visibility = View.GONE
+
+        // Green logo → show with fade
+        val logoBright = v.findViewById<View>(R.id.logo_bright)
+        logoBright?.visibility = View.VISIBLE
+        logoBright?.alpha = 0f
+        logoBright?.animate()?.alpha(1f)?.setDuration(500)?.start()
+
+        // Glow → show
         val glow = v.findViewById<View>(R.id.connect_glow)
         glow?.visibility = View.VISIBLE
+        glow?.alpha = 0f
         glow?.animate()?.alpha(1f)?.setDuration(600)?.start()
 
-        // Ring spin
+        // Ring → show with spin
         val ring = v.findViewById<View>(R.id.connect_ring)
         ring?.visibility = View.VISIBLE
-        android.animation.ObjectAnimator.ofFloat(ring, "rotation", 0f, 360f).apply {
+        ring?.alpha = 1f
+        ringAnimator?.cancel()
+        ringAnimator = android.animation.ObjectAnimator.ofFloat(ring, "rotation", 0f, 360f).apply {
             duration = 3000
             interpolator = LinearInterpolator()
             repeatCount = android.animation.ValueAnimator.INFINITE
             start()
         }
 
-        // Logo crossfade: white dim → green bright
-        val logoDim = v.findViewById<View>(R.id.logo_dim)
-        val logoBright = v.findViewById<View>(R.id.logo_bright)
-        logoDim?.animate()?.alpha(0f)?.setDuration(500)?.start()
-        logoBright?.animate()?.alpha(1f)?.setDuration(500)?.start()
-
-        // Logo pulse animation (breathing)
+        // Logo pulse (breathing)
         logoBright?.let { lv ->
             lv.scaleX = 1f
             lv.scaleY = 1f
@@ -300,63 +295,41 @@ class DashboardFragment : Fragment() {
             }
         }
 
-        // Ping dot
-        v.findViewById<View>(R.id.ping_dot)
-            ?.setBackgroundResource(R.drawable.ping_dot_excellent)
+        // Ping dot → green
+        v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_excellent)
     }
 
     private fun animateDisconnect(v: View) {
-        // Button bg → gray border
-        v.findViewById<ImageButton>(R.id.connect_btn)
-            ?.setBackgroundResource(R.drawable.connect_btn_bg)
+        // Button border → gray
+        v.findViewById<FrameLayout>(R.id.connect_btn)?.setBackgroundResource(R.drawable.connect_btn_bg)
 
-        // Glow fade out
-        v.findViewById<View>(R.id.connect_glow)
-            ?.animate()?.alpha(0f)?.setDuration(400)?.withEndAction {
-                v.findViewById<View>(R.id.connect_glow)?.visibility = View.INVISIBLE
-            }?.start()
+        // Green logo → hide
+        v.findViewById<View>(R.id.logo_bright)?.visibility = View.GONE
 
-        // Ring hide
+        // White logo → show
+        v.findViewById<View>(R.id.logo_dim)?.visibility = View.VISIBLE
+
+        // Glow → hide
+        v.findViewById<View>(R.id.connect_glow)?.animate()?.alpha(0f)?.setDuration(400)?.withEndAction {
+            v.findViewById<View>(R.id.connect_glow)?.visibility = View.GONE
+        }?.start()
+
+        // Ring → hide
+        ringAnimator?.cancel()
+        ringAnimator = null
         v.findViewById<View>(R.id.connect_ring)?.visibility = View.GONE
 
-        // Logo crossfade: green bright → white dim
-        v.findViewById<View>(R.id.logo_dim)?.animate()?.alpha(1f)?.setDuration(500)?.start()
-        v.findViewById<View>(R.id.logo_bright)?.animate()?.alpha(0f)?.setDuration(500)?.start()
-
-        // Ping dot
+        // Ping dot → gray
         v.findViewById<View>(R.id.ping_dot)?.setBackgroundResource(R.drawable.ping_dot_bg)
-    }
-
-    private fun updateUiConnected(v: View) {
-        v.findViewById<TextView>(R.id.status_label)?.text = "Connected"
-        v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-            resources.getColor(R.color.accent, null)
-        )
-        v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 1f
-        animateConnect(v)
-    }
-
-    private fun updateUiDisconnected(v: View) {
-        v.findViewById<TextView>(R.id.status_label)?.text = "Disconnected"
-        v.findViewById<TextView>(R.id.status_label)?.setTextColor(
-            resources.getColor(R.color.text_dim, null)
-        )
-        v.findViewById<LinearLayout>(R.id.metrics_container)?.alpha = 0.35f
-        animateDisconnect(v)
-        v.findViewById<TextView>(R.id.session_time)?.text = "00:00:00"
-        v.findViewById<TextView>(R.id.dl_speed)?.text = "0 B"
-        v.findViewById<TextView>(R.id.ul_speed)?.text = "0 B"
     }
 
     private fun disconnectVpn() {
         isConnected = false
-        view?.let { v ->
-            updateUiDisconnected(v)
-        }
-
+        ringAnimator?.cancel()
+        ringAnimator = null
+        view?.let { updateUiDisconnected(it) }
         timerRunnable?.let { handler.removeCallbacks(it) }
         metricsRunnable?.let { handler.removeCallbacks(it) }
-
         try {
             val intent = Intent(requireContext(), SecularVpnService::class.java).apply {
                 action = SecularVpnService.ACTION_DISCONNECT
@@ -381,7 +354,6 @@ class DashboardFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         view?.let { loadSelectedServer(it) }
-        // Sync connection state with actual service state
         view?.let {
             if (SecularVpnService.isTunnelUp) {
                 if (!isConnected) isConnected = true
@@ -396,6 +368,8 @@ class DashboardFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        ringAnimator?.cancel()
+        ringAnimator = null
         timerRunnable?.let { handler.removeCallbacks(it) }
         metricsRunnable?.let { handler.removeCallbacks(it) }
         super.onDestroyView()
