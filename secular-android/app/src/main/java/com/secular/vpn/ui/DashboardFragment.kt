@@ -72,9 +72,6 @@ class DashboardFragment : Fragment() {
             findNavController().navigate(R.id.action_dashboard_to_serverList)
         }
 
-        view.findViewById<ImageButton>(R.id.btn_log).setOnClickListener {
-            findNavController().navigate(R.id.action_dashboard_to_log)
-        }
         view.findViewById<ImageButton>(R.id.nav_log).setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_log)
         }
