@@ -18,9 +18,14 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
 
     let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
 
+    // Load the tray icon
+    let icon = tauri::image::Image::from_path(
+        app.path().resolve("icons/icon.png", tauri::path::BaseDirectory::Resource)?
+    ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+
     let _tray = TrayIconBuilder::with_id("main-tray")
         .tooltip("Secular — Disconnected")
-        .icon_as_template(true) // macOS template icon (auto-inverts in light/dark mode)
+        .icon(icon)
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "connect" => {
