@@ -1,7 +1,7 @@
 // Secular Desktop — Dark Theme v3 (matches Android)
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, emit } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 
 /* ─── Types ─── */
 type ConnState = 'disconnected' | 'connecting' | 'connected';
@@ -926,9 +926,9 @@ const App: React.FC = () => {
       connected: connState === 'connected',
       connecting: connState === 'connecting',
       server: serverName,
-      sessionTime,
-      downloadPkts,
-      uploadPkts,
+      session_time: sessionTime,
+      download_pkts: downloadPkts,
+      upload_pkts: uploadPkts,
     }).catch(() => {});
   }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);
 

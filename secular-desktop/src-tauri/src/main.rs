@@ -68,19 +68,7 @@ fn main() {
                 eprintln!("Warning: tray setup failed: {e}");
             }
 
-            // Listen for connection state changes from frontend
-            let handle = app.handle().clone();
-            app.listen("tray-state-changed", move |event| {
-                let payload_str = event.payload();
-                match serde_json::from_str::<tray::TrayStatePayload>(payload_str) {
-                    Ok(payload) => {
-                        let _ = tray::update_tray_state(&handle, payload);
-                    }
-                    Err(e) => {
-                        eprintln!("[MAIN] Failed to parse tray state payload: {e}");
-                    }
-                }
-            });
+            // Tray state updates now handled via update_tray command
 
             Ok(())
         })

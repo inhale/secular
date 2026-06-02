@@ -18,7 +18,6 @@ fn is_process_alive(pid: u32) -> bool {
     }
     #[cfg(not(target_os = "macos"))]
     {
-        // On non-macOS, just return true (let the OS handle cleanup)
         let _ = pid;
         true
     }
@@ -258,15 +257,12 @@ pub async fn connect(
     }
 
     // Wait for tunnel to actually establish by polling the log
-    // This ensures the UI shows "Connecting..." for a realistic duration
     let log_path_check = config_dir.join("trusttunnel.log");
     let mut connected_confirmed = false;
     for _ in 0..60 {
-        // Poll for up to 30 seconds (60 × 500ms)
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         if log_path_check.exists() {
             if let Ok(content) = std::fs::read_to_string(&log_path_check) {
-                // Look for connection success indicators
                 if content.contains("TLS handshake completed")
                     || content.contains("Connection stable")
                     || content.contains("tunnel is up")
@@ -276,7 +272,6 @@ pub async fn connect(
                     tracing::info!("Tunnel connection confirmed");
                     break;
                 }
-                // Also check if the process died (error)
                 if !is_process_alive(child_pid) {
                     tracing::warn!("trusttunnel_client process died during connection");
                     break;
@@ -313,18 +308,14 @@ pub async fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
 
     if pid > 0 {
         tracing::info!("Killing trusttunnel_client PID {}", pid);
-
-        // First try graceful kill on the PID
         let _ = std::process::Command::new("kill")
             .arg(pid.to_string())
             .output();
-
-        // Kill any child processes (grandchildren via sudo)
+        // Also kill any child processes
         let _ = std::process::Command::new("pkill")
             .arg("-P")
             .arg(pid.to_string())
             .output();
-
         // On macOS, trusttunnel_client may be a child of sudo — kill by name too
         #[cfg(target_os = "macos")]
         {
@@ -338,53 +329,37 @@ pub async fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
     }
 
     // On macOS, remove only tunnel routes (don't flush all routes!)
-    // Removing the utun interface routes is sufficient; flushing all routes
-    // destroys the default gateway and kills all connectivity (including Tailscale SSH).
     #[cfg(target_os = "macos")]
     {
-        // Delete routes pointing to utun interfaces (the tunnel)
-        let _ = std::process::Command::new("sudo")
+        // Remove utun* routes specifically
+        if let Ok(output) = std::process::Command::new("route")
             .arg("-n")
-            .arg("route")
-            .arg("-n")
-            .arg("delete")
-            .arg("-net")
-            .arg("0.0.0.0/1")
+            .arg("show")
+            .output()
+        {
+            if let Ok(text) = String::from_utf8(output.stdout) {
+                for line in text.lines() {
+                    let iface = line.split_whitespace().last().unwrap_or("");
+                    if iface.starts_with("utun") {
+                        let _ = std::process::Command::new("route")
+                            .arg("-n")
+                            .arg("delete")
+                            .arg(line.split_whitespace().next().unwrap_or(""))
+                            .arg(iface)
+                            .output();
+                    }
+                }
+            }
+        }
+        // Restore default gateway from DHCP lease
+        let _ = std::process::Command::new("ipconfig")
+            .arg("set")
+            .arg("en0")
+            .arg("DHCP")
             .output();
-        let _ = std::process::Command::new("sudo")
-            .arg("-n")
-            .arg("route")
-            .arg("-n")
-            .arg("delete")
-            .arg("-net")
-            .arg("128.0.0.0/1")
-            .output();
-        // Also try to delete the specific utun default route if present
-        let _ = std::process::Command::new("sudo")
-            .arg("-n")
-            .arg("route")
-            .arg("-n")
-            .arg("delete")
-            .arg("default")
-            .arg("-ifscope")
-            .arg("utun0")
-            .output();
-        let _ = std::process::Command::new("sudo")
-            .arg("-n")
-            .arg("route")
-            .arg("-n")
-            .arg("delete")
-            .arg("default")
-            .arg("-ifscope")
-            .arg("utun1")
-            .output();
-        // Flush DNS cache to restore normal DNS
+        // Flush DNS cache
         let _ = std::process::Command::new("dscacheutil")
             .arg("-flushcache")
-            .output();
-        let _ = std::process::Command::new("killall")
-            .arg("-HUP")
-            .arg("mDNSResponder")
             .output();
     }
 
@@ -463,16 +438,15 @@ pub async fn read_tunnel_log() -> Result<String, String> {
     }
 }
 
-/// Update tray menu from frontend (called via invoke instead of events)
 #[tauri::command]
-pub async fn update_tray(
+pub fn update_tray(
     app: tauri::AppHandle,
     connected: bool,
     connecting: bool,
     server: String,
-    #[serde(rename = "sessionTime")] session_time: Option<String>,
-    #[serde(rename = "downloadPkts")] download_pkts: Option<u64>,
-    #[serde(rename = "uploadPkts")] upload_pkts: Option<u64>,
+    session_time: Option<String>,
+    download_pkts: Option<u64>,
+    upload_pkts: Option<u64>,
 ) -> Result<(), String> {
     let payload = crate::tray::TrayStatePayload {
         connected,
