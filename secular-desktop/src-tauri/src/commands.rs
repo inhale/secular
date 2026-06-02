@@ -91,7 +91,11 @@ impl ServerConfig {
         toml.push_str("killswitch_enabled = false\n");
         toml.push_str("post_quantum_group_enabled = false\n\n");
         toml.push_str("[listener.tun]\n");
-        toml.push_str("included_routes = [\"0.0.0.0/0\", \"::/0\"]\n");
+        if self.has_ipv6 {
+            toml.push_str("included_routes = [\"0.0.0.0/0\", \"::/0\"]\n");
+        } else {
+            toml.push_str("included_routes = [\"0.0.0.0/0\"]\n");
+        }
         toml.push_str("excluded_routes = []\n");
         toml.push_str("mtu_size = 1500\n");
         toml.push_str("change_system_dns = false\n\n");
