@@ -37,6 +37,8 @@ pub struct ServerConfig {
     pub skip_verification: bool,
     /// Anti-DPI
     pub anti_dpi: bool,
+    /// Change system DNS to route through tunnel
+    pub change_system_dns: bool,
 }
 
 impl Default for ServerConfig {
@@ -52,6 +54,7 @@ impl Default for ServerConfig {
             certificate: String::new(),
             skip_verification: false,
             anti_dpi: false,
+            change_system_dns: true,
         }
     }
 }
@@ -98,7 +101,7 @@ impl ServerConfig {
         }
         toml.push_str("excluded_routes = []\n");
         toml.push_str("mtu_size = 1500\n");
-        toml.push_str("change_system_dns = true\n\n");
+        toml.push_str(&format!("change_system_dns = {}\n\n", self.change_system_dns));
         toml.push_str("[endpoint]\n");
         toml.push_str(&format!("hostname = \"{}\"\n", sni));
         toml.push_str(&format!("addresses = [{}]\n", addr));

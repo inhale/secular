@@ -29,6 +29,8 @@ interface ServerConfig {
   skip_verification: boolean;
   /** Anti-DPI */
   anti_dpi: boolean;
+  /** Change system DNS to route through tunnel */
+  change_system_dns: boolean;
 }
 
 interface ServerInfo {
@@ -373,6 +375,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
       certificate: '',
       skip_verification: false,
       anti_dpi: false,
+      change_system_dns: true,
     };
     onAddServer(config);
     setLink('');
@@ -455,6 +458,7 @@ function parseTomlConfig(content: string): ServerConfig {
     certificate: '',
     skip_verification: false,
     anti_dpi: false,
+    change_system_dns: true,
   };
   const fields: Record<string, string> = {};
   const lines = content.split('\n');
@@ -528,6 +532,7 @@ function parseTomlConfig(content: string): ServerConfig {
   config.has_ipv6 = (fields['has_ipv6'] || fields['endpoint.has_ipv6'] || 'true') === 'true';
   config.skip_verification = (fields['skip_verification'] || fields['endpoint.skip_verification'] || 'false') === 'true';
   config.anti_dpi = (fields['anti_dpi'] || fields['endpoint.anti_dpi'] || 'false') === 'true';
+  config.change_system_dns = (fields['change_system_dns'] || 'true') === 'true';
   config.certificate = fields['certificate'] || fields['endpoint.certificate'] || '';
   return config;
 }
@@ -554,6 +559,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
     certificate: server.config.certificate || '',
     skip_verification: server.config.skip_verification ?? false,
     anti_dpi: server.config.anti_dpi ?? false,
+    change_system_dns: server.config.change_system_dns ?? true,
   };
   const [name, setName] = useState(server.name);
   const [address, setAddress] = useState(safeConfig.address);
@@ -564,6 +570,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
   const [protocol, setProtocol] = useState(safeConfig.upstream_protocol === 'http3' ? 1 : 0);
   const [dns, setDns] = useState(safeConfig.dns_upstreams.join('\n'));
   const [hasIpv6, setHasIpv6] = useState(safeConfig.has_ipv6);
+  const [changeDns, setChangeDns] = useState(safeConfig.change_system_dns);
   const [protocolOpen, setProtocolOpen] = useState(false);
 
   const handleSave = () => {
@@ -586,6 +593,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
         certificate: server.config.certificate,
         skip_verification: server.config.skip_verification,
         anti_dpi: server.config.anti_dpi,
+        change_system_dns: changeDns,
       },
     });
     onNav('dashboard');
@@ -708,6 +716,17 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
             <span>Allow IPv6 traffic</span>
             <div className="toggle-switch">
               <input type="checkbox" checked={hasIpv6} onChange={e => setHasIpv6(e.target.checked)} />
+              <span className="toggle-slider" />
+            </div>
+          </label>
+        </div>
+
+        {/* Change System DNS toggle */}
+        <div className="config-field config-toggle-field">
+          <label className="toggle-label">
+            <span>Change system DNS</span>
+            <div className="toggle-switch">
+              <input type="checkbox" checked={changeDns} onChange={e => setChangeDns(e.target.checked)} />
               <span className="toggle-slider" />
             </div>
           </label>
@@ -843,6 +862,7 @@ function loadServers(): ServerInfo[] {
               certificate: '',
               skip_verification: false,
               anti_dpi: false,
+              change_system_dns: true,
             },
           };
         }
@@ -1037,6 +1057,7 @@ const App: React.FC = () => {
         certificate: '',
         skip_verification: false,
         anti_dpi: false,
+        change_system_dns: true,
       },
     });
     setIsNewServer(true);
