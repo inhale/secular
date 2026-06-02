@@ -180,9 +180,17 @@ pub async fn connect(
         }
     }
 
-    // Spawn trusttunnel_client as background process
+    // Spawn trusttunnel_client as background process (via sudo on macOS for TUN device)
     let skip_flag = if config.skip_verification { Some("-s") } else { None };
-    let mut cmd = std::process::Command::new(&tt_binary);
+    let mut cmd = if cfg!(target_os = "macos") {
+        // macOS: use sudo (passwordless via /etc/sudoers.d/trusttunnel) to create utun device
+        let mut c = std::process::Command::new("/usr/bin/sudo");
+        c.arg("-n") // non-interactive — fail if no sudoers entry
+         .arg(&tt_binary);
+        c
+    } else {
+        std::process::Command::new(&tt_binary)
+    };
     cmd.arg("--config").arg(&config_path);
     if config.skip_verification {
         cmd.arg("-s");
