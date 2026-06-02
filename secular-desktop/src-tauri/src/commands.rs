@@ -99,7 +99,14 @@ impl ServerConfig {
         } else {
             toml.push_str("included_routes = [\"0.0.0.0/0\"]\n");
         }
-        toml.push_str("excluded_routes = []\n");
+        // Exclude VPN server IP and Tailscale subnet from tunnel to avoid routing loops
+        let server_ip = self.address.split(':').next().unwrap_or("");
+        let mut excludes = vec!["100.64.0.0/10".to_string()]; // Tailscale CGNAT range
+        if !server_ip.is_empty() {
+            excludes.push(format!("{}/32", server_ip));
+        }
+        let excl_str = excludes.iter().map(|e| format!("\"{}\"", e)).collect::<Vec<_>>().join(", ");
+        toml.push_str(&format!("excluded_routes = [{}]\n", excl_str));
         toml.push_str("mtu_size = 1500\n");
         toml.push_str(&format!("change_system_dns = {}\n\n", self.change_system_dns));
         toml.push_str("[endpoint]\n");
