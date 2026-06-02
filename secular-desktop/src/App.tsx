@@ -919,6 +919,14 @@ const App: React.FC = () => {
     saveServers(servers);
   }, [servers]);
 
+  // Refs for tray update to avoid re-triggering on every timer tick
+  const sessionTimeRef = useRef(sessionTime);
+  const downloadPktsRef = useRef(downloadPkts);
+  const uploadPktsRef = useRef(uploadPkts);
+  useEffect(() => { sessionTimeRef.current = sessionTime; }, [sessionTime]);
+  useEffect(() => { downloadPktsRef.current = downloadPkts; }, [downloadPkts]);
+  useEffect(() => { uploadPktsRef.current = uploadPkts; }, [uploadPkts]);
+
   // Notify Rust backend about connection state changes (updates tray menu)
   useEffect(() => {
     const serverName = activeServer?.name || 'No Server';
@@ -926,11 +934,11 @@ const App: React.FC = () => {
       connected: connState === 'connected',
       connecting: connState === 'connecting',
       server: serverName,
-      session_time: sessionTime,
-      download_pkts: downloadPkts,
-      upload_pkts: uploadPkts,
+      session_time: sessionTimeRef.current,
+      download_pkts: downloadPktsRef.current,
+      upload_pkts: uploadPktsRef.current,
     }).catch(() => {});
-  }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);
+  }, [connState, activeServer?.name]);
 
   // Listen for tray-connect event (user clicked Connect/Disconnect in tray menu)
   useEffect(() => {

@@ -143,23 +143,40 @@ pub fn update_tray_state(
         format!("Connect [{}]", server)
     };
 
-    // Choose icon: template (black+alpha) for inactive, green colored for active
-    let icon_name = if connected {
-        "tray-active"
-    } else if connecting {
-        "tray-inactive"
-    } else {
-        "tray-inactive"
-    };
-    let use_template = !connected;
+    // Always use template mode — macOS renders black/white automatically
+    let icon_name = "tray-inactive";
+    let use_template = true;
 
     // Rebuild the entire tray menu with updated label
     let connect_item = MenuItem::with_id(app, "tray-connect", &menu_label, !connecting, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
-    let sep = PredefinedMenuItem::separator(app)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
     let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
-    let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
 
+    // Build menu items array — include stats when connected
+    let server_item = MenuItem::with_id(app, "tray-server", format!("Server: {}", server), false, None::<&str>)?;
+    let time_item = if connected {
+        let time_str = session_time.as_deref().unwrap_or("00:00:00");
+        MenuItem::with_id(app, "tray-time", format!("Session: {}", time_str), false, None::<&str>)?
+    } else {
+        MenuItem::with_id(app, "tray-time", "Session: --", false, None::<&str>)?
+    };
+    let stats_item = if connected {
+        let dl = download_pkts.unwrap_or(0);
+        let ul = upload_pkts.unwrap_or(0);
+        MenuItem::with_id(app, "tray-stats", format!("↓ {} pkts  ↑ {} pkts", dl, ul), false, None::<&str>)?
+    } else {
+        MenuItem::with_id(app, "tray-stats", "No connection", false, None::<&str>)?
+    };
+
+    let menu = if connected {
+        Menu::with_items(app, &[&server_item, &time_item, &stats_item, &sep1, &connect_item, &show_item, &sep2, &quit_item])?
+    } else {
+        Menu::with_items(app, &[&server_item, &sep1, &connect_item, &show_item, &sep2, &quit_item])?
+    };
+
+    eprintln!("[TRAY] update_tray_state: connected={}, server={}", connected, server);
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_tooltip(Some(&tooltip));
         tray.set_menu(Some(menu))?;
