@@ -335,16 +335,33 @@ interface AddServerProps {
   onNav: (s: Screen) => void;
   onAddServer: (config: ServerConfig) => void;
   onEditNewServer: () => void;
+  onImportConfig: (config: ServerConfig) => void;
 }
 
-const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServer }) => {
+const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServer, onImportConfig }) => {
   const [link, setLink] = useState('');
 
   const handleAdd = () => {
     if (!link.trim()) return;
-    // Try to parse secular:// link or plain host:port
-    const host = link.replace('secular://', '').split(':')[0] || link;
-    const port = parseInt(link.split(':')[1], 10) || 443;
+    // Handle tt:// links — base64-encoded TrustTunnel TOML config
+    const trimmed = link.trim();
+    if (trimmed.startsWith('tt://') || trimmed.startsWith('secular://')) {
+      const b64 = trimmed.replace(/^(tt|secular):\/\//, '');
+      try {
+        const toml = atob(b64);
+        const config = parseTomlConfig(toml);
+        // Open config screen with imported values so user can review/edit
+        onImportConfig(config);
+        setLink('');
+        return;
+      } catch (e) {
+        console.error('Failed to decode tt:// link:', e);
+        // Fall through to plain host parsing
+      }
+    }
+    // Try to parse plain host:port
+    const host = trimmed.replace('secular://', '').split(':')[0] || trimmed;
+    const port = parseInt(trimmed.split(':')[1], 10) || 443;
     const config: ServerConfig = {
       address: `${host}:${port}`,
       hostname: host,
@@ -425,7 +442,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
   );
 };
 
-/** TOML parser matching Android TomlFileParser — handles [endpoint] sections */
+/** TOML parser matching Android TomlFileParser — handles [endpoint] sections, triple-quoted strings, arrays */
 function parseTomlConfig(content: string): ServerConfig {
   const config: ServerConfig = {
     address: '',
@@ -442,7 +459,24 @@ function parseTomlConfig(content: string): ServerConfig {
   const fields: Record<string, string> = {};
   const lines = content.split('\n');
   let currentSection = '';
+  let tripleQuoteKey: string | null = null;
+  let tripleQuoteBuf: string[] = [];
+
   for (const line of lines) {
+    // Inside triple-quoted string?
+    if (tripleQuoteKey !== null) {
+      if (line.includes('"""')) {
+        // End of triple quote
+        tripleQuoteBuf.push(line.substring(0, line.indexOf('"""')));
+        fields[tripleQuoteKey] = tripleQuoteBuf.join('\n');
+        tripleQuoteKey = null;
+        tripleQuoteBuf = [];
+      } else {
+        tripleQuoteBuf.push(line);
+      }
+      continue;
+    }
+
     const trimmed = line.trim();
     if (trimmed.startsWith('#') || trimmed === '') continue;
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -452,8 +486,26 @@ function parseTomlConfig(content: string): ServerConfig {
     const eqIdx = trimmed.indexOf('=');
     if (eqIdx > 0) {
       const key = trimmed.substring(0, eqIdx).trim();
-      const rawValue = trimmed.substring(eqIdx + 1).trim().replace(/^"|"$/g, '');
+      let rawValue = trimmed.substring(eqIdx + 1).trim();
       const fullKey = currentSection ? `${currentSection}.${key}` : key;
+
+      // Handle triple-quoted string """..."""
+      if (rawValue.startsWith('"""')) {
+        const afterOpen = rawValue.substring(3);
+        if (afterOpen.includes('"""')) {
+          // Single-line triple quote: """value"""
+          fields[fullKey] = afterOpen.substring(0, afterOpen.indexOf('"""'));
+          fields[key] = fields[fullKey];
+        } else {
+          // Multi-line triple quote — start collecting
+          tripleQuoteKey = key; // use bare key for both
+          tripleQuoteBuf = [afterOpen];
+        }
+        continue;
+      }
+
+      // Strip outer quotes
+      rawValue = rawValue.replace(/^"|"$/g, '');
       fields[fullKey] = rawValue;
       fields[key] = rawValue; // also store bare key
     }
@@ -477,7 +529,6 @@ function parseTomlConfig(content: string): ServerConfig {
   config.skip_verification = (fields['skip_verification'] || fields['endpoint.skip_verification'] || 'false') === 'true';
   config.anti_dpi = (fields['anti_dpi'] || fields['endpoint.anti_dpi'] || 'false') === 'true';
   config.certificate = fields['certificate'] || fields['endpoint.certificate'] || '';
-  // Name is set on ServerInfo by the caller, not stored in ServerConfig
   return config;
 }
 
@@ -955,6 +1006,18 @@ const App: React.FC = () => {
     setScreen('server-config');
   };
 
+  const handleImportConfig = (config: ServerConfig) => {
+    setEditingServer({
+      id: Date.now().toString(),
+      name: config.hostname || config.address || 'Imported Server',
+      meta: `${config.address} / ${config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}`,
+      isDefault: servers.length === 0,
+      config,
+    });
+    setIsNewServer(true);
+    setScreen('server-config');
+  };
+
   const handleClearLogs = () => {
     setLogs([]);
   };
@@ -988,6 +1051,7 @@ const App: React.FC = () => {
           onNav={handleNav}
           onAddServer={handleAddServer}
           onEditNewServer={handleEditNewServer}
+          onImportConfig={handleImportConfig}
         />
       )}
       {screen === 'server-config' && editingServer && (
