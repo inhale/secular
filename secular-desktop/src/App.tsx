@@ -259,7 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
                     {srv.isDefault && <span className="server-deck-dot" />}
                   </div>
                   <div className="server-deck-meta">
-                    {srv.config.address} / {srv.config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}
+                    {(srv.config.address || `${(srv.config as any).host}:${(srv.config as any).port || 443}`)} / {(srv.config.upstream_protocol || (srv.config as any).protocol || 'http2') === 'http3' ? 'QUIC' : 'HTTP/2'}
                   </div>
                 </div>
                 <div
@@ -491,15 +491,28 @@ interface ServerConfigScreenProps {
 }
 
 const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, onSave, onDelete, onNav }) => {
+  // Safe defaults in case config fields are missing (e.g. from old localStorage)
+  const safeConfig = {
+    address: server.config.address || '',
+    hostname: server.config.hostname || '',
+    username: server.config.username || '',
+    password: server.config.password || '',
+    upstream_protocol: server.config.upstream_protocol || 'http2',
+    dns_upstreams: server.config.dns_upstreams || ['9.9.9.9', '149.112.112.112'],
+    has_ipv6: server.config.has_ipv6 ?? false,
+    certificate: server.config.certificate || '',
+    skip_verification: server.config.skip_verification ?? false,
+    anti_dpi: server.config.anti_dpi ?? false,
+  };
   const [name, setName] = useState(server.name);
-  const [address, setAddress] = useState(server.config.address);
-  const [hostname, setHostname] = useState(server.config.hostname);
-  const [username, setUsername] = useState(server.config.username);
-  const [password, setPassword] = useState(server.config.password);
+  const [address, setAddress] = useState(safeConfig.address);
+  const [hostname, setHostname] = useState(safeConfig.hostname);
+  const [username, setUsername] = useState(safeConfig.username);
+  const [password, setPassword] = useState(safeConfig.password);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [protocol, setProtocol] = useState(server.config.upstream_protocol === 'http3' ? 1 : 0);
-  const [dns, setDns] = useState(server.config.dns_upstreams.join('\n'));
-  const [hasIpv6, setHasIpv6] = useState(server.config.has_ipv6);
+  const [protocol, setProtocol] = useState(safeConfig.upstream_protocol === 'http3' ? 1 : 0);
+  const [dns, setDns] = useState(safeConfig.dns_upstreams.join('\n'));
+  const [hasIpv6, setHasIpv6] = useState(safeConfig.has_ipv6);
   const [protocolOpen, setProtocolOpen] = useState(false);
 
   const handleSave = () => {
@@ -634,7 +647,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
             input.click();
           }}>
             <span className="action-btn-icon"><IconUpload /></span>
-            {server.config.certificate ? 'Certificate loaded ✓' : 'Upload .pem file'}
+            {safeConfig.certificate ? 'Certificate loaded ✓' : 'Upload .pem file'}
           </button>
         </div>
 
@@ -759,7 +772,32 @@ const STORAGE_KEY = 'secular-servers';
 function loadServers(): ServerInfo[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const servers: ServerInfo[] = JSON.parse(raw);
+      // Migrate old format (host/port/auth_token) to new format (address/hostname/username/password)
+      return servers.map(s => {
+        const c = s.config as any;
+        if (c.host !== undefined && c.address === undefined) {
+          // Old format — migrate
+          return {
+            ...s,
+            config: {
+              address: c.host ? `${c.host}:${c.port || 443}` : '',
+              hostname: c.sni || c.host || '',
+              username: c.auth_token || '',
+              password: '',
+              upstream_protocol: (c.protocol === 'quic' || c.protocol === 'http3') ? 'http3' : 'http2',
+              dns_upstreams: ['9.9.9.9', '149.112.112.112'],
+              has_ipv6: c.allow_ipv6 || false,
+              certificate: '',
+              skip_verification: false,
+              anti_dpi: false,
+            },
+          };
+        }
+        return s;
+      });
+    }
   } catch {}
   return [];
 }
