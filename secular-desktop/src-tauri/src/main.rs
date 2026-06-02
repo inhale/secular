@@ -31,6 +31,10 @@ fn main() {
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())
+        .manage(commands::AppState {
+            connected: std::sync::Mutex::new(false),
+            config: std::sync::Mutex::new(commands::ServerConfig::default()),
+        })
         .invoke_handler(tauri::generate_handler![
             commands::connect,
             commands::disconnect,
