@@ -1,7 +1,5 @@
 // src-tauri/src/tray.rs
 // System tray / Menu Bar implementation for Tauri v2
-// Desktop-only: green icon when connected, white/black when disconnected
-// Menu: Connect/Disconnect, Show Window, Quit
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -9,30 +7,78 @@ use tauri::{
     Emitter, Manager,
 };
 
+#[derive(serde::Deserialize, Clone, Debug)]
+pub struct TrayStatePayload {
+    pub connected: bool,
+    pub connecting: bool,
+    pub server: String,
+    pub session_time: Option<String>,
+    pub download_pkts: Option<u64>,
+    pub upload_pkts: Option<u64>,
+}
+
+fn resolve_tray_icon(
+    app: &tauri::AppHandle,
+    name: &str,
+) -> Option<tauri::image::Image<'static>> {
+    let names: Vec<String> = if cfg!(target_os = "macos") {
+        vec![
+            format!("icons/{name}@2x.png"),
+            format!("icons/{name}.png"),
+        ]
+    } else {
+        vec![
+            format!("icons/{name}.png"),
+            format!("icons/{name}@2x.png"),
+        ]
+    };
+
+    for filename in &names {
+        if let Ok(path) = app
+            .path()
+            .resolve(filename, tauri::path::BaseDirectory::Resource)
+        {
+            if path.exists() {
+                if let Ok(img) = tauri::image::Image::from_path(&path) {
+                    return Some(img);
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // Build the tray menu items
-    let connect_item = MenuItem::with_id(app, "connect", "Connect", true, None::<&str>)?;
-    let show_item = MenuItem::with_id(app, "show", "Show Secular", true, None::<&str>)?;
+    eprintln!("[TRAY] Starting tray setup");
+
+    let icon = resolve_tray_icon(app.handle(), "tray-inactive")
+        .or_else(|| {
+            eprintln!("[TRAY] tray-inactive not found, trying default_window_icon");
+            app.default_window_icon().cloned()
+        })
+        .ok_or("Tray icon load failed")?;
+
+    eprintln!("[TRAY] Icon loaded OK, size: {}x{}", icon.width(), icon.height());
+
+    // Create initial menu
+    let connect_item = MenuItem::with_id(app, "tray-connect", "Connect", true, None::<&str>)?;
+    let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
-
     let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
-
-    // Load the inactive (white/black) tray icon for startup
-    // Try @2x first for Retina, then fall back to 1x
-    let icon = load_tray_icon_from_app(app)
-        .or_else(|_| app.default_window_icon().cloned().ok_or("no default icon"))
-        .map_err(|e| format!("Tray icon load failed: {e}"))?;
 
     let _tray = TrayIconBuilder::with_id("main-tray")
         .tooltip("Secular — Disconnected")
         .icon(icon)
+        .icon_as_template(true)
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "connect" => {
+            "tray-connect" => {
+                eprintln!("[TRAY] Connect clicked");
                 let _ = app.emit("tray-connect", ());
             }
-            "show" => {
+            "tray-show" => {
+                eprintln!("[TRAY] Show clicked");
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
@@ -46,6 +92,7 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
                 button_state: MouseButtonState::Up,
                 ..
             } => {
+                eprintln!("[TRAY] Left click");
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
@@ -56,84 +103,70 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         })
         .build(app)?;
 
+    eprintln!("[TRAY] Tray built successfully with menu");
     Ok(())
 }
 
-/// Try loading a tray icon PNG from bundled resources.
-/// Tries @2x (Retina) then 1x, for both tray-inactive and the default icon.
-fn load_tray_icon_from_app(app: &tauri::App) -> Result<tauri::image::Image<'static>, String> {
-    let names = if cfg!(target_os = "macos") {
-        vec!["icons/tray-inactive@2x.png", "icons/tray-inactive.png"]
-    } else {
-        vec!["icons/tray-inactive.png", "icons/tray-inactive@2x.png"]
-    };
-
-    for filename in &names {
-        if let Ok(path) = app.path().resolve(filename, tauri::path::BaseDirectory::Resource) {
-            if path.exists() {
-                if let Ok(img) = tauri::image::Image::from_path(&path) {
-                    tracing::info!("Loaded tray icon: {}", path.display());
-                    return Ok(img);
-                }
-            }
-        }
-    }
-
-    Err("tray-inactive icon not found in resources".into())
-}
-
 /// Update the tray icon, tooltip, and Connect menu item based on connection state.
-/// Desktop-only: green icon ↔ connected, white/black icon ↔ disconnected.
 pub fn update_tray_state(
     app: &tauri::AppHandle,
-    connected: bool,
+    payload: TrayStatePayload,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let connected = payload.connected;
+    let connecting = payload.connecting;
+    let server = &payload.server;
+    let session_time = &payload.session_time;
+    let download_pkts = payload.download_pkts;
+    let upload_pkts = payload.upload_pkts;
+
+    // Build tooltip
+    let tooltip = if connected {
+        let time_str = session_time.as_deref().unwrap_or("00:00:00");
+        let dl = download_pkts.unwrap_or(0);
+        let ul = upload_pkts.unwrap_or(0);
+        format!(
+            "Secular — Connected to {}\nSession: {}\n↓ {} pkts  ↑ {} pkts",
+            server, time_str, dl, ul
+        )
+    } else if connecting {
+        format!("Secular — Connecting to {}...", server)
+    } else {
+        format!("Secular — Disconnected ({})", server)
+    };
+
+    // Build menu label
+    let menu_label = if connecting {
+        format!("Connecting [{}]...", server)
+    } else if connected {
+        format!("Disconnect [{}]", server)
+    } else {
+        format!("Connect [{}]", server)
+    };
+
+    // Choose icon: template (black+alpha) for inactive, green colored for active
+    let icon_name = if connected {
+        "tray-active"
+    } else if connecting {
+        "tray-inactive"
+    } else {
+        "tray-inactive"
+    };
+    let use_template = !connected;
+
+    // Rebuild the entire tray menu with updated label
+    let connect_item = MenuItem::with_id(app, "tray-connect", &menu_label, !connecting, None::<&str>)?;
+    let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
+    let sep = PredefinedMenuItem::separator(app)?;
+    let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
+    let menu = Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])?;
+
     if let Some(tray) = app.tray_by_id("main-tray") {
-        // Update tooltip
-        let tooltip = if connected {
-            "Secular — Connected ✦"
-        } else {
-            "Secular — Disconnected"
-        };
-        let _ = tray.set_tooltip(Some(tooltip));
+        let _ = tray.set_tooltip(Some(&tooltip));
+        tray.set_menu(Some(menu))?;
 
-        // Swap the tray icon
-        let icon_name = if connected {
-            "tray-active"
-        } else {
-            "tray-inactive"
-        };
-
-        // Resolve icon from bundled resources — try @2x (Retina) then 1x
-        let names = if cfg!(target_os = "macos") {
-            vec![
-                format!("icons/{icon_name}@2x.png"),
-                format!("icons/{icon_name}.png"),
-            ]
-        } else {
-            vec![
-                format!("icons/{icon_name}.png"),
-                format!("icons/{icon_name}@2x.png"),
-            ]
-        };
-
-        for filename in &names {
-            if let Ok(path) = app.path().resolve(filename, tauri::path::BaseDirectory::Resource) {
-                if path.exists() {
-                    if let Ok(img) = tauri::image::Image::from_path(&path) {
-                        let _ = tray.set_icon(Some(img));
-                        tracing::debug!("Tray icon swapped to: {}", path.display());
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // Update the Connect/Disconnect menu item text
-    if let Some(menu_item) = app.menu().and_then(|m| m.get("connect")) {
-        if let tauri::menu::MenuItemKind::MenuItem(item) = menu_item {
-            let _ = item.set_text(if connected { "Disconnect" } else { "Connect" });
+        if let Some(img) = resolve_tray_icon(app, icon_name) {
+            let _ = tray.set_icon(Some(img));
+            let _ = tray.set_icon_as_template(use_template);
         }
     }
 

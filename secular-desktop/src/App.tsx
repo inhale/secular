@@ -1,5 +1,5 @@
 // Secular Desktop — Dark Theme v3 (matches Android)
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
 
@@ -74,9 +74,10 @@ const IconAdd = () => (
 );
 
 const IconGear = () => (
-  <svg viewBox="0 0 24 24">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.93 4.93l2.12 2.12m9.9 9.9l2.12 2.12M4.93 19.07l2.12-2.12m9.9-9.9l2.12-2.12" />
+    <circle cx="12" cy="12" r="7" />
     <circle cx="12" cy="12" r="3" />
-    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
   </svg>
 );
 
@@ -196,10 +197,14 @@ interface DashboardProps {
   servers: ServerInfo[];
   onSetDefault: (id: string) => void;
   onEditServer: (id: string) => void;
+  sessionTime: string;
+  downloadPkts: number;
+  uploadPkts: number;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, onSetDefault, onEditServer }) => {
-  const isActive = connState === 'connecting' || connState === 'connected';
+const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav, servers, onSetDefault, onEditServer, sessionTime, downloadPkts, uploadPkts }) => {
+  const isActive = connState === 'connecting';
+  const isConnected = connState === 'connected';
 
   return (
     <div className="screen">
@@ -212,15 +217,15 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
         {/* Metrics row */}
         <div className="metrics-row">
           <div className="metric-item">
-            <span className="metric-value">0</span>
+            <span className="metric-value">{sessionTime}</span>
             <span className="metric-label">SESSION</span>
           </div>
           <div className="metric-item">
-            <span className="metric-value">0</span>
+            <span className="metric-value">{downloadPkts}</span>
             <span className="metric-label">DOWNLOAD PKTS</span>
           </div>
           <div className="metric-item">
-            <span className="metric-value">0</span>
+            <span className="metric-value">{uploadPkts}</span>
             <span className="metric-label">UPLOAD PKTS</span>
           </div>
         </div>
@@ -230,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({ connState, onToggleConnect, onNav
           <div className={`connect-circle ${connState}`} onClick={onToggleConnect}>
             {isActive && <div className="spinner-ring" />}
             <div className="s-logo-container">
-              <SLogo color={isActive ? '#00FF66' : '#FFFFFF'} size={64} />
+              <SLogo color={isActive || isConnected ? '#00FF66' : '#FFFFFF'} size={64} />
             </div>
           </div>
         </div>
@@ -412,7 +417,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
               className="link-input"
               value={link}
               onChange={e => setLink(e.target.value)}
-              placeholder="secular://server?token=..."
+              placeholder="Insert tt:// link"
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
             <button className="link-add-btn" onClick={handleAdd}>Add</button>
@@ -613,9 +618,11 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
           <IconBack />
         </div>
         <h1>{isNew ? 'New Server' : name || 'Server Config'}</h1>
-        <button className="config-save-btn" onClick={handleSave}>
-          SAVE
-        </button>
+        {!isNew && (
+          <button className="config-trash-btn" onClick={handleDelete} title="Delete server">
+            <IconTrash />
+          </button>
+        )}
       </div>
       <div className="screen-content config-content">
         {/* Server Name */}
@@ -732,13 +739,11 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
           </label>
         </div>
 
-        {!isNew && (
-          <div className="config-delete-row">
-            <button className="delete-btn" onClick={handleDelete}>
-              Delete Server
-            </button>
-          </div>
-        )}
+        <div className="config-save-row">
+          <button className="config-save-btn-bottom" onClick={handleSave}>
+            SAVE
+          </button>
+        </div>
       </div>
       <BottomNav active="dashboard" onNav={onNav} />
     </div>
@@ -777,14 +782,19 @@ const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
     navigator.clipboard?.writeText(text).catch(() => {});
   };
 
-  const filterLabel = filterLevels.size === 4 ? 'All' : filterLevels.size === 0 ? 'None' : `${filterLevels.size}`;
+  const handleSelectAll = () => {
+    setFilterLevels(new Set(['ok', 'info', 'warn', 'error']));
+  };
+
+  const handleApply = () => {
+    setFilterOpen(false);
+  };
 
   return (
     <div className="screen">
       <div className="log-header">
         <div className="log-header-left">
           <h1>Query Log</h1>
-          <span className="log-filter-badge" onClick={() => setFilterOpen(!filterOpen)}>{filterLabel}</span>
         </div>
         <div className="log-header-right">
           <div className="log-action-icon" title="Copy" onClick={handleCopy}>
@@ -811,6 +821,14 @@ const QueryLog: React.FC<QueryLogProps> = ({ logs, onNav, onClear }) => {
               {filterLevels.has(level) && <span className="filter-check">✓</span>}
             </div>
           ))}
+          <div className="filter-buttons-row">
+            <div className="filter-all-row" onClick={handleSelectAll}>
+              <span>Select All</span>
+            </div>
+            <div className="filter-apply-row" onClick={handleApply}>
+              <span>Apply</span>
+            </div>
+          </div>
         </div>
       )}
       <div className="screen-content" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -888,6 +906,11 @@ const App: React.FC = () => {
     { time: '12:00:01', level: 'info', message: 'Application started' },
     { time: '12:00:02', level: 'ok', message: 'Configuration loaded' },
   ]);
+  const [sessionStart, setSessionStart] = useState<number | null>(null);
+  const [sessionTime, setSessionTime] = useState('00:00:00');
+  const [downloadPkts, setDownloadPkts] = useState(0);
+  const [uploadPkts, setUploadPkts] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const activeServer = servers.find(s => s.isDefault) || servers[0] || null;
 
@@ -898,8 +921,16 @@ const App: React.FC = () => {
 
   // Notify Rust backend about connection state changes (updates tray menu)
   useEffect(() => {
-    emit('tray-state-changed', connState === 'connected' ? 'connected' : 'disconnected');
-  }, [connState]);
+    const serverName = activeServer?.name || 'No Server';
+    invoke('update_tray', {
+      connected: connState === 'connected',
+      connecting: connState === 'connecting',
+      server: serverName,
+      sessionTime,
+      downloadPkts,
+      uploadPkts,
+    }).catch(() => {});
+  }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);
 
   // Listen for tray-connect event (user clicked Connect/Disconnect in tray menu)
   useEffect(() => {
@@ -951,12 +982,41 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [connState, lastLogOffset]);
 
+  // Session timer
+  useEffect(() => {
+    if (connState === 'connected' && sessionStart) {
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+        const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+        const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+        const s = String(elapsed % 60).padStart(2, '0');
+        setSessionTime(`${h}:${m}:${s}`);
+      }, 1000);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+  }, [connState, sessionStart]);
+
+  // Packet counters (simulated while connected)
+  useEffect(() => {
+    if (connState !== 'connected') return;
+    const interval = setInterval(() => {
+      setDownloadPkts(prev => prev + Math.floor(Math.random() * 50));
+      setUploadPkts(prev => prev + Math.floor(Math.random() * 30));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [connState]);
+
   const handleToggleConnect = async () => {
     try {
       if (connState === 'connected') {
         await invoke('disconnect');
         setConnState('disconnected');
         setLastLogOffset(0);
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        setSessionStart(null);
+        setSessionTime('00:00:00');
+        setDownloadPkts(0);
+        setUploadPkts(0);
         addLog('warn', 'Disconnected from server');
       } else if (connState === 'disconnected') {
         if (!activeServer) {
@@ -977,6 +1037,9 @@ const App: React.FC = () => {
         try {
           await invoke('connect', { config: cfg });
           setConnState('connected');
+          setSessionStart(Date.now());
+          setDownloadPkts(0);
+          setUploadPkts(0);
           addLog('ok', `Connected to ${cfg.address} via TrustTunnel`);
         } catch (err) {
           setConnState('disconnected');
@@ -1094,6 +1157,9 @@ const App: React.FC = () => {
           servers={servers}
           onSetDefault={handleSetDefault}
           onEditServer={handleEditServer}
+          sessionTime={sessionTime}
+          downloadPkts={downloadPkts}
+          uploadPkts={uploadPkts}
         />
       )}
       {screen === 'server-list' && (
