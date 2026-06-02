@@ -98,7 +98,7 @@ impl ServerConfig {
         }
         toml.push_str("excluded_routes = []\n");
         toml.push_str("mtu_size = 1500\n");
-        toml.push_str("change_system_dns = false\n\n");
+        toml.push_str("change_system_dns = true\n\n");
         toml.push_str("[endpoint]\n");
         toml.push_str(&format!("hostname = \"{}\"\n", sni));
         toml.push_str(&format!("addresses = [{}]\n", addr));
