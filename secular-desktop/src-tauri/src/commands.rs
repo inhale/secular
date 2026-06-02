@@ -87,7 +87,7 @@ impl ServerConfig {
 
         let mut toml = String::new();
         toml.push_str("vpn_mode = \"general\"\n");
-        toml.push_str("loglevel = \"info\"\n");
+        toml.push_str("loglevel = \"trace\"\n");
         toml.push_str("killswitch_enabled = false\n");
         toml.push_str("post_quantum_group_enabled = false\n\n");
         toml.push_str("[listener.tun]\n");
@@ -187,7 +187,7 @@ pub async fn connect(
     if config.skip_verification {
         cmd.arg("-s");
     }
-    cmd.arg("--loglevel").arg("debug");
+    cmd.arg("--loglevel").arg("trace");
 
     // Redirect stdout/stderr to log file
     let log_path = config_dir.join("trusttunnel.log");

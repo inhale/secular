@@ -895,11 +895,48 @@ const App: React.FC = () => {
     setLogs(prev => [...prev, { time, level, message }]);
   };
 
+  // Tunnel log polling: read trusttunnel_client output and inject into query log
+  const [lastLogOffset, setLastLogOffset] = useState(0);
+  useEffect(() => {
+    if (connState !== 'connected') return;
+    const interval = setInterval(async () => {
+      try {
+        const fullLog: string = await invoke('read_tunnel_log');
+        if (!fullLog || fullLog === 'No tunnel log yet') return;
+        // Only process new lines since last read
+        const lines = fullLog.split('\n').filter(Boolean);
+        if (lines.length <= lastLogOffset) return;
+        const newLines = lines.slice(lastLogOffset);
+        setLastLogOffset(lines.length);
+        // Parse TrustTunnel log format: "[LEVEL] [MODULE] message" or "HH:MM:SS [LEVEL] ..."
+        const parsed = newLines.map(line => {
+          let level: LogLine['level'] = 'info';
+          let msg = line.trim();
+          // Detect level from common patterns
+          if (/\b(ERROR|ERR)\b/i.test(line.substring(0, 30))) level = 'error';
+          else if (/\b(WARN|WARNING)\b/i.test(line.substring(0, 30))) level = 'warn';
+          else if (/\b(TRACE)\b/i.test(line.substring(0, 30))) level = 'info'; // trace → info (verbose)
+          else if (/\b(DEBUG|DBG)\b/i.test(line.substring(0, 30))) level = 'info';
+          else if (/\b(INFO)\b/i.test(line.substring(0, 30))) level = 'ok';
+          // Strip timestamp prefix like "2025-06-02 01:06:42.123 " if present
+          msg = msg.replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\s+/, '');
+          // Extract just the time portion for display
+          const now = new Date();
+          const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+          return { time, level, message: msg };
+        });
+        setLogs(prev => [...prev, ...parsed]);
+      } catch { /* ignore read errors */ }
+    }, 2000); // Poll every 2 seconds
+    return () => clearInterval(interval);
+  }, [connState, lastLogOffset]);
+
   const handleToggleConnect = async () => {
     try {
       if (connState === 'connected') {
         await invoke('disconnect');
         setConnState('disconnected');
+        setLastLogOffset(0);
         addLog('warn', 'Disconnected from server');
       } else if (connState === 'disconnected') {
         if (!activeServer) {
