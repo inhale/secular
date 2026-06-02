@@ -920,7 +920,7 @@ const App: React.FC = () => {
         try {
           await invoke('connect', { config: cfg });
           setConnState('connected');
-          addLog('ok', `Connected to ${activeServer.name}`);
+          addLog('ok', `Connected to ${cfg.address} via TrustTunnel`);
         } catch (err) {
           setConnState('disconnected');
           addLog('error', `Connection failed: ${err}`);

@@ -34,6 +34,7 @@ fn main() {
         .manage(commands::AppState {
             connected: std::sync::Mutex::new(false),
             config: std::sync::Mutex::new(commands::ServerConfig::default()),
+            tunnel_pid: std::sync::Mutex::new(0),
         })
         .invoke_handler(tauri::generate_handler![
             commands::connect,
@@ -42,6 +43,7 @@ fn main() {
             commands::get_config,
             commands::set_config,
             commands::read_file,
+            commands::read_tunnel_log,
         ])
         .build(tauri::generate_context!())
         .expect("error building Secular app");
