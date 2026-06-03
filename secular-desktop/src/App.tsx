@@ -928,13 +928,14 @@ const App: React.FC = () => {
     const isConnStateChange = connState === 'connected' || connState === 'disconnected';
     if (isConnStateChange || now - lastTrayUpdate.current > 5000) {
       lastTrayUpdate.current = now;
+      console.log('[TRAY] sending:', { connected: connState === 'connected', connecting: connState === 'connecting', server: serverName, session_time: sessionTime, download_pkts: downloadPkts, upload_pkts: uploadPkts });
       invoke('update_tray', {
         connected: connState === 'connected',
         connecting: connState === 'connecting',
         server: serverName,
-        session_time: sessionTime,
-        download_pkts: downloadPkts,
-        upload_pkts: uploadPkts,
+        session_time: sessionTime || '00:00:00',
+        download_pkts: downloadPkts || 0,
+        upload_pkts: uploadPkts || 0,
       }).catch(() => {});
     }
   }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);

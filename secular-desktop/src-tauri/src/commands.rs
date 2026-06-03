@@ -444,17 +444,19 @@ pub fn update_tray(
     connected: bool,
     connecting: bool,
     server: String,
-    session_time: Option<String>,
-    download_pkts: Option<u64>,
-    upload_pkts: Option<u64>,
+    session_time: String,
+    download_pkts: u64,
+    upload_pkts: u64,
 ) -> Result<(), String> {
+    eprintln!("[CMD] update_tray: connected={}, connecting={}, server={}, time={}, dl={}, ul={}",
+        connected, connecting, server, session_time, download_pkts, upload_pkts);
     let payload = crate::tray::TrayStatePayload {
         connected,
         connecting,
         server,
-        session_time,
-        download_pkts,
-        upload_pkts,
+        session_time: if session_time.is_empty() { None } else { Some(session_time) },
+        download_pkts: if download_pkts == 0 { None } else { Some(download_pkts) },
+        upload_pkts: if upload_pkts == 0 { None } else { Some(upload_pkts) },
     };
     crate::tray::update_tray_state(&app, payload).map_err(|e| e.to_string())
 }
