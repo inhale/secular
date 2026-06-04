@@ -37,38 +37,12 @@ fn resolve_tray_icon<R: tauri::Runtime>(
     None
 }
 
-/// Build the tray menu with current stats as disabled items
+/// Build the tray menu — static items only.
+/// macOS caches tray menus at system level, so dynamic stats go in set_title()/set_tooltip().
 fn build_tray_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     payload: &TrayStatePayload,
 ) -> Result<Menu<R>, Box<dyn std::error::Error>> {
-    let time_str = payload.session_time.as_deref().unwrap_or("00:00:00");
-    let dl = payload.download_pkts.unwrap_or(0);
-    let ul = payload.upload_pkts.unwrap_or(0);
-
-    // Stats lines (disabled — not clickable)
-    let stats1 = if payload.connected {
-        MenuItem::with_id(app, "tray-stats-1", &format!("  Server: {}", payload.server), false, None::<&str>)?
-    } else if payload.connecting {
-        MenuItem::with_id(app, "tray-stats-1", &format!("  {} — connecting...", payload.server), false, None::<&str>)?
-    } else {
-        MenuItem::with_id(app, "tray-stats-1", "  Disconnected", false, None::<&str>)?
-    };
-
-    let stats2 = if payload.connected {
-        MenuItem::with_id(app, "tray-stats-2", &format!("  Session: {}", time_str), false, None::<&str>)?
-    } else {
-        MenuItem::with_id(app, "tray-stats-2", "  Session: --", false, None::<&str>)?
-    };
-
-    let stats3 = if payload.connected {
-        MenuItem::with_id(app, "tray-stats-3", &format!("  ↓ {} pkts  ↑ {} pkts", dl, ul), false, None::<&str>)?
-    } else {
-        MenuItem::with_id(app, "tray-stats-3", "  ↓ --  ↑ --", false, None::<&str>)?
-    };
-
-    let sep1 = PredefinedMenuItem::separator(app)?;
-
     // Connect / Disconnect toggle
     let connect_label = if payload.connected {
         "Disconnect"
@@ -80,12 +54,11 @@ fn build_tray_menu<R: tauri::Runtime>(
     let connect_item = MenuItem::with_id(app, "tray-connect", connect_label, true, None::<&str>)?;
 
     let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
-    let sep2 = PredefinedMenuItem::separator(app)?;
+    let sep = PredefinedMenuItem::separator(app)?;
     let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
 
     Menu::with_items(app, &[
-        &stats1, &stats2, &stats3, &sep1,
-        &connect_item, &show_item, &sep2, &quit_item,
+        &connect_item, &show_item, &sep, &quit_item,
     ])
     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
@@ -194,11 +167,6 @@ pub fn update_tray_state<R: tauri::Runtime>(
 
         let _ = tray.set_title(Some(&title));
         let _ = tray.set_tooltip(Some(&tooltip));
-
-        // Rebuild menu with updated stats for next time user opens it
-        if let Ok(menu) = build_tray_menu(app, &payload) {
-            let _ = tray.set_menu(Some(menu));
-        }
 
         eprintln!("[TRAY] updated title='{}'", title);
     }
