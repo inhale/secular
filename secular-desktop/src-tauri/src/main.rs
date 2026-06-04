@@ -87,6 +87,7 @@ fn main() {
             commands::read_file,
             commands::read_tunnel_log,
             commands::update_tray,
+            commands::debug_log,
         ])
         .build(tauri::generate_context!())
         .expect("error building Secular app");

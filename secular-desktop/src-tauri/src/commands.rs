@@ -439,6 +439,20 @@ pub async fn read_tunnel_log() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn debug_log(msg: String) {
+    use std::io::Write;
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let line = format!("[{}] {}\n", ts, msg);
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/secular-debug.log") {
+        let _ = f.write_all(line.as_bytes());
+    }
+    eprintln!("[DEBUG] {}", msg);
+}
+
+#[tauri::command]
 pub fn update_tray(
     app: tauri::AppHandle,
     connected: bool,
@@ -450,6 +464,8 @@ pub fn update_tray(
 ) -> Result<(), String> {
     eprintln!("[CMD] update_tray: connected={}, connecting={}, server={}, time={}, dl={}, ul={}",
         connected, connecting, server, sessionTime, downloadPkts, uploadPkts);
+    debug_log(format!("update_tray: connected={}, connecting={}, server={}, time={}, dl={}, ul={}",
+        connected, connecting, server, sessionTime, downloadPkts, uploadPkts));
     let payload = crate::tray::TrayStatePayload {
         connected,
         connecting,

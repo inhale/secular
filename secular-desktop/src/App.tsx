@@ -920,24 +920,33 @@ const App: React.FC = () => {
   }, [servers]);
 
   // Throttled tray update — updates immediately on state change, then at most once per 5s for stats
-  const lastTrayUpdate = useRef(0);
+  const trayUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const now = Date.now();
     const serverName = activeServer?.name || 'No Server';
-    // Immediate update on connect/disconnect, throttle stats updates to 5s
-    const isConnStateChange = connState === 'connected' || connState === 'disconnected';
-    if (isConnStateChange || now - lastTrayUpdate.current > 5000) {
-      lastTrayUpdate.current = now;
-      console.log('[TRAY] sending:', { connected: connState === 'connected', connecting: connState === 'connecting', server: serverName, session_time: sessionTime, download_pkts: downloadPkts, upload_pkts: uploadPkts });
+    console.log('[TRAY-JS] effect fired:', { connState, serverName, sessionTime, downloadPkts, uploadPkts });
+
+    // Debounce: clear pending timer, schedule new one
+    if (trayUpdateTimer.current) clearTimeout(trayUpdateTimer.current);
+    trayUpdateTimer.current = setTimeout(() => {
+      const isInvokeDefined = typeof invoke === 'function';
+      console.log('[TRAY-JS] invoke called:', { connected: connState === 'connected', connecting: connState === 'connecting', server: serverName, sessionTime, downloadPkts, uploadPkts, isInvokeDefined });
+      if (!isInvokeDefined) {
+        console.error('[TRAY-JS] invoke is NOT a function! Tauri bridge unavailable.');
+        return;
+      }
       invoke('update_tray', {
         connected: connState === 'connected',
         connecting: connState === 'connecting',
         server: serverName,
-        session_time: sessionTime || '00:00:00',
-        download_pkts: downloadPkts || 0,
-        upload_pkts: uploadPkts || 0,
-      }).catch(() => {});
-    }
+        sessionTime: sessionTime || '00:00:00',
+        downloadPkts: downloadPkts || 0,
+        uploadPkts: uploadPkts || 0,
+      }).then(() => {
+        console.log('[TRAY-JS] invoke resolved OK');
+      }).catch((err: any) => {
+        console.error('[TRAY-JS] invoke rejected:', err);
+      });
+    }, 200);
   }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);
 
   // Listen for tray-connect event (user clicked Connect/Disconnect in tray menu)
