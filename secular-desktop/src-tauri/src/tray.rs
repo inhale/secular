@@ -2,7 +2,7 @@
 // System tray / Menu Bar implementation for Tauri v2
 
 use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, MenuEvent, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
@@ -90,6 +90,22 @@ fn build_tray_menu<R: tauri::Runtime>(
     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
 
+/// Handle tray menu events — used both as builder callback and global handler
+fn handle_tray_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {
+    match event.id().as_ref() {
+        "tray-connect" => {
+            let _ = app.emit("tray-connect", ());
+        }
+        "tray-show" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+        _ => {}
+    }
+}
+
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[TRAY] Starting tray setup");
 
@@ -112,19 +128,12 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         .icon(icon)
         .icon_as_template(true)
         .menu(&menu)
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "tray-connect" => {
-                let _ = app.emit("tray-connect", ());
-            }
-            "tray-show" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            _ => {}
-        })
+        .on_menu_event(handle_tray_menu_event)
         .build(app)?;
+
+    // Also register a global menu event handler so that when set_menu()
+    // replaces the menu, clicks on the new menu items are still handled.
+    app.on_menu_event(handle_tray_menu_event);
 
     eprintln!("[TRAY] Tray built OK");
     Ok(())
