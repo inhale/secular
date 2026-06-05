@@ -29,6 +29,7 @@ pub struct TrayStatePayload {
 #[cfg(target_os = "macos")]
 mod mac {
     use super::TrayStatePayload;
+    use std::sync::Mutex;
     use cocoa::appkit::NSApplication;
     use cocoa::base::{id, nil, YES, NO};
     use cocoa::foundation::{NSAutoreleasePool, NSString, NSURL};
@@ -82,7 +83,7 @@ mod mac {
             // Register delegate class
             let superclass = class!(NSObject);
             let mut decl = ClassDecl::new("SecularTrayTarget", superclass)
-                .map_err(|e| format!("ClassDecl::new failed: {:?}", e))?;
+                .ok_or("ClassDecl::new returned None")?;
 
             // trayIconClick:
             extern "C" fn icon_click(_self: &Object, _cmd: Sel, sender: id) {
