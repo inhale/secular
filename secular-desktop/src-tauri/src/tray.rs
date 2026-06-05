@@ -1,8 +1,11 @@
 // src-tauri/src/tray.rs
-// macOS NSPopover tray with native NSView controls (objc2 edition).
+// macOS NSPopover tray with native NSView controls.
 //
-// Solves: NSMenu snapshots content on open — stats can't update live.
+// Solves: NSMenu snapshots content on open — can't update stats live.
 // NSPopover + NSView: NSTextField.setStringValue updates immediately.
+//
+// Uses raw objc runtime via msg_send! with sel_registerName (no sel! macro)
+// because objc 0.2.7's sel! macro is broken on Rust 1.96.
 
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
@@ -24,36 +27,29 @@ pub struct TrayStatePayload {
 #[cfg(target_os = "macos")]
 mod mac {
     use super::TrayStatePayload;
-    use objc2::declare::ClassDecl;
-    use objc2::rc::Retained;
-    use objc2::runtime::{AnyObject, Sel, NSObject};
-    use objc2::{class, msg_send, sel};
-    use objc2_app_kit::NSApplication;
-    use objc2_foundation::{
-        NSAutoreleasePool, NSRect, NSSize, NSString, NSURL,
-    };
-    use std::sync::Mutex;
+    use cocoa::base::{id, nil, YES, NO};
+    use cocoa::foundation::{NSAutoreleasePool, NSString, NSURL};
+    use objc::declare::ClassDecl;
+    use objc::runtime::{Object, Sel, BOOL};
+    use objc::{class, msg_send};
 
-    // ── Shared native UI references ──────────────────────────
-
-    type Id = *mut AnyObject;
+    // ── Shared UI object references ──────────────────────────
 
     struct TrayObj {
-        popover: Id,
-        status_label: Id,
-        timer_label: Id,
-        dl_label: Id,
-        ul_label: Id,
-        action_button: Id,
+        popover: id,
+        status_label: id,
+        timer_label: id,
+        dl_label: id,
+        ul_label: id,
+        action_button: id,
     }
-
     unsafe impl Send for TrayObj {}
     unsafe impl Sync for TrayObj {}
 
-    static TRAY_OBJ: Mutex<Option<TrayObj>> = Mutex::new(None);
-    static mut POPOVER_PTR: usize = 0;
+    static TRAY: Mutex<Option<TrayObj>> = Mutex::new(None);
+    static mut POPOVER_ID: usize = 0;
 
-    // Rust callback for button clicks
+    // Rust callback bridge for ObjC button actions
     type ActionFn = Box<dyn Fn(&str) + Send + Sync>;
     static ON_ACTION: Mutex<Option<ActionFn>> = Mutex::new(None);
 
@@ -62,279 +58,223 @@ mod mac {
     }
 
     fn fire(action: &str) {
-        let guard = ON_ACTION.lock().unwrap();
-        if let Some(cb) = guard.as_ref() {
-            cb(action);
-        } else {
-            eprintln!("[TRAY] action '{}' dropped — no callback", action);
-        }
+        if let Some(ref cb) = *ON_ACTION.lock().unwrap() { cb(action); }
+    }
+
+    // Helper: get selector by name (avoids broken sel! macro)
+    unsafe fn s(name: &str) -> Sel {
+        objc::runtime::sel_registerName(
+            std::ffi::CString::new(name).unwrap().as_ptr()
+        )
     }
 
     // ── ObjC delegate class ──────────────────────────────────
 
     pub fn setup_native_tray() -> Result<(), String> {
         unsafe {
-            let _pool = NSAutoreleasePool::new();
+            let _pool = NSAutoreleasePool::new(nil);
 
-            // Register delegate class
-            let superclass = NSObject::class();
-            let mut decl = ClassDecl::new("SecularTrayTarget", superclass)
-                .ok_or("ClassDecl::new failed")?;
+            // Register SecularTrayTarget class
+            let mut decl = ClassDecl::new("SecularTrayTarget",
+                class!(NSObject)).ok_or("ClassDecl failed")?;
 
-            // trayIconClick:
-            extern "C" fn icon_click(
-                _self: &objc2::runtime::AnyObject,
-                _cmd: Sel,
-                sender: *mut AnyObject,
-            ) {
+            extern "C" fn icon_click(_self: &Object, _cmd: Sel, sender: id) {
                 unsafe {
-                    let popover = POPOVER_PTR as Id;
-                    if popover.is_null() { return; }
-                    let is_shown: bool = msg_send![popover, isShown];
-                    if is_shown {
-                        let _: () = msg_send![popover, performClose: std::ptr::null::<AnyObject>()];
+                    let pop = POPOVER_ID as id;
+                    if pop.is_null() { return; }
+                    let shown: BOOL = msg_send![pop, isShown];
+                    if shown == YES {
+                        let _: () = msg_send![pop, performClose:nil];
                     } else {
-                        let rect = NSRect::new(
-                            objc2_foundation::NSPoint::new(0.0, 0.0),
-                            NSSize::new(1.0, 1.0),
-                        );
-                        let _: () = msg_send![
-                            popover,
-                            showRelativeToRect: rect
-                            ofView: sender
-                            preferredEdge: 1u64 // NSMaxYEdge
-                        ];
-                        let app = NSApplication::sharedApplication();
-                        let _: () = msg_send![app, activateIgnoringOtherApps: true];
+                        let rect = cocoa::foundation::NSRect::new(
+                            cocoa::foundation::NSPoint::new(0.0, 0.0),
+                            cocoa::foundation::NSSize::new(1.0, 1.0));
+                        let _: () = msg_send![pop, showRelativeToRect:rect ofView:sender preferredEdge:1u64];
+                        unsafe { let app: id = msg_send![class!(NSApplication), sharedApplication];
+                            let _: () = msg_send![app, activateIgnoringOtherApps:YES]; }
                         eprintln!("[TRAY] popover shown");
                     }
                 }
             }
-            decl.add_method(
-                sel!(trayIconClick:),
-                icon_click as extern "C" fn(&AnyObject, Sel, *mut AnyObject),
-            );
+            decl.add_method(s("trayIconClick:"),
+                icon_click as extern "C" fn(&Object, Sel, id));
 
-            // trayAction:
-            extern "C" fn action_click(
-                _self: &AnyObject,
-                _cmd: Sel,
-                _sender: *mut AnyObject,
-            ) {
-                eprintln!("[TRAY] trayAction");
-                fire("connect_toggle");
+            extern "C" fn action_click(_self: &Object, _cmd: Sel, _sender: id) {
+                eprintln!("[TRAY] action"); fire("connect_toggle");
             }
-            decl.add_method(
-                sel!(trayAction:),
-                action_click as extern "C" fn(&AnyObject, Sel, *mut AnyObject),
-            );
+            decl.add_method(s("trayAction:"),
+                action_click as extern "C" fn(&Object, Sel, id));
 
-            // trayShow:
-            extern "C" fn show_click(
-                _self: &AnyObject,
-                _cmd: Sel,
-                _sender: *mut AnyObject,
-            ) {
-                eprintln!("[TRAY] trayShow");
-                fire("show");
+            extern "C" fn show_click(_self: &Object, _cmd: Sel, _sender: id) {
+                eprintln!("[TRAY] show"); fire("show");
             }
-            decl.add_method(
-                sel!(trayShow:),
-                show_click as extern "C" fn(&AnyObject, Sel, *mut AnyObject),
-            );
+            decl.add_method(s("trayShow:"),
+                show_click as extern "C" fn(&Object, Sel, id));
 
-            // trayQuit:
-            extern "C" fn quit_click(
-                _self: &AnyObject,
-                _cmd: Sel,
-                _sender: *mut AnyObject,
-            ) {
-                eprintln!("[TRAY] trayQuit");
-                fire("quit");
+            extern "C" fn quit_click(_self: &Object, _cmd: Sel, _sender: id) {
+                eprintln!("[TRAY] quit"); fire("quit");
             }
-            decl.add_method(
-                sel!(trayQuit:),
-                quit_click as extern "C" fn(&AnyObject, Sel, *mut AnyObject),
-            );
+            decl.add_method(s("trayQuit:"),
+                quit_click as extern "C" fn(&Object, Sel, id));
 
             let cls = decl.register();
-            let target: *mut AnyObject = msg_send![cls, new];
+            let target: id = msg_send![cls, new];
 
-            // Build popover content
-            let (content_view, st, tl, dl, ul, ab) = build_content_view(target);
+            // Build content
+            let (cv, st, tl, dl, ul, ab) = build_content(target);
 
             // Create NSPopover
-            let popover: *mut AnyObject = msg_send![class!(NSPopover), new];
-            let _: () = msg_send![popover, setBehavior: 1i64]; // NSPopoverBehaviorTransient
-            let _: () = msg_send![popover, setAnimates: true];
-            let _: () = msg_send![
-                popover,
-                setContentSize: NSSize::new(300.0, 175.0)
-            ];
+            let pop: id = msg_send![class!(NSPopover), new];
+            let _: () = msg_send![pop, setBehavior:1i64];
+            let _: () = msg_send![pop, setAnimates:YES];
+            let _: () = msg_send![pop, setContentSize:
+                cocoa::foundation::NSSize::new(300.0, 175.0)];
+            let vc: id = msg_send![class!(NSViewController), new];
+            let _: () = msg_send![vc, setView:cv];
+            let _: () = msg_send![pop, setContentViewController:vc];
+            POPOVER_ID = pop as usize;
 
-            let vc: *mut AnyObject = msg_send![class!(NSViewController), new];
-            let _: () = msg_send![vc, setView: content_view];
-            let _: () = msg_send![popover, setContentViewController: vc];
-
-            POPOVER_PTR = popover as usize;
-
-            // Store refs
-            *TRAY_OBJ.lock().unwrap() = Some(TrayObj {
-                popover,
-                status_label: st,
-                timer_label: tl,
-                dl_label: dl,
-                ul_label: ul,
-                action_button: ab,
+            *TRAY.lock().unwrap() = Some(TrayObj {
+                popover: pop, status_label: st, timer_label: tl,
+                dl_label: dl, ul_label: ul, action_button: ab,
             });
 
-            // Create status bar item
-            let bar: *mut AnyObject = msg_send![class!(NSStatusBar), systemStatusBar];
-            let item: *mut AnyObject = msg_send![
-                bar,
-                statusItemWithLength: -1i64 // NSStatusItemVariableLength
-            ];
+            // Status bar item
+            let bar: id = msg_send![class!(NSStatusBar), systemStatusBar];
+            let item: id = msg_send![bar, statusItemWithLength:-1i64];
 
-            // Load icon or fall back to text
-            let mut icon_loaded = false;
+            // Icon
+            let mut loaded = false;
             for name in &[
-                "tray-inactive.png", "tray_inactive.png", "icon.png",
-                "icons/tray-inactive.png", "icons/icon.png",
-                "../icons/tray-inactive.png", "../icons/icon.png",
-                "src-tauri/icons/tray-inactive.png", "src-tauri/icons/icon.png",
-            ] {
-                let p = std::path::Path::new(name);
-                if p.exists() {
-                    let abs = std::fs::canonicalize(p).unwrap().display().to_string();
-                    let url = NSURL::fileURLWithPath(&NSString::from_str(&abs));
-                    let img: *mut AnyObject = msg_send![class!(NSImage), alloc];
-                    let img: *mut AnyObject = msg_send![img, initWithContentsOfURL: &url];
-                    if !img.is_null() {
-                        let _: () = msg_send![img, setTemplate: true];
-                        let btn: *mut AnyObject = msg_send![item, button];
-                        let _: () = msg_send![btn, setImage: img];
-                        icon_loaded = true;
+                "tray-inactive.png","tray_inactive.png","icon.png",
+                "icons/tray-inactive.png","icons/icon.png",
+                "../icons/tray-inactive.png","../icons/icon.png",
+                "src-tauri/icons/tray-inactive.png","src-tauri/icons/icon.png"] {
+                if std::path::Path::new(name).exists() {
+                    let abs = std::fs::canonicalize(name).unwrap().display().to_string();
+                    let url = NSURL::fileURLWithPath_(nil,
+                        NSString::alloc(nil).init_str(&abs));
+                    let img: id = msg_send![class!(NSImage), alloc];
+                    let img: id = msg_send![img, initWithContentsOfURL:url];
+                    if img != nil {
+                        let _: () = msg_send![img, setTemplate:YES];
+                        let btn: id = msg_send![item, button];
+                        let _: () = msg_send![btn, setImage:img];
+                        loaded = true;
                         eprintln!("[TRAY] icon: {}", abs);
                         break;
                     }
                 }
             }
-            if !icon_loaded {
-                let btn: *mut AnyObject = msg_send![item, button];
-                let _: () = msg_send![btn, setTitle: &NSString::from_str("S")];
-                eprintln!("[TRAY] no icon, using 'S'");
+            if !loaded {
+                let btn: id = msg_send![item, button];
+                let _: () = msg_send![btn, setTitle:
+                    NSString::alloc(nil).init_str("S")];
             }
 
-            // Wire button click → toggle popover
-            let btn: *mut AnyObject = msg_send![item, button];
-            let _: () = msg_send![btn, setTarget: target];
-            let _: () = msg_send![btn, setAction: sel!(trayIconClick:)];
+            let btn: id = msg_send![item, button];
+            let _: () = msg_send![btn, setTarget:target];
+            let _: () = msg_send![btn, setAction:s("trayIconClick:")];
 
-            eprintln!("[TRAY] native tray ready");
+            eprintln!("[TRAY] ready");
             Ok(())
         }
     }
 
-    // ── NSView builder helpers ────────────────────────────────
+    // ── NSView builder ────────────────────────────────────────
 
-    const POP_W: f64 = 300.0;
-    const POP_H: f64 = 175.0;
-    const PAD: f64 = 14.0;
+    const PW: f64 = 300.0;
+    const PH: f64 = 175.0;
+    const PD: f64 = 14.0;
 
-    unsafe fn nsrect(x: f64, y: f64, w: f64, h: f64) -> NSRect {
-        NSRect::new(objc2_foundation::NSPoint::new(x, y), NSSize::new(w, h))
-    }
-
-    unsafe fn make_label(
-        text: &str, x: f64, y: f64, w: f64, h: f64,
-        size: f64, r: f64, g: f64, b: f64, a: f64,
-    ) -> Id {
-        let tf: Id = msg_send![class!(NSTextField), new];
-        let _: () = msg_send![tf, setStringValue: &NSString::from_str(text)];
-        let _: () = msg_send![tf, setBezeled: false];
-        let _: () = msg_send![tf, setDrawsBackground: false];
-        let _: () = msg_send![tf, setEditable: false];
-        let _: () = msg_send![tf, setSelectable: false];
-        let c: Id = msg_send![class!(NSColor), colorWithRed: r green: g blue: b alpha: a];
-        let _: () = msg_send![tf, setTextColor: c];
-        let f: Id = msg_send![class!(NSFont), systemFontOfSize: size];
-        let _: () = msg_send![tf, setFont: f];
-        let _: () = msg_send![tf, setFrame: nsrect(x, y, w, h)];
+    unsafe fn label(text: &str, x: f64, y: f64, w: f64, h: f64,
+                   size: f64, r: f64, g: f64, b: f64, a: f64) -> id {
+        let tf: id = msg_send![class!(NSTextField), new];
+        let _: () = msg_send![tf, setStringValue:NSString::alloc(nil).init_str(text)];
+        let _: () = msg_send![tf, setBezeled:NO];
+        let _: () = msg_send![tf, setDrawsBackground:NO];
+        let _: () = msg_send![tf, setEditable:NO];
+        let _: () = msg_send![tf, setSelectable:NO];
+        let c: id = msg_send![class!(NSColor), colorWithRed:r green:g blue:b alpha:a];
+        let _: () = msg_send![tf, setTextColor:c];
+        let f: id = msg_send![class!(NSFont), systemFontOfSize:size];
+        let _: () = msg_send![tf, setFont:f];
+        let _: () = msg_send![tf, setFrame:cocoa::foundation::NSRect::new(
+            cocoa::foundation::NSPoint::new(x,y),
+            cocoa::foundation::NSSize::new(w,h))];
         tf
     }
 
-    unsafe fn make_button(
-        title: &str, x: f64, y: f64, w: f64, h: f64, target: Id, action: Sel,
-    ) -> Id {
-        let b: Id = msg_send![class!(NSButton), new];
-        let _: () = msg_send![b, setTitle: &NSString::from_str(title)];
-        let _: () = msg_send![b, setBezelStyle: 1i64];
-        let _: () = msg_send![b, setTarget: target];
-        let _: () = msg_send![b, setAction: action];
-        let f: Id = msg_send![class!(NSFont), systemFontOfSize: 12.0];
-        let _: () = msg_send![b, setFont: f];
-        let _: () = msg_send![b, setFrame: nsrect(x, y, w, h)];
+    unsafe fn button(title: &str, x: f64, y: f64, w: f64, h: f64,
+                    target: id, action: Sel) -> id {
+        let b: id = msg_send![class!(NSButton), new];
+        let _: () = msg_send![b, setTitle:NSString::alloc(nil).init_str(title)];
+        let _: () = msg_send![b, setBezelStyle:1i64];
+        let _: () = msg_send![b, setTarget:target];
+        let _: () = msg_send![b, setAction:action];
+        let f: id = msg_send![class!(NSFont), systemFontOfSize:12.0];
+        let _: () = msg_send![b, setFont:f];
+        let _: () = msg_send![b, setFrame:cocoa::foundation::NSRect::new(
+            cocoa::foundation::NSPoint::new(x,y),
+            cocoa::foundation::NSSize::new(w,h))];
         b
     }
 
-    unsafe fn make_separator(x: f64, y: f64, w: f64) -> Id {
-        let s: Id = msg_send![class!(NSBox), new];
-        let _: () = msg_send![s, setBoxType: 3i64];
-        let _: () = msg_send![s, setFrame: nsrect(x, y, w, 1.0)];
+    unsafe fn separator(x: f64, y: f64, w: f64) -> id {
+        let s: id = msg_send![class!(NSBox), new];
+        let _: () = msg_send![s, setBoxType:3i64];
+        let _: () = msg_send![s, setFrame:cocoa::foundation::NSRect::new(
+            cocoa::foundation::NSPoint::new(x,y),
+            cocoa::foundation::NSSize::new(w,1.0))];
         s
     }
 
-    unsafe fn build_content_view(target: Id) -> (Id, Id, Id, Id, Id, Id) {
-        let view: Id = msg_send![class!(NSView), new];
-        let bg: Id = msg_send![class!(NSColor), colorWithRed: 0.11 green: 0.11 blue: 0.12 alpha: 1.0];
-        let _: () = msg_send![view, setWantsLayer: true];
-        let layer: Id = msg_send![view, layer];
-        let cg: Id = msg_send![bg, CGColor];
-        let _: () = msg_send![layer, setBackgroundColor: cg];
-        let _: () = msg_send![view, setFrame: nsrect(0.0, 0.0, POP_W, POP_H)];
+    unsafe fn build_content(target: id) -> (id, id, id, id, id, id) {
+        let v: id = msg_send![class!(NSView), new];
+        let bg: id = msg_send![class!(NSColor), colorWithRed:0.11 green:0.11 blue:0.12 alpha:1.0];
+        let _: () = msg_send![v, setWantsLayer:YES];
+        let l: id = msg_send![v, layer];
+        let _: () = msg_send![l, setBackgroundColor:msg_send![bg, CGColor]];
+        let _: () = msg_send![v, setFrame:cocoa::foundation::NSRect::new(
+            cocoa::foundation::NSPoint::new(0.0,0.0),
+            cocoa::foundation::NSSize::new(PW,PH))];
 
-        let cw = POP_W - PAD * 2.0;
-        let mut y = POP_H - PAD;
+        let cw = PW - PD * 2.0;
+        let mut y = PH - PD;
 
-        // Status label
         y -= 18.0;
-        let st = make_label("Disconnected", PAD, y, cw, 18.0, 13.0, 0.46, 0.46, 0.46, 1.0);
-        let _: () = msg_send![view, addSubview: st];
+        let st = label("Disconnected", PD, y, cw, 18.0, 13.0, 0.46, 0.46, 0.46, 1.0);
+        let _: () = msg_send![v, addSubview:st];
 
-        // Timer
         y -= 26.0;
-        let tl = make_label("00:00:00", PAD, y, cw, 26.0, 19.0, 1.0, 1.0, 1.0, 1.0);
-        let _: () = msg_send![view, addSubview: tl];
+        let tl = label("00:00:00", PD, y, cw, 26.0, 19.0, 1.0, 1.0, 1.0, 1.0);
+        let _: () = msg_send![v, addSubview:tl];
 
-        // Stats row
         y -= 18.0;
-        let dl = make_label("↓0", PAD, y, 70.0, 18.0, 11.0, 0.533, 0.808, 0.98, 1.0);
-        let _: () = msg_send![view, addSubview: dl];
-        let ul = make_label("↑0", PAD + 75.0, y, 70.0, 18.0, 11.0, 0.443, 0.776, 0.443, 1.0);
-        let _: () = msg_send![view, addSubview: ul];
+        let dl = label("↓0", PD, y, 70.0, 18.0, 11.0, 0.533, 0.808, 0.98, 1.0);
+        let _: () = msg_send![v, addSubview:dl];
+        let ul = label("↑0", PD+75.0, y, 70.0, 18.0, 11.0, 0.443, 0.776, 0.443, 1.0);
+        let _: () = msg_send![v, addSubview:ul];
 
-        // Separator
         y -= 14.0;
-        let sp = make_separator(PAD, y, cw);
-        let _: () = msg_send![view, addSubview: sp];
+        let sp = separator(PD, y, cw);
+        let _: () = msg_send![v, addSubview:sp];
 
-        // Action button
         y -= 32.0;
-        let ab = make_button("Connect", PAD, y, cw, 26.0, target, sel!(trayAction:));
-        let _: () = msg_send![view, addSubview: ab];
+        let ab = button("Connect", PD, y, cw, 26.0, target, s("trayAction:"));
+        let _: () = msg_send![v, addSubview:ab];
 
-        // Show + Quit row
         y -= 28.0;
         let (hw, gap) = ((cw - 4.0) / 2.0, 4.0);
-        let sb = make_button("Show Secular", PAD, y, hw, 22.0, target, sel!(trayShow:));
-        let _: () = msg_send![view, addSubview: sb];
-        let qb = make_button("Quit", PAD + hw + gap, y, hw, 22.0, target, sel!(trayQuit:));
-        let _: () = msg_send![view, addSubview: qb];
+        let sb = button("Show Secular", PD, y, hw, 22.0, target, s("trayShow:"));
+        let _: () = msg_send![v, addSubview:sb];
+        let qb = button("Quit", PD+hw+gap, y, hw, 22.0, target, s("trayQuit:"));
+        let _: () = msg_send![v, addSubview:qb];
 
-        (view, st, tl, dl, ul, ab)
+        (v, st, tl, dl, ul, ab)
     }
 
-    // ── Update UI labels (works while popover is open) ────────
+    // ── Live-update labels ────────────────────────────────────
 
     pub fn update_tray_ui(payload: &TrayStatePayload) {
         let time = payload.session_time.as_deref().unwrap_or("00:00:00");
@@ -357,32 +297,29 @@ mod mac {
         } else {
             format!("Connect {}", server)
         };
-        let action_en = !payload.connecting;
 
         unsafe {
-            let guard = TRAY_OBJ.lock().unwrap();
-            if let Some(t) = guard.as_ref() {
-                set_label_str(t.status_label, st);
-                set_label_color(t.status_label, sr, sg, sb, 1.0);
-                set_label_str(t.timer_label, time);
-                set_label_str(t.dl_label, &format!("↓{}", dl));
-                set_label_str(t.ul_label, &format!("↑{}", ul));
-
-                let title = NSString::from_str(&action_txt);
-                let _: () = msg_send![t.action_button, setTitle: &title];
-                let _: () = msg_send![t.action_button, setEnabled: action_en];
+            let g = TRAY.lock().unwrap();
+            if let Some(ref t) = *g {
+                set_str(t.status_label, st);
+                set_color(t.status_label, sr, sg, sb, 1.0);
+                set_str(t.timer_label, time);
+                set_str(t.dl_label, &format!("↓{}", dl));
+                set_str(t.ul_label, &format!("↑{}", ul));
+                set_str(t.action_button, &action_txt); // button uses setTitle:
+                let _: () = msg_send![t.action_button, setEnabled:
+                    if !payload.connecting { YES } else { NO }];
             }
         }
     }
 
-    unsafe fn set_label_str(label: Id, text: &str) {
-        let s = NSString::from_str(text);
-        let _: () = msg_send![label, setStringValue: &s];
+    unsafe fn set_str(obj: id, text: &str) {
+        let _: () = msg_send![obj, setStringValue:
+            NSString::alloc(nil).init_str(text)];
     }
-
-    unsafe fn set_label_color(label: Id, r: f64, g: f64, b: f64, a: f64) {
-        let c: Id = msg_send![class!(NSColor), colorWithRed: r green: g blue: b alpha: a];
-        let _: () = msg_send![label, setTextColor: c];
+    unsafe fn set_color(obj: id, r: f64, g: f64, b: f64, a: f64) {
+        let c: id = msg_send![class!(NSColor), colorWithRed:r green:g blue:b alpha:a];
+        let _: () = msg_send![obj, setTextColor:c];
     }
 }
 
@@ -392,30 +329,23 @@ mod mac {
 
 #[cfg(target_os = "macos")]
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let handle = app.handle().clone();
-    mac::set_action_callback(move |action: &str| {
-        match action {
-            "connect_toggle" => { let _ = handle.emit("tray-connect", ()); }
-            "show" => {
-                if let Some(w) = handle.get_webview_window("main") {
-                    let _ = w.show();
-                    let _ = w.set_focus();
-                }
-            }
-            "quit" => { handle.exit(0); }
-            _ => {}
-        }
+    let h = app.handle().clone();
+    mac::set_action_callback(move |a: &str| match a {
+        "connect_toggle" => { let _ = h.emit("tray-connect", ()); }
+        "show" => { if let Some(w) = h.get_webview_window("main") {
+            let _ = w.show(); let _ = w.set_focus(); } }
+        "quit" => { h.exit(0); }
+        _ => {}
     });
     mac::setup_native_tray()
-        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)) as Box<dyn std::error::Error>)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e).into())
 }
 
 #[cfg(target_os = "macos")]
 pub fn update_tray_state(
-    _app: &tauri::AppHandle,
-    payload: TrayStatePayload,
+    _: &tauri::AppHandle, payload: TrayStatePayload,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("[TRAY] update: c={} s='{}' t='{}' dl={} ul={}",
+    eprintln!("[TRAY] c={} s={} t={} dl={} ul={}",
         payload.connected, payload.server,
         payload.session_time.as_deref().unwrap_or(""),
         payload.download_pkts.unwrap_or(0),
@@ -424,14 +354,9 @@ pub fn update_tray_state(
     Ok(())
 }
 
-// ── Non-macOS stubs ──
+#[cfg(not(target_os = "macos"))]
+pub fn setup_tray(_: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 
 #[cfg(not(target_os = "macos"))]
-pub fn setup_tray(_app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("[TRAY] non-macOS: stub");
-    Ok(())
-}
-
-#[cfg(not(target_os = "macos"))]
-pub fn update_tray_state(_app: &tauri::AppHandle, _payload: TrayStatePayload)
+pub fn update_tray_state(_: &tauri::AppHandle, _: TrayStatePayload)
     -> Result<(), Box<dyn std::error::Error>> { Ok(()) }

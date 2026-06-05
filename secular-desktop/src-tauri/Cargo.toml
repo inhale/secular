@@ -15,10 +15,10 @@ tauri-plugin-shell = "2.3.5"
 secular-core = { path = "../../secular-core" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
-objc2-app-kit = "0.3"
-objc2-foundation = "0.3"
+objc = "0.2"
+cocoa = "0.26"
 core-foundation = "0.10"
+core-graphics = "0.24"
 
 [build-dependencies]
 tauri-build = { version = "=2.6.2", features = [] }
