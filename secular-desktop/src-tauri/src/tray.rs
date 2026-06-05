@@ -199,7 +199,8 @@ mod mac {
         let bg: id = msg_send![class!(NSColor), colorWithRed:0.11 green:0.11 blue:0.12 alpha:1.0];
         let _: () = msg_send![v, setWantsLayer:YES];
         let l: id = msg_send![v, layer];
-        let _: () = msg_send![l, setBackgroundColor:msg_send![bg, CGColor]];
+        let cg: core_graphics::sys::CGColorRef = msg_send![bg, CGColor];
+        let _: () = msg_send![l, setBackgroundColor:cg];
         let _: () = msg_send![v, setFrame:cocoa::foundation::NSRect::new(
             cocoa::foundation::NSPoint::new(0.0,0.0), cocoa::foundation::NSSize::new(PW,PH))];
 
