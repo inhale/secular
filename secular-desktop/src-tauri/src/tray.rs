@@ -48,6 +48,12 @@ mod mac {
         action_button: id,
     }
 
+    // ObjC objects are heap-allocated and reference-counted.
+    // We only access them from the main thread, but the static
+    // requires Sync. This is safe for our use case.
+    unsafe impl Send for TrayObj {}
+    unsafe impl Sync for TrayObj {}
+
     static TRAY_OBJ: Mutex<Option<TrayObj>> = Mutex::new(None);
     static mut POPOVER_PTR: usize = 0;
 
