@@ -1,8 +1,12 @@
 // src-tauri/src/tray.rs
 // macOS NSPopover tray with native NSView controls.
 //
-// Uses objc 0.2.7 + cocoa 0.26 with a custom sel_impl! macro
-// to work around the broken sel! macro on Rust 1.96.
+// Uses objc 0.2.7 + cocoa 0.26.
+// The objc crate's sel! macro needs sel_impl! which is #[doc-hidden].
+// We use #[macro_use] to bring it into scope.
+
+#[macro_use]
+extern crate objc;
 
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
@@ -21,32 +25,6 @@ pub struct TrayStatePayload {
 // sel_impl! macro fix for objc 0.2.7 on Rust 1.96
 // ═══════════════════════════════════════════════════════════════
 //
-// The objc crate's sel! macro internally calls sel_impl! which was
-// removed/moved in newer Rust editions. We define it here.
-
-#[cfg(target_os = "macos")]
-#[macro_export]
-macro_rules! sel_impl {
-    ($name:ident) => {{
-        #[allow(non_upper_case_globals)]
-        static CACHED_SEL: std::sync::OnceLock<objc::runtime::Sel> = std::sync::OnceLock::new();
-        *CACHED_SEL.get_or_init(|| {
-            let name = concat!(stringify!($name), "\0");
-            unsafe { objc::runtime::sel_registerName(name.as_ptr() as *const i8) }
-        })
-    }};
-    ($($name:ident :)+) => {{
-        #[allow(non_upper_case_globals)]
-        static CACHED_SEL: std::sync::OnceLock<objc::runtime::Sel> = std::sync::OnceLock::new();
-        *CACHED_SEL.get_or_init(|| {
-            let name = concat!($(stringify!($name), ":"),+, "\0");
-            unsafe { objc::runtime::sel_registerName(name.as_ptr() as *const i8) }
-        })
-    }};
-}
-
-// No need to import — #[macro_export] makes it crate-wide
-
 // ═══════════════════════════════════════════════════════════════
 // macOS native implementation
 // ═══════════════════════════════════════════════════════════════
