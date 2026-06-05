@@ -2,11 +2,8 @@
 // macOS NSPopover tray with native NSView controls.
 //
 // Uses objc 0.2.7 + cocoa 0.26.
-// The objc crate's sel! macro needs sel_impl! which is #[doc-hidden].
-// We use #[macro_use] to bring it into scope.
-
-#[macro_use]
-extern crate objc;
+// The objc crate's sel! macro needs sel_impl! which is brought into scope
+// via #[macro_use] extern crate objc in main.rs.
 
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};

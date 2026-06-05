@@ -4,6 +4,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![recursion_limit = "256"]
 
+// objc must be at crate root for #[macro_use] to work
+#[macro_use]
+extern crate objc;
+
 mod commands;
 mod tray;
 
