@@ -14,6 +14,11 @@ tracing-subscriber = "0.3"
 tauri-plugin-shell = "2.3.5"
 secular-core = { path = "../../secular-core" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+cocoa = "0.26"
+core-foundation = "0.10"
+
 [build-dependencies]
 tauri-build = { version = "=2.6.2", features = [] }
 
