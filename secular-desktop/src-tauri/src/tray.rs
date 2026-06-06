@@ -1,8 +1,8 @@
 // src-tauri/src/tray.rs
-// macOS Menu Bar tray - dynamic stats in menu items
+// System tray / Menu Bar implementation for Tauri v2
 
 use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, MenuEvent, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
@@ -21,14 +21,17 @@ fn resolve_tray_icon<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     name: &str,
 ) -> Option<tauri::image::Image<'static>> {
-    let names: Vec<String> = vec![
+    // Use the new Tauri path resolver API to locate resources relative to the bundle.
+    let names = [
         format!("icons/{}.png", name),
         format!("icons/{}@2x.png", name),
     ];
-    for filename in &names {
-        if let Ok(path) = app.path().resolve(filename, tauri::path::BaseDirectory::Resource) {
-            if path.exists() {
-                if let Ok(img) = tauri::image::Image::from_path(&path) {
+    let resolver = app.path_resolver();
+    if let Some(resource_dir) = resolver.resource_dir() {
+        for filename in &names {
+            let candidate = resource_dir.join(filename);
+            if candidate.exists() {
+                if let Ok(img) = tauri::image::Image::from_path(&candidate) {
                     return Some(img);
                 }
             }
@@ -37,7 +40,31 @@ fn resolve_tray_icon<R: tauri::Runtime>(
     None
 }
 
-/// Handle tray menu events
+/// Build the tray menu — static items only.
+/// macOS caches tray menus at system level, so dynamic stats go in set_title()/set_tooltip().
+fn build_tray_menu<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    payload: &TrayStatePayload,
+) -> Result<Menu<R>, Box<dyn std::error::Error>> {
+    // Connect / Disconnect toggle
+    let connect_label = if payload.connected {
+        "Disconnect"
+    } else if payload.connecting {
+        "Cancel"
+    } else {
+        "Connect"
+    };
+    let connect_item = MenuItem::with_id(app, "tray-connect", connect_label, true, None::<&str>)?;
+
+    let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
+    let sep = PredefinedMenuItem::separator(app)?;
+    let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
+
+    Menu::with_items(app, &[&connect_item, &show_item, &sep, &quit_item])
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+}
+
+/// Handle tray menu events — used both as builder callback and global handler
 fn handle_tray_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {
     match event.id().as_ref() {
         "tray-connect" => {
@@ -56,24 +83,19 @@ fn handle_tray_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: t
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[TRAY] Starting tray setup");
 
-    // Try to load icon, but don't fail if not found
     let icon = resolve_tray_icon(app.handle(), "tray-inactive")
-        .or_else(|| app.default_window_icon().cloned());
-    let _ = icon.as_ref();
+        .or_else(|| app.default_window_icon().cloned())
+        .ok_or("Tray icon load failed")?;
 
-    // Initial menu - minimal, will be updated on first connect
-    let connect_item = MenuItem::with_id(app, "tray-connect", "Connect", true, None::<&str>)?;
-    let stats_time = MenuItem::with_id(app, "tray-stats-time", " Session: 00:00:00", false, None::<&str>)?;
-    let stats_pkts = MenuItem::with_id(app, "tray-stats-pkts", " ↓ 0 pkts  ↑ 0 pkts", false, None::<&str>)?;
-    let sep1 = PredefinedMenuItem::separator(app)?;
-    let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
-    let sep2 = PredefinedMenuItem::separator(app)?;
-    let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
-
-    let menu = Menu::with_items(app, &[
-        &connect_item, &stats_time, &stats_pkts, &sep1,
-        &show_item, &sep2, &quit_item,
-    ])?;
+    let empty_payload = TrayStatePayload {
+        connected: false,
+        connecting: false,
+        server: String::new(),
+        session_time: None,
+        download_pkts: None,
+        upload_pkts: None,
+    };
+    let menu = build_tray_menu(app.handle(), &empty_payload)?;
 
     let _tray = TrayIconBuilder::with_id("main-tray")
         .tooltip("Secular - Disconnected")
@@ -83,14 +105,13 @@ pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         .on_menu_event(handle_tray_menu_event)
         .build(app)?;
 
+    // Also register a global menu event handler so that when set_menu()
+    // replaces the menu, clicks on the new menu items are still handled.
     app.on_menu_event(handle_tray_menu_event);
 
     eprintln!("[TRAY] Tray built OK");
     Ok(())
 }
-
-/// Track previous state to only rebuild menu on transitions
-static PREV_STATE: std::sync::Mutex<Option<(bool, bool)>> = std::sync::Mutex::new(None);
 
 pub fn update_tray_state<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -102,11 +123,33 @@ pub fn update_tray_state<R: tauri::Runtime>(
     let dl = payload.download_pkts.unwrap_or(0);
     let ul = payload.upload_pkts.unwrap_or(0);
 
+    // File logging for debugging
+    {
+        use std::io::Write;
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let line = format!("[{}] update_tray_state: connected={}, server='{}', time='{}', dl={}, ul={}\n",
+            ts, connected, payload.server, time_str, dl, ul);
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/secular-tray.log") {
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
+
     eprintln!("[TRAY] update: connected={}, server='{}', time='{}', dl={}, ul={}",
         connected, payload.server, time_str, dl, ul);
 
     if let Some(tray) = app.tray_by_id("main-tray") {
-        // Tooltip only (no title change - user wants stats in menu, not next to icon)
+        // Show live stats as title text next to icon in menu bar
+        let title = if connected {
+            format!(" {} | {} | ↓{} ↑{}", time_str, payload.server, dl, ul)
+        } else if connecting {
+            format!(" {} — connecting...", payload.server)
+        } else {
+            String::new()
+        };
+
         let tooltip = if connected {
             format!("Secular - Connected to {} | {} | ↓{} ↑{}", payload.server, time_str, dl, ul)
         } else if connecting {
@@ -115,36 +158,16 @@ pub fn update_tray_state<R: tauri::Runtime>(
             String::from("Secular - Disconnected")
         };
 
-        // No icon change - always use same icon per user requirement
+        // Update icon (active/inactive)
+        let icon_name = if connected { "tray-active" } else { "tray-inactive" };
+        if let Some(icon) = resolve_tray_icon(app, icon_name).or_else(|| app.default_window_icon().cloned()) {
+            let _ = tray.set_icon(Some(icon));
+        }
+
+        let _ = tray.set_title(Some(&title));
         let _ = tray.set_tooltip(Some(&tooltip));
 
-        // Only rebuild menu on state transitions (not every timer tick)
-        // to avoid closing the menu while user is looking at it
-        let mut prev = PREV_STATE.lock().unwrap();
-        let current = (connected, connecting);
-        if prev.as_ref() != Some(&current) {
-            *prev = Some(current);
-            // Rebuild menu with current stats
-            let connect_label = if connected {
-                format!("Disconnect from {}", payload.server)
-            } else if connecting {
-                String::from("Connecting...")
-            } else {
-                format!("Connect {}", payload.server)
-            };
-            let connect_item = MenuItem::with_id(app, "tray-connect", &connect_label, connected || !connecting, None::<&str>)?;
-            let stats_time = MenuItem::with_id(app, "tray-stats-time", &format!(" Session: {}", time_str), false, None::<&str>)?;
-            let stats_pkts = MenuItem::with_id(app, "tray-stats-pkts", &format!(" ↓ {} pkts  ↑ {} pkts", dl, ul), false, None::<&str>)?;
-            let sep1 = PredefinedMenuItem::separator(app)?;
-            let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
-            let sep2 = PredefinedMenuItem::separator(app)?;
-            let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
-
-            let menu = Menu::with_items(app, &[
-                &connect_item, &stats_time, &stats_pkts, &sep1, &show_item, &sep2, &quit_item,
-            ])?;
-            let _ = tray.set_menu(Some(menu));
-        }
+        eprintln!("[TRAY] updated title='{}'", title);
     }
 
     Ok(())
@@ -158,3 +181,4 @@ pub fn update_tray_state<R: tauri::Runtime>(
     _: &tauri::AppHandle<R>,
     _: TrayStatePayload,
 ) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+
