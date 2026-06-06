@@ -21,17 +21,14 @@ fn resolve_tray_icon<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     name: &str,
 ) -> Option<tauri::image::Image<'static>> {
-    // Use the new Tauri path resolver API to locate resources relative to the bundle.
     let names = [
         format!("icons/{}.png", name),
         format!("icons/{}@2x.png", name),
     ];
-    let resolver = app.path_resolver();
-    if let Some(resource_dir) = resolver.resource_dir() {
-        for filename in &names {
-            let candidate = resource_dir.join(filename);
-            if candidate.exists() {
-                if let Ok(img) = tauri::image::Image::from_path(&candidate) {
+    for filename in &names {
+        if let Ok(path) = app.path().resolve(filename, tauri::path::BaseDirectory::Resource) {
+            if path.exists() {
+                if let Ok(img) = tauri::image::Image::from_path(&path) {
                     return Some(img);
                 }
             }
