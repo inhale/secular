@@ -959,13 +959,7 @@ const App: React.FC = () => {
     }, 200);
   }, [connState, activeServer?.name, sessionTime, downloadPkts, uploadPkts]);
 
-  // Listen for tray-connect event (user clicked Connect/Disconnect in tray menu)
-  useEffect(() => {
-    const unlisten = listen('tray-connect', () => {
-      handleToggleConnect();
-    });
-    return () => { unlisten.then(fn => fn()); };
-  }, []);
+  // (tray-connect listener moved after handleToggleConnect definition)
 
   // Listen for tray-nav event (user clicked a navigation item in tray menu)
   useEffect(() => {
@@ -1092,6 +1086,18 @@ const App: React.FC = () => {
       addLog('error', `Error: ${err}`);
     }
   };
+
+  // Keep ref to latest handleToggleConnect so the tray-connect listener
+  // always sees current closure (activeServer, connState, etc.)
+  const handleToggleConnectRef = useRef(handleToggleConnect);
+  handleToggleConnectRef.current = handleToggleConnect;
+
+  useEffect(() => {
+    const unlisten = listen('tray-connect', () => {
+      handleToggleConnectRef.current();
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
 
   const handleAddServer = (config: ServerConfig) => {
     const newServer: ServerInfo = {
