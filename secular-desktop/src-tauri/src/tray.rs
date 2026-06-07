@@ -1,14 +1,13 @@
 // src-tauri/src/tray.rs
-// System tray / Menu Bar — popup via WebviewWindowBuilder.
-// Uses set_ignore_cursor_events + set_focusable to prevent focus steal.
+// macOS Menu Bar tray - dynamic stats in menu items
 
 use tauri::{
-    tray::{TrayIconBuilder, TrayIconEvent},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::TrayIconBuilder,
     Emitter, Manager,
-    webview::WebviewWindowBuilder,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct TrayStatePayload {
     pub connected: bool,
     pub connecting: bool,
@@ -18,97 +17,144 @@ pub struct TrayStatePayload {
     pub upload_pkts: Option<u64>,
 }
 
-const POPUP_LABEL: &str = "tray-menu";
-
-fn configure_popup<R: tauri::Runtime>(window: &tauri::webview::WebviewWindow<R>) {
-    let _ = window.set_ignore_cursor_events(true);
-    // NOTE: do NOT call set_focusable(false) — on macOS a non-focusable
-    // window with decorations(false) fails canBecomeKeyWindow and will
-    // immediately hide/flash. The window must be focusable to stay visible.
-    eprintln!("[TRAY] Popup configured");
-}
-
-#[cfg(target_os = "macos")]
-fn position_popup<R: tauri::Runtime>(window: &tauri::webview::WebviewWindow<R>) {
-    // Try current_monitor first, fall back to primary_monitor.
-    // For an invisible window current_monitor() often returns None.
-    let monitor = window.current_monitor().ok().flatten()
-        .or_else(|| window.primary_monitor().ok().flatten());
-    if let Some(monitor) = monitor {
-        let size = monitor.size();
-        let scale = monitor.scale_factor();
-        let x = (size.width as f64 / scale) - 240.0 - 8.0;
-        let y = 28.0;
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
-    }
-}
-
-fn create_popup<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    if app.get_webview_window(POPUP_LABEL).is_some() {
-        return;
-    }
-    match WebviewWindowBuilder::new(
-        app, POPUP_LABEL,
-        tauri::WebviewUrl::App("index.html?tray-menu".into()),
-    )
-    .title("Secular").inner_size(240.0, 380.0).resizable(false)
-    .decorations(false).always_on_top(true).skip_taskbar(true)
-    .visible(false).build()
-    {
-        Ok(window) => {
-            // Position immediately while window is still hidden
-            #[cfg(target_os = "macos")]
-            position_popup(&window);
-            configure_popup(&window);
-            eprintln!("[TRAY] Popup created & positioned");
-        }
-        Err(e) => eprintln!("[TRAY] Popup create failed: {e}"),
-    }
-}
-
-fn toggle_popup<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    if let Some(window) = app.get_webview_window(POPUP_LABEL) {
-        match window.is_visible() {
-            Ok(true) => { let _ = window.hide(); eprintln!("[TRAY] hidden"); }
-            _ => {
-                #[cfg(target_os = "macos")] position_popup(&window);
-                let _ = window.show();
-                eprintln!("[TRAY] shown");
+fn resolve_tray_icon<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    name: &str,
+) -> Option<tauri::image::Image<'static>> {
+    let names: Vec<String> = vec![
+        format!("icons/{}.png", name),
+        format!("icons/{}@2x.png", name),
+    ];
+    for filename in &names {
+        if let Ok(path) = app.path().resolve(filename, tauri::path::BaseDirectory::Resource) {
+            if path.exists() {
+                if let Ok(img) = tauri::image::Image::from_path(&path) {
+                    return Some(img);
+                }
             }
-        }
-    }
-}
-
-fn resolve_tray_icon<R: tauri::Runtime>(app: &tauri::AppHandle<R>, name: &str) -> Option<tauri::image::Image<'static>> {
-    for f in &[format!("icons/{}.png", name), format!("icons/{}@2x.png", name)] {
-        if let Ok(p) = app.path().resolve(f, tauri::path::BaseDirectory::Resource) {
-            if p.exists() { return tauri::image::Image::from_path(&p).ok(); }
         }
     }
     None
 }
 
+/// Handle tray menu events
+fn handle_tray_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {
+    match event.id().as_ref() {
+        "tray-connect" => {
+            let _ = app.emit("tray-connect", ());
+        }
+        "tray-show" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+        _ => {}
+    }
+}
+
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let icon = resolve_tray_icon(app.handle(), "tray-template")
+    eprintln!("[TRAY] Starting tray setup");
+
+    // Try to load icon, but don't fail if not found
+    let icon = resolve_tray_icon(app.handle(), "tray-inactive")
         .or_else(|| app.default_window_icon().cloned())
         .ok_or("Tray icon load failed")?;
-    let ah = app.handle().clone();
-    create_popup(&ah);
+
+    // Initial menu - minimal, will be updated on first connect
+    let connect_item = MenuItem::with_id(app, "tray-connect", "Connect", true, None::<&str>)?;
+    let stats_time = MenuItem::with_id(app, "tray-stats-time", " Session: 00:00:00", false, None::<&str>)?;
+    let stats_pkts = MenuItem::with_id(app, "tray-stats-pkts", " ↓ 0 pkts  ↑ 0 pkts", false, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
+
+    let menu = Menu::with_items(app, &[
+        &connect_item, &stats_time, &stats_pkts, &sep1,
+        &show_item, &sep2, &quit_item,
+    ])?;
+
     let _tray = TrayIconBuilder::with_id("main-tray")
-        .tooltip("Secular").icon(icon).icon_as_template(true)
-        .on_tray_icon_event(move |_t, e| {
-            if let TrayIconEvent::Click { .. } = e { toggle_popup(&ah); }
-        })
+        .tooltip("Secular - Disconnected")
+        .icon(icon)
+        .icon_as_template(true)
+        .menu(&menu)
+        .on_menu_event(handle_tray_menu_event)
         .build(app)?;
+
+    app.on_menu_event(handle_tray_menu_event);
+
+    eprintln!("[TRAY] Tray built OK");
     Ok(())
 }
 
-pub fn update_tray_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>, p: TrayStatePayload) -> Result<(), Box<dyn std::error::Error>> {
-    let _ = app.emit("tray-state-update", &p);
+/// Track previous state to only rebuild menu on transitions
+static PREV_STATE: std::sync::Mutex<Option<(bool, bool)>> = std::sync::Mutex::new(None);
+
+pub fn update_tray_state<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    payload: TrayStatePayload,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let connected = payload.connected;
+    let connecting = payload.connecting;
+    let time_str = payload.session_time.as_deref().unwrap_or("00:00:00");
+    let dl = payload.download_pkts.unwrap_or(0);
+    let ul = payload.upload_pkts.unwrap_or(0);
+
+    eprintln!("[TRAY] update: connected={}, server='{}', time='{}', dl={}, ul={}",
+        connected, payload.server, time_str, dl, ul);
+
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        // Tooltip only (no title change - user wants stats in menu, not next to icon)
+        let tooltip = if connected {
+            format!("Secular - Connected to {} | {} | ↓{} ↑{}", payload.server, time_str, dl, ul)
+        } else if connecting {
+            format!("Secular - Connecting to {}...", payload.server)
+        } else {
+            String::from("Secular - Disconnected")
+        };
+
+        // No icon change - always use same icon per user requirement
+        let _ = tray.set_tooltip(Some(&tooltip));
+
+        // Only rebuild menu on state transitions (not every timer tick)
+        // to avoid closing the menu while user is looking at it
+        let mut prev = PREV_STATE.lock().unwrap();
+        let current = (connected, connecting);
+        if prev.as_ref() != Some(&current) {
+            *prev = Some(current);
+            // Rebuild menu with current stats
+            let connect_label = if connected {
+                format!("Disconnect from {}", payload.server)
+            } else if connecting {
+                String::from("Connecting...")
+            } else {
+                format!("Connect {}", payload.server)
+            };
+            let connect_item = MenuItem::with_id(app, "tray-connect", &connect_label, connected || !connecting, None::<&str>)?;
+            let stats_time = MenuItem::with_id(app, "tray-stats-time", &format!(" Session: {}", time_str), false, None::<&str>)?;
+            let stats_pkts = MenuItem::with_id(app, "tray-stats-pkts", &format!(" ↓ {} pkts  ↑ {} pkts", dl, ul), false, None::<&str>)?;
+            let sep1 = PredefinedMenuItem::separator(app)?;
+            let show_item = MenuItem::with_id(app, "tray-show", "Show Secular", true, None::<&str>)?;
+            let sep2 = PredefinedMenuItem::separator(app)?;
+            let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
+
+            let menu = Menu::with_items(app, &[
+                &connect_item, &stats_time, &stats_pkts, &sep1, &show_item, &sep2, &quit_item,
+            ])?;
+            let _ = tray.set_menu(Some(menu));
+        }
+    }
+
     Ok(())
 }
 
 #[cfg(not(target_os = "macos"))]
 pub fn setup_tray(_: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+
 #[cfg(not(target_os = "macos"))]
-pub fn update_tray_state<R: tauri::Runtime>(_: &tauri::AppHandle<R>, _: TrayStatePayload) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+pub fn update_tray_state<R: tauri::Runtime>(
+    _: &tauri::AppHandle<R>,
+    _: TrayStatePayload,
+) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
