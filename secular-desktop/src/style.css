@@ -1168,3 +1168,126 @@ body {
 .filter-buttons-row .filter-apply-row:hover {
   background: #00e05a;
 }
+
+/* ─── Webgui Tray Menu (popup window) ─── */
+.tray-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+.tray-menu-popup {
+  position: fixed;
+  top: 28px;
+  right: 8px;
+  width: 220px;
+  background: #1E1E1E;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.tray-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.tray-menu-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tray-menu-status.connected .tray-menu-status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.tray-menu-status.connecting .tray-menu-status-dot {
+  background: #FFA500;
+  animation: pulse 1s infinite;
+}
+
+.tray-menu-status.disconnected .tray-menu-status-dot {
+  background: var(--text-dim);
+}
+
+.tray-menu-status-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tray-menu-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.tray-menu-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tray-menu-stat-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tray-menu-stat-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.tray-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.tray-menu-item {
+  padding: 7px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.tray-menu-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.tray-menu-item:active {
+  background: rgba(255,255,255,0.12);
+}
+
+.tray-menu-quit {
+  color: var(--red);
+}
+
+.tray-menu-quit:hover {
+  background: rgba(255,77,77,0.15);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

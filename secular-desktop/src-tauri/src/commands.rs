@@ -2,7 +2,7 @@
 // Tauri command handlers — bridge frontend UI to TrustTunnel VPN client
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Emitter, Manager, State};
 use std::sync::Mutex;
 
 /// Check if a process is still running
@@ -439,6 +439,26 @@ pub async fn read_tunnel_log() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn show_window(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[tauri::command]
+pub fn hide_window(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+}
+
+#[tauri::command]
+pub fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 pub fn debug_log(msg: String) {
     use std::io::Write;
     let ts = std::time::SystemTime::now()
@@ -475,4 +495,45 @@ pub fn update_tray(
         upload_pkts: Some(uploadPkts),
     };
     crate::tray::update_tray_state(&app, payload).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Deserialize)]
+pub struct TrayAction {
+    pub action: String,
+    pub screen: Option<String>,
+}
+
+#[tauri::command]
+pub fn tray_action(app: tauri::AppHandle, payload: TrayAction) -> Result<(), String> {
+    eprintln!("[TRAY] action: {}", payload.action);
+    match payload.action.as_str() {
+        "connect" => {
+            let _ = app.emit("tray-connect", ());
+        }
+        "show" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+        "hide" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.hide();
+            }
+        }
+        "quit" => {
+            app.exit(0);
+        }
+        "nav" => {
+            if let Some(screen) = payload.screen {
+                let _ = app.emit("tray-nav", screen);
+            }
+        }
+        _ => {}
+    }
+    // Close the popup window after action
+    if let Some(popup) = app.get_webview_window("tray-menu") {
+        let _ = popup.hide();
+    }
+    Ok(())
 }

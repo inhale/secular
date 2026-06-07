@@ -7,6 +7,16 @@ import { listen } from '@tauri-apps/api/event';
 type ConnState = 'disconnected' | 'connecting' | 'connected';
 type Screen = 'dashboard' | 'server-list' | 'add-server' | 'server-config' | 'query-log';
 
+/** Tray state payload from Rust backend */
+interface TrayStatePayload {
+  connected: boolean;
+  connecting: boolean;
+  server: string;
+  session_time?: string;
+  download_pkts?: number;
+  upload_pkts?: number;
+}
+
 /** Server config matching Android ServerProfile / TrustTunnel TOML */
 interface ServerConfig {
   /** IP:port address (e.g. "185.103.24.4:443") */
@@ -957,6 +967,19 @@ const App: React.FC = () => {
     return () => { unlisten.then(fn => fn()); };
   }, []);
 
+  // Listen for tray-nav event (user clicked a navigation item in tray menu)
+  useEffect(() => {
+    const unlisten = listen<{ screen: string }>('tray-nav', (event) => {
+      const screen = event.payload?.screen as Screen | undefined;
+      if (screen) {
+        setScreen(screen);
+        // Also show the window when navigating from tray
+        invoke('show_window').catch(() => {});
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
+
   const addLog = (level: LogLine['level'], message: string) => {
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -1164,9 +1187,122 @@ const App: React.FC = () => {
     setScreen(s);
   };
 
+  // ─── Tray menu popup window ───
+  // The popup is a separate webview window loading index.html?tray-menu.
+  // We detect this via the URL query param and render only the tray menu.
+  const isTrayMenu =
+    typeof window !== "undefined" && window.location.search.includes("tray-menu");
+
+  const [trayStats, setTrayStats] = useState({
+    connected: false,
+    connecting: false,
+    server: "",
+    sessionTime: "00:00:00",
+    downloadPkts: 0,
+    uploadPkts: 0,
+  });
+
+  // Listen for live stats from Rust (works in both main and popup windows)
+  useEffect(() => {
+    const unlisten = listen<TrayStatePayload>("tray-state-update", (event) => {
+      const p = event.payload;
+      setTrayStats({
+        connected: p.connected,
+        connecting: p.connecting,
+        server: p.server,
+        sessionTime: p.session_time || "00:00:00",
+        downloadPkts: p.download_pkts || 0,
+        uploadPkts: p.upload_pkts || 0,
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Tray menu actions — sent to Rust backend
+  const trayInvoke = (action: string, screen?: string) => {
+    invoke("tray-action", { action, screen }).catch(() => {});
+  };
+
+  // ─── Tray Menu Render (popup window) ───
+  if (isTrayMenu) {
+    return (
+      <div
+        className="tray-menu-overlay"
+        onClick={() => trayInvoke("close")}
+      >
+        <div
+          className="tray-menu-popup"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className={`tray-menu-status ${trayStats.connected ? "connected" : trayStats.connecting ? "connecting" : "disconnected"}`}
+          >
+            <div className="tray-menu-status-dot" />
+            <div className="tray-menu-status-text">
+              {trayStats.connected
+                ? `Connected to ${trayStats.server}`
+                : trayStats.connecting
+                  ? `Connecting to ${trayStats.server}...`
+                  : "Disconnected"}
+            </div>
+          </div>
+
+          {trayStats.connected && (
+            <div className="tray-menu-stats">
+              <div className="tray-menu-stat">
+                <span className="tray-menu-stat-value">{trayStats.sessionTime}</span>
+                <span className="tray-menu-stat-label">SESSION</span>
+              </div>
+              <div className="tray-menu-stat">
+                <span className="tray-menu-stat-value">{trayStats.downloadPkts}</span>
+                <span className="tray-menu-stat-label">↓ PKTS</span>
+              </div>
+              <div className="tray-menu-stat">
+                <span className="tray-menu-stat-value">{trayStats.uploadPkts}</span>
+                <span className="tray-menu-stat-label">↑ PKTS</span>
+              </div>
+            </div>
+          )}
+
+          <div className="tray-menu-sep" />
+          <div className="tray-menu-item" onClick={() => trayInvoke("connect")}>
+            {trayStats.connected ? "Disconnect" : trayStats.connecting ? "Cancel" : "Connect"}
+          </div>
+          <div className="tray-menu-sep" />
+          <div className="tray-menu-item" onClick={() => trayInvoke("nav", "dashboard")}>
+            Dashboard
+          </div>
+          <div className="tray-menu-item" onClick={() => trayInvoke("nav", "server-list")}>
+            My Servers
+          </div>
+          <div className="tray-menu-item" onClick={() => trayInvoke("nav", "add-server")}>
+            Add Server
+          </div>
+          <div className="tray-menu-item" onClick={() => trayInvoke("nav", "query-log")}>
+            Query Log
+          </div>
+          <div className="tray-menu-sep" />
+          <div className="tray-menu-item" onClick={() => trayInvoke("show")}>
+            Show Secular
+          </div>
+          <div className="tray-menu-item" onClick={() => trayInvoke("hide")}>
+            Hide Secular
+          </div>
+          <div className="tray-menu-sep" />
+          <div className="tray-menu-item tray-menu-quit" onClick={() => trayInvoke("quit")}>
+            Quit Secular
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main App Render ───
   return (
     <>
-      {screen === 'dashboard' && (
+      {screen === "dashboard" && (
         <Dashboard
           connState={connState}
           onToggleConnect={handleToggleConnect}

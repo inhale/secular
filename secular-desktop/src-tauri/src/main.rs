@@ -91,6 +91,10 @@ fn main() {
             commands::read_file,
             commands::read_tunnel_log,
             commands::update_tray,
+            commands::tray_action,
+            commands::show_window,
+            commands::hide_window,
+            commands::quit_app,
             commands::debug_log,
         ])
         .build(tauri::generate_context!())
