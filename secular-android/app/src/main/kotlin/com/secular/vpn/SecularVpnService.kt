@@ -21,6 +21,7 @@ import com.adguard.trusttunnel.VpnClient
 import com.adguard.trusttunnel.VpnClientListener
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.secular.vpn.data.splittunnel.*
 import kotlinx.coroutines.*
 import java.io.File
 
@@ -286,9 +287,46 @@ class SecularVpnService : VpnService() {
             return
         }
 
+        // Always exclude self from VPN
         try {
             builder.addDisallowedApplication(packageName)
         } catch (_: Exception) {}
+        
+        // Apply split tunneling settings
+        try {
+            val repository = SplitTunnelRepository(applicationContext)
+            val settings = repository.getSettings()
+            
+            when (settings.mode) {
+                SplitTunnelMode.EXCLUDE_SELECTED -> {
+                    addLog("Split tunnel: EXCLUDE mode (${settings.excludedApps.size} apps)")
+                    settings.excludedApps.forEach { packageName ->
+                        try {
+                            builder.addDisallowedApplication(packageName)
+                            addLog("  Excluded: $packageName")
+                        } catch (e: Exception) {
+                            addLog("  Failed to exclude $packageName: ${e.message}")
+                        }
+                    }
+                }
+                SplitTunnelMode.ONLY_SELECTED -> {
+                    addLog("Split tunnel: ONLY mode (${settings.allowedApps.size} apps)")
+                    settings.allowedApps.forEach { packageName ->
+                        try {
+                            builder.addAllowedApplication(packageName)
+                            addLog("  Allowed: $packageName")
+                        } catch (e: Exception) {
+                            addLog("  Failed to allow $packageName: ${e.message}")
+                        }
+                    }
+                }
+                SplitTunnelMode.ALL_THROUGH_VPN -> {
+                    addLog("Split tunnel: ALL mode (no exclusions)")
+                }
+            }
+        } catch (e: Exception) {
+            addLog("Split tunnel failed: ${e.message}")
+        }
 
         vpnInterface = try { builder.establish() } catch (e: Throwable) {
             addLog("establish() failed: ${e.javaClass.simpleName}: ${e.message}")
