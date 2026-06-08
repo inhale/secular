@@ -1116,6 +1116,28 @@ const App: React.FC = () => {
     return () => { unlisten.then(fn => fn()); };
   }, []);
 
+  // Handle tt:// deep link URLs from macOS
+  useEffect(() => {
+    const unlisten = listen<string>('deeplink', (event) => {
+      const url = event.payload;
+      console.log('[DEEPLINK] received:', url);
+      if (url && (url.startsWith('tt://') || url.startsWith('secular://'))) {
+        const b64 = url.replace(/^(tt|secular):\/\//, '');
+        try {
+          const toml = atob(b64);
+          const config = parseTomlConfig(toml);
+          console.log('[DEEPLINK] decoded config:', config);
+          handleImportConfig(config);
+          // Show the window if it was hidden
+          invoke('show_window').catch(() => {});
+        } catch (e) {
+          console.error('[DEEPLINK] failed to decode:', e);
+        }
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
+
   const handleAddServer = (config: ServerConfig) => {
     const newServer: ServerInfo = {
       id: Date.now().toString(),

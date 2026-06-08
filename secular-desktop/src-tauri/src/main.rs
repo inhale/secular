@@ -141,5 +141,21 @@ fn main() {
                 let _ = window.set_focus();
             }
         }
+
+        // Handle tt:// URL scheme opens (macOS)
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = &event {
+            for url in urls {
+                let url_str = url.to_string();
+                eprintln!("[MAIN] Received URL: {}", url_str);
+                // Show the window so the user sees the import
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+                // Emit to frontend for decoding
+                let _ = app_handle.emit("deeplink", url_str);
+            }
+        }
     });
 }
