@@ -4,7 +4,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![recursion_limit = "256"]
 
-// objc must be at crate root for #[macro_use] to work
 #[macro_use]
 extern crate objc;
 
@@ -20,28 +19,23 @@ fn main() {
             {
                 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
-                // App menu (shows as "Secular" in menu bar)
                 let hide_item = MenuItem::with_id(app, "hide", "Hide Secular", true, Some("Cmd+H"))?;
                 let sep = PredefinedMenuItem::separator(app)?;
                 let quit_item = PredefinedMenuItem::quit(app, Some("Quit Secular"))?;
                 let app_submenu = Submenu::with_items(app, "Secular", true, &[&hide_item, &sep, &quit_item])?;
 
-                // File menu
                 let close_item = MenuItem::with_id(app, "close", "Close", true, Some("Cmd+W"))?;
                 let file_submenu = Submenu::with_items(app, "File", true, &[&close_item])?;
 
-                // Edit menu
                 let copy_item = MenuItem::with_id(app, "copy", "Copy", true, Some("Cmd+C"))?;
                 let paste_item = MenuItem::with_id(app, "paste", "Paste", true, Some("Cmd+V"))?;
                 let select_all_item = MenuItem::with_id(app, "select_all", "Select All", true, Some("Cmd+A"))?;
                 let edit_submenu = Submenu::with_items(app, "Edit", true, &[&copy_item, &paste_item, &select_all_item])?;
 
-                // Window menu
                 let minimize_item = MenuItem::with_id(app, "minimize", "Minimize", true, Some("Cmd+M"))?;
                 let zoom_item = MenuItem::with_id(app, "zoom", "Zoom", true, None::<&str>)?;
                 let window_submenu = Submenu::with_items(app, "Window", true, &[&minimize_item, &zoom_item])?;
 
-                // Help menu
                 let about_item = MenuItem::with_id(app, "about", "About Secular", true, None::<&str>)?;
                 let help_submenu = Submenu::with_items(app, "Help", true, &[&about_item])?;
 
@@ -64,13 +58,11 @@ fn main() {
                         }
                         "tray-connect" => {
                             eprintln!("[MAIN] tray-connect menu event");
-                            // Directly evaluate JS in the main window to trigger connect
                             if let Some(window) = app.get_webview_window("main") {
                                 eprintln!("[MAIN] found main window, evaluating JS");
                                 let _ = window.eval("window.__secular_tray_connect && window.__secular_tray_connect()").map_err(|e| eprintln!("[MAIN] JS eval error: {}", e));
                             } else {
                                 eprintln!("[MAIN] no main window found!");
-                                // Fallback: emit event
                                 let _ = app.emit("tray-connect", ());
                             }
                         }
@@ -80,20 +72,15 @@ fn main() {
                                 let _ = window.set_focus();
                             }
                         }
-                        "tray-nav" => {
-                            // handled by global tray.rs handler
-                        }
+                        "tray-nav" => {}
                         _ => {}
                     }
                 });
             }
 
-            // Tray setup
             if let Err(e) = tray::setup_tray(app) {
                 eprintln!("Warning: tray setup failed: {e}");
             }
-
-            // Tray state updates now handled via update_tray command
 
             Ok(())
         })
@@ -133,7 +120,6 @@ fn main() {
             }
         }
 
-        // Handle dock icon click (macOS) — reopen the window
         #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Reopen { .. } = &event {
             if let Some(window) = app_handle.get_webview_window("main") {
@@ -142,18 +128,16 @@ fn main() {
             }
         }
 
-        // Handle tt:// URL scheme opens (macOS)
         #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Opened { urls } = &event {
+            eprintln!("[MAIN] Opened event with {} URL(s)", urls.len());
             for url in urls {
                 let url_str = url.to_string();
                 eprintln!("[MAIN] Received URL: {}", url_str);
-                // Show the window so the user sees the import
                 if let Some(window) = app_handle.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
-                // Emit to frontend for decoding
                 let _ = app_handle.emit("deeplink", url_str);
             }
         }

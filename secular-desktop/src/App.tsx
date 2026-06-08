@@ -1,5 +1,5 @@
 // Secular Desktop — Dark Theme v3 (matches Android)
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -19,6 +19,8 @@ interface TrayStatePayload {
 
 /** Server config matching Android ServerProfile / TrustTunnel TOML */
 interface ServerConfig {
+  /** Display name from tt:// link (may be empty) */
+  name: string;
   /** IP:port address (e.g. "185.103.24.4:443") */
   address: string;
   /** SNI hostname for TLS handshake */
@@ -358,43 +360,46 @@ interface AddServerProps {
 const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServer, onImportConfig }) => {
   const [link, setLink] = useState('');
 
-  const handleAdd = () => {
-    if (!link.trim()) return;
-    // Handle tt:// links — base64-encoded TrustTunnel TOML config
-    const trimmed = link.trim();
+  const doAdd = useCallback((raw: string) => {
+    if (!raw.trim()) return;
+    const trimmed = raw.trim();
+    console.log('[IMPORT] doAdd called, length:', trimmed.length);
     if (trimmed.startsWith('tt://') || trimmed.startsWith('secular://')) {
-      const b64 = trimmed.replace(/^(tt|secular):\/\//, '');
+      const b64 = trimmed.replace(/^(tt|secular):\/\/\??/, '');
+      console.log('[IMPORT] b64 length:', b64.length);
       try {
         const toml = atob(b64);
+        console.log('[IMPORT] toml length:', toml.length);
         const config = parseTomlConfig(toml);
-        // Open config screen with imported values so user can review/edit
+        console.log('[IMPORT] config:', JSON.stringify(config));
         onImportConfig(config);
         setLink('');
         return;
       } catch (e) {
-        console.error('Failed to decode tt:// link:', e);
-        // Fall through to plain host parsing
+        console.error('[IMPORT] decode failed:', e);
       }
+    } else {
+      console.log('[IMPORT] not tt://, plain host');
     }
-    // Try to parse plain host:port
     const host = trimmed.replace('secular://', '').split(':')[0] || trimmed;
     const port = parseInt(trimmed.split(':')[1], 10) || 443;
-    const config: ServerConfig = {
-      address: `${host}:${port}`,
-      hostname: host,
-      username: '',
-      password: '',
-      upstream_protocol: 'http2',
-      dns_upstreams: ['9.9.9.9', '149.112.112.112'],
-      has_ipv6: false,
-      certificate: '',
-      skip_verification: false,
-      anti_dpi: false,
-      change_system_dns: true,
-    };
-    onAddServer(config);
+    onAddServer({ name: '', address: `${host}:${port}`, hostname: host, username: '', password: '', upstream_protocol: 'http2', dns_upstreams: ['9.9.9.9', '149.112.112.112'], has_ipv6: false, certificate: '', skip_verification: false, anti_dpi: false, change_system_dns: true });
     setLink('');
     onNav('dashboard');
+  }, [onAddServer, onImportConfig, onNav]);
+
+  const linkInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAdd = async () => {
+    let raw = linkInputRef.current?.value ?? link;
+    // If input is empty, try reading from clipboard (user gesture satisfies security)
+    if (!raw.trim()) {
+      try {
+        raw = await navigator.clipboard.readText();
+        if (raw) setLink(raw);
+      } catch {}
+    }
+    doAdd(raw);
   };
 
   const handleTomlUpload = async () => {
@@ -424,13 +429,14 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
           <div className="field-label">Insert Link</div>
           <div className="link-input-row">
             <input
+              ref={linkInputRef}
               className="link-input"
               value={link}
               onChange={e => setLink(e.target.value)}
-              placeholder="Insert tt:// link"
+              placeholder="Paste tt:// link here"
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
-            <button className="link-add-btn" onClick={handleAdd}>Add</button>
+            <button className="link-add-btn" onClick={() => handleAdd()}>Add</button>
           </div>
         </div>
 
@@ -463,6 +469,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
 /** TOML parser matching Android TomlFileParser — handles [endpoint] sections, triple-quoted strings, arrays */
 function parseTomlConfig(content: string): ServerConfig {
   const config: ServerConfig = {
+    name: '',
     address: '',
     hostname: '',
     username: '',
@@ -549,6 +556,7 @@ function parseTomlConfig(content: string): ServerConfig {
   config.anti_dpi = (fields['anti_dpi'] || fields['endpoint.anti_dpi'] || 'false') === 'true';
   config.change_system_dns = (fields['change_system_dns'] || 'true') === 'true';
   config.certificate = fields['certificate'] || fields['endpoint.certificate'] || '';
+  config.name = fields['name'] || fields['endpoint.name'] || '';
   return config;
 }
 
@@ -598,6 +606,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
       ...server,
       name: name.trim() || hostname || addr || 'New Server',
       config: {
+        name: server.config.name || '',
         address: addr,
         hostname: hostname.trim() || addr.split(':')[0],
         username: username.trim(),
@@ -880,6 +889,7 @@ function loadServers(): ServerInfo[] {
           return {
             ...s,
             config: {
+              name: '',
               address: c.host ? `${c.host}:${c.port || 443}` : '',
               hostname: c.sni || c.host || '',
               username: c.auth_token || '',
@@ -1195,6 +1205,7 @@ const App: React.FC = () => {
       meta: '',
       isDefault: servers.length === 0,
       config: {
+        name: '',
         address: '',
         hostname: '',
         username: '',
@@ -1215,7 +1226,7 @@ const App: React.FC = () => {
   const handleImportConfig = (config: ServerConfig) => {
     setEditingServer({
       id: Date.now().toString(),
-      name: config.hostname || config.address || 'Imported Server',
+      name: config.name || config.hostname || config.address || 'Imported Server',
       meta: `${config.address} / ${config.upstream_protocol === 'http3' ? 'QUIC' : 'HTTP/2'}`,
       isDefault: servers.length === 0,
       config,
