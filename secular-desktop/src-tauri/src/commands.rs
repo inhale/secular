@@ -198,7 +198,7 @@ pub async fn connect(
     let config_path = config_dir.join("trusttunnel_client.toml");
     std::fs::write(&config_path, &toml_config)
         .map_err(|e| format!("Failed to write config: {}", e))?;
-    tracing::info!("Config written to {:?}", config_path);
+    tracing::info!("Connect requested: {} (SNI: {})", config.address, config.hostname);
 
     // Find trusttunnel_client binary — check bundled resource first, then system paths
     let tt_binary = if cfg!(target_os = "macos") {
@@ -217,6 +217,44 @@ pub async fn connect(
     } else {
         "trusttunnel_client".to_string()
     };
+
+    // macOS: verify passwordless sudo is configured before attempting connection
+    #[cfg(target_os = "macos")]
+    {
+        let sudo_check = std::process::Command::new("/usr/bin/sudo")
+            .arg("-n")
+            .arg(&tt_binary)
+            .arg("--version")
+            .output();
+        match sudo_check {
+            Ok(output) if output.status.success() => {
+                eprintln!("[CONNECT] sudo check OK");
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("[CONNECT] sudo check failed: {}", stderr);
+                return Err(format!(
+                    "Passwordless sudo is not configured for the VPN client.\n\n\
+                     Run this command in Terminal to fix:\n\
+                     curl -fsSL https://raw.githubusercontent.com/inhale/secular/main/secular-desktop/scripts/setup-sudo.sh | bash\n\n\
+                     Or manually:\n\
+                     sudo touch /etc/sudoers.d/secular && \
+                     echo '$(whoami) ALL=(ALL) NOPASSWD: {}' | sudo tee /etc/sudoers.d/secular && \
+                     sudo chmod 440 /etc/sudoers.d/secular",
+                    tt_binary
+                ));
+            }
+            Err(e) => {
+                eprintln!("[CONNECT] sudo check error: {}", e);
+                return Err(format!(
+                    "Failed to verify sudo permissions: {}\n\n\
+                     Run this command in Terminal to fix:\n\
+                     curl -fsSL https://raw.githubusercontent.com/inhale/secular/main/secular-desktop/scripts/setup-sudo.sh | bash",
+                    e
+                ));
+            }
+        }
+    }
 
     // Kill any existing tunnel process
     {
@@ -276,7 +314,7 @@ pub async fn connect(
     // Wait for tunnel to actually establish by polling the log
     let log_path_check = config_dir.join("trusttunnel.log");
     let mut connected_confirmed = false;
-    for _ in 0..60 {
+    for i in 0..60 {
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         if log_path_check.exists() {
             if let Ok(content) = std::fs::read_to_string(&log_path_check) {
@@ -291,9 +329,18 @@ pub async fn connect(
                 }
                 if !is_process_alive(child_pid) {
                     tracing::warn!("trusttunnel_client process died during connection");
-                    break;
+                    // Return the log content as the error so the user can see what went wrong
+                    let log_preview = if content.len() > 2000 {
+                        content[content.len()-2000..].to_string()
+                    } else {
+                        content.clone()
+                    };
+                    return Err(format!("VPN tunnel process exited unexpectedly.\n\nLast log output:\n{}", log_preview));
                 }
             }
+        } else if i > 2 && !is_process_alive(child_pid) {
+            // Process died before creating any log
+            return Err("VPN tunnel process failed to start. On macOS, run:\ncurl -fsSL https://raw.githubusercontent.com/inhale/secular/main/secular-desktop/scripts/setup-sudo.sh | bash".to_string());
         }
     }
 
