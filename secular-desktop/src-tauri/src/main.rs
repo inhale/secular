@@ -27,9 +27,11 @@ fn main() {
                 let close_item = MenuItem::with_id(app, "close", "Close", true, Some("Cmd+W"))?;
                 let file_submenu = Submenu::with_items(app, "File", true, &[&close_item])?;
 
-                let copy_item = MenuItem::with_id(app, "copy", "Copy", true, Some("Cmd+C"))?;
-                let paste_item = MenuItem::with_id(app, "paste", "Paste", true, Some("Cmd+V"))?;
-                let select_all_item = MenuItem::with_id(app, "select_all", "Select All", true, Some("Cmd+A"))?;
+                // Use PredefinedMenuItem for Edit menu — macOS automatically wires
+                // Copy/Paste/SelectAll/Cut/Undo/Redo to the focused webview
+                let copy_item = PredefinedMenuItem::copy(app, Some("Copy"))?;
+                let paste_item = PredefinedMenuItem::paste(app, Some("Paste"))?;
+                let select_all_item = PredefinedMenuItem::select_all(app, Some("Select All"))?;
                 let edit_submenu = Submenu::with_items(app, "Edit", true, &[&copy_item, &paste_item, &select_all_item])?;
 
                 let minimize_item = MenuItem::with_id(app, "minimize", "Minimize", true, Some("Cmd+M"))?;
