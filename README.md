@@ -2,7 +2,9 @@
 
 > Digital freedom. Unblockable network access.
 
-**Secular** is a cross-platform VPN client built for censorship resistance. It wraps all traffic in obfuscated HTTP/2 and QUIC streams that are indistinguishable from normal web traffic — powered by a Rust core with native clients on macOS, Windows, Linux, iOS, and Android.
+**Secular** is a cross-platform VPN client built for censorship resistance. It wraps all traffic in obfuscated HTTP/2 and QUIC streams that are indistinguishable from normal web traffic — powered by TrustTunnel protocol with native clients on macOS, Android, and Windows (in development).
+
+> ⚠️ **Architecture Change (June 2026):** We've deprecated the `secular-core` Rust implementation in favor of TrustTunnel's official C++ libraries. This allows us to ship faster and focus on best-in-class split tunneling features. See [ADR-0001](docs/architecture/decisions/0001-deprecate-secular-core.md) for details.
 
 ## Design System
 
@@ -26,80 +28,35 @@ Secular uses a light, minimalist design inspired by the paragraph sign (§).
 
 ## Supported Platforms
 
-| Platform | Format | CI Status |
-|---|---|---|
-| macOS (universal2) | `.dmg` | Built on tag |
-| Windows | `.msi` / `.exe` | Built on tag |
-| Linux | `.AppImage` / `.deb` | Built on tag |
-| iOS | `.ipa` | Built on tag |
-| Android | `.apk` | Built on tag |
+| Platform | Status | Format | Notes |
+|---|---|---|---|
+| macOS (Apple Silicon) | ✅ Stable | `.dmg` | TrustTunnel CLI subprocess |
+| Android | ✅ Stable | `.apk` | TrustTunnel AAR library |
+| Windows | 🚧 In Development | `.msi` / `.exe` | See [Issue #5](https://github.com/inhale/secular/issues/5) |
+| iOS | ❌ Blocked | `.ipa` | Requires Apple Developer account ($99/year) |
 
-All builds run on **GitHub Actions** — free for private repos (2,000 min/month).
+**Focus:** Best-in-class app-level split tunneling (per-process routing)
 
 ## Monorepo Structure
 
 ```
-├── secular-core/        # Rust FFI library (protocol, crypto, DNS, MTU, uTLS)
-│   ├── include/         # C headers for FFI
-│   ├── src/
-│   │   ├── protocol.rs  # Handshake, HTTP/2 + QUIC obfuscation
-│   │   ├── dns.rs       # DNS leak prevention, port-53 hijacking
-│   │   ├── mtu.rs       # Dynamic MTU clamping
-│   │   ├── utls.rs      # uTLS randomized ClientHello fingerprinting
-│   │   ├── network.rs   # Packet processing, TUN interface
-│   │   ├── config.rs    # Configuration loader
-│   │   ├── ffi.rs       # UniFFI export macros
-│   │   └── lib.rs       # Library entry point
-│   └── Cargo.toml
-├── secular-desktop/     # Tauri v2 desktop app
-│   ├── src-tauri/       # Rust backend + tray
-│   │   ├── src/
-│   │   │   ├── main.rs
-│   │   │   ├── commands.rs
-│   │   │   └── tray.rs
-│   │   ├── tauri.conf.json
-│   │   └── entitlements.plist
-│   └── src/             # React/TypeScript frontend
-│       ├── App.tsx
-│       └── style.css
-├── secular-android/     # Android (Kotlin VpnService)
-│   ├── app/
-│   │   ├── src/main/
-│   │   │   ├── kotlin/com/secular/vpn/
-│   │   │   │   ├── SecularVpnService.kt
-│   │   │   │   └── MainActivity.kt
-│   │   │   ├── res/
-│   │   │   └── AndroidManifest.xml
-│   │   └── build.gradle.kts
-│   └── build.gradle.kts
-├── secular-ios/         # iOS (Swift NetworkExtension)
-│   ├── Secular/
-│   │   ├── SecularApp.swift
-│   │   ├── ContentView.swift
-│   │   ├── Info.plist
-│   │   └── Entitlements.plist
-│   └── Secular/Extensions/
-│       ├── PacketTunnelProvider.swift
-│       ├── Info.plist
-│       └── Entitlements.plist
-├── assets/              # Logo & brand assets (SVG, PNG)
-│   └── logo/
-├── .github/workflows/   # CI/CD
-│   ├── ci.yml           # Test + lint on every push/PR
-│   └── release.yml      # Build all 5 platforms on tag
-└── docs/                # Architecture, API, design specs
+├── legacy/secular-core/    # DEPRECATED: Rust protocol implementation (archived)
+├── secular-desktop/        # Tauri v2 desktop app (macOS, Windows)
+│   ├── src-tauri/          # Rust backend (TrustTunnel CLI integration)
+│   └── src/                # React/TypeScript frontend
+├── secular-android/        # Android (Kotlin + TrustTunnel AAR)
+│   └── app/src/main/kotlin/
+├── docs/                   # Architecture, decisions, guides
+│   ├── architecture/
+│   │   ├── decisions/      # ADRs (Architecture Decision Records)
+│   │   └── overview.md
+│   └── features/
+└── .github/workflows/      # CI/CD
 ```
 
 ## Building Locally
 
-### Rust Core (all platforms)
-```bash
-cd secular-core
-cargo build --all-features
-cargo test --all-features
-```
-
-### Desktop (requires Tauri prerequisites)
+### Desktop (macOS, Windows)
 ```bash
 cd secular-desktop
 npm install
@@ -107,49 +64,14 @@ npm run tauri dev          # Development
 npm run tauri build        # Release
 ```
 
-### macOS Universal2
+### Android
 ```bash
-cd secular-core
-cargo build --release --target aarch64-apple-darwin
-cargo build --release --target x86_64-apple-darwin
-lipo -create target/aarch64-apple-darwin/release/libsecular_core.a \
-             target/x86_64-apple-darwin/release/libsecular_core.a \
-             -output target/universal/libsecular_core.a
+cd secular-android
+./gradlew assembleDebug    # Development
+./gradlew assembleRelease  # Release (requires keystore)
 ```
 
-### Android (requires NDK)
-```bash
-cd secular-desktop
-npx tauri android init
-npx tauri android build --debug
-```
-
-### iOS (requires Xcode + Apple Developer account)
-```bash
-cd secular-desktop
-npx tauri ios init
-npx tauri ios build --debug
-```
-
-## CI/CD via GitHub Actions
-
-Both CI and release are fully automated:
-
-- **CI** (`ci.yml`): Runs on every push to `main` and every PR — tests Rust core, lints all code, checks mobile project structure
-- **Release** (`release.yml`): Runs on every `v*` tag push — builds all 5 platforms and creates a GitHub Release with all artifacts
-
-To trigger a release:
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-This produces:
-- `secular-macos.dmg` (universal2)
-- `secular-windows.msi`
-- `secular-linux.AppImage`
-- `secular-ios.ipa`
-- `secular-android.apk`
+See [docs/](docs/) for platform-specific build guides.
 
 ## Philosophy
 
