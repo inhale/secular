@@ -508,7 +508,9 @@ pub fn tray_action(app: tauri::AppHandle, payload: TrayAction) -> Result<(), Str
     eprintln!("[TRAY] action: {}", payload.action);
     match payload.action.as_str() {
         "connect" => {
+            eprintln!("[TRAY] connect action received, emitting tray-connect");
             let _ = app.emit("tray-connect", ());
+            eprintln!("[TRAY] tray-connect emitted");
         }
         "show" => {
             if let Some(window) = app.get_webview_window("main") {

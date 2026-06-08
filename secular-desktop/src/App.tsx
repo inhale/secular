@@ -1041,8 +1041,10 @@ const App: React.FC = () => {
   }, [connState]);
 
   const handleToggleConnect = async () => {
+    console.log('[HANDLE-TOGGLE] called, connState:', connState, 'activeServer:', activeServer?.name, 'cfg.address:', activeServer?.config?.address, 'cfg.username:', activeServer?.config?.username);
     try {
       if (connState === 'connected') {
+        console.log('[HANDLE-TOGGLE] disconnecting...');
         await invoke('disconnect');
         setConnState('disconnected');
         setLastLogOffset(0);
@@ -1054,10 +1056,12 @@ const App: React.FC = () => {
         addLog('warn', 'Disconnected from server');
       } else if (connState === 'disconnected') {
         if (!activeServer) {
+          console.log('[HANDLE-TOGGLE] no activeServer!');
           addLog('error', 'No server configured');
           return;
         }
         const cfg = activeServer.config;
+        console.log('[HANDLE-TOGGLE] connecting to', cfg.address, 'user:', cfg.username);
         if (!cfg.address) {
           addLog('error', 'Server has no address configured');
           return;
@@ -1076,9 +1080,12 @@ const App: React.FC = () => {
           setUploadPkts(0);
           addLog('ok', `Connected to ${cfg.address} via TrustTunnel`);
         } catch (err) {
+          console.log('[HANDLE-TOGGLE] connect failed:', err);
           setConnState('disconnected');
           addLog('error', `Connection failed: ${err}`);
         }
+      } else {
+        console.log('[HANDLE-TOGGLE] neither connected nor disconnected, state:', connState);
       }
     } catch (err) {
       console.error('Connection error:', err);
@@ -1092,8 +1099,18 @@ const App: React.FC = () => {
   const handleToggleConnectRef = useRef(handleToggleConnect);
   handleToggleConnectRef.current = handleToggleConnect;
 
+  // Register tray connect handler on window for Rust direct JS eval
+  useEffect(() => {
+    (window as any).__secular_tray_connect = () => {
+      console.log('[TRAY-CONNECT] called via window.__secular_tray_connect');
+      handleToggleConnectRef.current();
+    };
+    return () => { delete (window as any).__secular_tray_connect; };
+  }, []);
+
   useEffect(() => {
     const unlisten = listen('tray-connect', () => {
+      console.log('[TRAY-CONNECT] event received');
       handleToggleConnectRef.current();
     });
     return () => { unlisten.then(fn => fn()); };

@@ -46,17 +46,8 @@ fn resolve_tray_icon<R: tauri::Runtime>(
     None
 }
 
-fn handle_tray_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {
-    match event.id().as_ref() {
-        "tray-connect" => { let _ = app.emit("tray-connect", ()); }
-        "tray-show" => {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.show();
-                let _ = w.set_focus();
-            }
-        }
-        _ => {}
-    }
+fn handle_tray_menu_event<R: tauri::Runtime>(_app: &tauri::AppHandle<R>, _event: tauri::menu::MenuEvent) {
+    // No-op: all tray menu events are handled by the global handler in main.rs
 }
 
 pub fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

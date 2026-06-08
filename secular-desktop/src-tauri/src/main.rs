@@ -11,7 +11,7 @@ extern crate objc;
 mod commands;
 mod tray;
 
-use tauri::{Listener, Manager};
+use tauri::{Emitter, Listener, Manager};
 
 fn main() {
     let app = tauri::Builder::default()
@@ -50,7 +50,7 @@ fn main() {
 
                 let app_handle = app.handle().clone();
                 app_handle.on_menu_event(move |app, event| {
-                    eprintln!("[MAIN] Menu event: {}", event.id().as_ref());
+                    let _ = std::fs::write("/tmp/secular-menu.log", format!("[MAIN] menu event: {}\n", event.id().as_ref()));
                     match event.id().as_ref() {
                         "hide" | "close" => {
                             if let Some(window) = app.get_webview_window("main") {
@@ -61,6 +61,27 @@ fn main() {
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.minimize();
                             }
+                        }
+                        "tray-connect" => {
+                            eprintln!("[MAIN] tray-connect menu event");
+                            // Directly evaluate JS in the main window to trigger connect
+                            if let Some(window) = app.get_webview_window("main") {
+                                eprintln!("[MAIN] found main window, evaluating JS");
+                                let _ = window.eval("window.__secular_tray_connect && window.__secular_tray_connect()").map_err(|e| eprintln!("[MAIN] JS eval error: {}", e));
+                            } else {
+                                eprintln!("[MAIN] no main window found!");
+                                // Fallback: emit event
+                                let _ = app.emit("tray-connect", ());
+                            }
+                        }
+                        "tray-show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "tray-nav" => {
+                            // handled by global tray.rs handler
                         }
                         _ => {}
                     }
