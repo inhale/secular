@@ -156,8 +156,21 @@ pub struct ConnectionState {
 }
 
 /// Connect to the VPN server via trusttunnel_client CLI
+
+/// Find trusttunnel_client in system paths (fallback when not bundled)
+fn find_system_trusttunnel() -> String {
+    let candidates = [
+        "/usr/local/bin/trusttunnel_client",
+        "/opt/homebrew/bin/trusttunnel_client",
+    ];
+    candidates.iter().find(|p| std::path::Path::new(p).exists())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "trusttunnel_client".to_string())
+}
+
 #[tauri::command]
 pub async fn connect(
+    app: tauri::AppHandle,
     config: ServerConfig,
     state: State<'_, AppState>,
 ) -> Result<ConnectionState, String> {
@@ -187,16 +200,20 @@ pub async fn connect(
         .map_err(|e| format!("Failed to write config: {}", e))?;
     tracing::info!("Config written to {:?}", config_path);
 
-    // Find trusttunnel_client binary
+    // Find trusttunnel_client binary — check bundled resource first, then system paths
     let tt_binary = if cfg!(target_os = "macos") {
-        // Check common locations
-        let candidates = [
-            "/usr/local/bin/trusttunnel_client",
-            "/opt/homebrew/bin/trusttunnel_client",
-        ];
-        candidates.iter().find(|p| std::path::Path::new(p).exists())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "trusttunnel_client".to_string())
+        // Check if bundled with the app (in Contents/Resources)
+        if let Ok(resource_path) = app.path().resolve("binaries/trusttunnel_client", tauri::path::BaseDirectory::Resource) {
+            if resource_path.exists() {
+                eprintln!("[CONNECT] using bundled trusttunnel_client: {:?}", resource_path);
+                resource_path.to_string_lossy().to_string()
+            } else {
+                eprintln!("[CONNECT] bundled binary not found, checking system paths");
+                find_system_trusttunnel()
+            }
+        } else {
+            find_system_trusttunnel()
+        }
     } else {
         "trusttunnel_client".to_string()
     };

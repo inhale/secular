@@ -45,7 +45,8 @@
       "icons/tray-inactive.png",
       "icons/tray-inactive@2x.png",
       "icons/tray-inactive-dimmed.png",
-      "icons/tray-inactive-dimmed@2x.png"
+      "icons/tray-inactive-dimmed@2x.png",
+      "binaries/trusttunnel_client"
     ],
     "macOS": {
       "entitlements": "entitlements.plist",
