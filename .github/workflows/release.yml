@@ -61,8 +61,9 @@ jobs:
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
-        distribution: temurin
-        java-version: 17
+        with:
+          distribution: temurin
+          java-version: 17
 
       - name: Download native lib artifact
         uses: actions/download-artifact@v4
