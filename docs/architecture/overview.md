@@ -2,30 +2,22 @@
 
 ## Overview
 
-Secular uses a **Rust core library** (`secular-core`) as the single source of truth for all protocol logic. Every platform (desktop, mobile) links against this core via FFI.
+Secular uses **TrustTunnel's native C++ libraries** as the VPN engine on every platform. The secular codebase provides the UI/UX layer and server configuration management.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Platform Clients                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │  Tauri   │ │  iOS     │ │ Android  │ │  CLI      │  │
-│  │  Desktop │ │  Swift   │ │  Kotlin  │ │  (future) │  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
-│       │             │            │              │        │
-│       └─────────────┼────────────┼──────────────┘        │
-│                     │  FFI / UniFFI                      │
-│              ┌──────┴──────┐                             │
-│              │ secular-core│                             │
-│              │   (Rust)    │                             │
-│              └──────┬──────┘                             │
-│                     │                                    │
-│       ┌─────────────┼─────────────┐                     │
-│       │             │             │                      │
-│  ┌────┴────┐  ┌─────┴────┐ ┌─────┴────┐                │
-│  │ Protocol│  │   DNS    │ │  Network │                │
-│  │ Engine  │  │  Leak    │ │  (TUN)   │                │
-│  │         │  │  Guard   │ │          │                │
-│  └─────────┘  └──────────┘ └──────────┘                │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐               │
+│  │  Tauri   │ │ Android  │ │ Windows  │               │
+│  │  Desktop │ │  Kotlin  │ │  (Tauri) │               │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘               │
+│       │             │            │                       │
+│       │  subprocess │  JNI/AAR   │  subprocess          │
+│       │             │            │                       │
+│  ┌────┴─────────────┴────────────┴────┐                 │
+│  │     TrustTunnel Native Libraries    │                 │
+│  │     (C++, trusttunnel_client)      │                 │
+│  └────────────────────────────────────┘                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -33,29 +25,41 @@ Secular uses a **Rust core library** (`secular-core`) as the single source of tr
 
 Secular wraps all traffic in HTTP/2 or QUIC streams that mimic standard web traffic:
 
-1. **Handshake:** Client connects to server with TLS, authenticates via token
+1. **Handshake:** Client connects to server with TLS, authenticates via username/password
 2. **Obfuscation:** All packets are wrapped in HTTP/2 DATA frames or QUIC STREAM frames
 3. **uTLS:** ClientHello fingerprints are randomized to avoid TLS fingerprinting
-4. **DNS:** All DNS queries are routed through the tunnel; port-53 is hijacked to prevent leaks
-5. **MTU:** Dynamic MTU clamping prevents fragmentation-based detection
+4. **DNS:** All DNS queries are routed through the tunnel's configured DNS upstreams
+5. **Bypass List:** Per-server domain/IP exclusions via TrustTunnel's `exclusions` config
 
 ## Platform Integration
 
-| Platform | Language | FFI Method | Key Component |
-|----------|----------|------------|---------------|
-| macOS/Windows/Linux | Rust (Tauri) | Direct crate link | `src-tauri/` |
-| iOS | Swift | UniFFI | `NEPacketTunnelProvider` |
-| Android | Kotlin | UniFFI | `VpnService` |
+| Platform | Language | VPN Engine | Integration |
+|----------|----------|------------|-------------|
+| macOS | Rust (Tauri) + React | TrustTunnel CLI subprocess | `src-tauri/` |
+| Android | Kotlin | TrustTunnel AAR (JNI) | `VpnService` |
+| Windows | Rust (Tauri) + React | TrustTunnel CLI subprocess | `src-tauri/` |
 
-## DNS Leak Prevention
+## TrustTunnel Config
 
-1. Intercept all port-53 UDP/TCP traffic
-2. Redirect through tunnel's DNS resolver
-3. Block all non-tunnel DNS (DoH/DoT endpoint IPs via firewall rules)
-4. IPv6 is blackholed by default to prevent IPv6 leaks
+Each server profile generates a TOML config file that TrustTunnel consumes:
 
-## Kill Switch
+```toml
+vpn_mode = "general"
+loglevel = "trace"
+exclusions = ["*.example.com", "10.0.0.1"]    # bypass list
 
-- **Windows:** WFP (Windows Filtering Platform) — block all non-tunnel traffic
-- **Linux:** NFTables — drop all traffic not via tunnel interface
-- **macOS:** PF firewall — anchor rules for tunnel-only traffic
+[endpoint]
+hostname = "vpn.example.com"
+addresses = ["1.2.3.4:443"]
+username = "user"
+password = "pass"
+upstream_protocol = "http2"
+dns_upstreams = ["9.9.9.9"]
+
+[listener.tun]
+included_routes = ["0.0.0.0/0"]
+excluded_routes = ["100.64.0.0/10", "1.2.3.4/32"]
+mtu_size = 1280
+```
+
+See [ADR-0001](decisions/0001-deprecate-secular-core.md) for why we moved from a custom Rust core to TrustTunnel's native libraries.

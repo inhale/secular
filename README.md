@@ -33,9 +33,8 @@ Secular uses a light, minimalist design inspired by the paragraph sign (§).
 | macOS (Apple Silicon) | ✅ Stable | `.dmg` | TrustTunnel CLI subprocess |
 | Android | ✅ Stable | `.apk` | TrustTunnel AAR library |
 | Windows | 🚧 In Development | `.msi` / `.exe` | See [Issue #5](https://github.com/inhale/secular/issues/5) |
-| iOS | ❌ Blocked | `.ipa` | Requires Apple Developer account ($99/year) |
 
-**Focus:** Best-in-class app-level split tunneling (per-process routing)
+**Focus:** Per-server bypass list (domain/IP exclusions from VPN tunnel)
 
 ## Monorepo Structure
 

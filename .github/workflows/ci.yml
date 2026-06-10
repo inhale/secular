@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 # Secular CI — runs on every push to main and every PR
-# Checks: TypeScript, Android structure, iOS structure, workflow YAML
+# Checks: TypeScript, Android structure, workflow YAML
 
 name: CI
 
@@ -54,27 +54,6 @@ jobs:
           grep -q "SecularVpnService" secular-android/app/src/main/AndroidManifest.xml
           grep -q "android.permission.BIND_VPN_SERVICE" secular-android/app/src/main/AndroidManifest.xml
           echo "✓ AndroidManifest.xml validated"
-
-  # ── iOS: project structure check ──
-  check-ios:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check iOS project structure
-        run: |
-          test -f secular-ios/Secular/Extensions/PacketTunnelProvider.swift
-          test -f secular-ios/Secular/SecularApp.swift
-          test -f secular-ios/Secular/Info.plist
-          test -f secular-ios/Secular/Entitlements.plist
-          echo "✓ iOS project structure OK"
-
-      - name: Validate PacketTunnelProvider
-        run: |
-          grep -q "NEPacketTunnelProvider" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
-          grep -q "startTunnel" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
-          grep -q "stopTunnel" secular-ios/Secular/Extensions/PacketTunnelProvider.swift
-          echo "✓ PacketTunnelProvider.swift validated"
 
   # ── Workflow files: validate YAML syntax ──
   check-workflows:
