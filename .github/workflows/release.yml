@@ -1,6 +1,13 @@
-# .github/workflows/release.yml
 # Secular CI/CD — builds platform releases on tag push
-# Tag patterns: v*-android → Android APK, v*-macos → macOS .dmg/.app
+#
+# Tag patterns:
+#   v*              → Build both macOS and Android, create unified release
+#   v*-macos        → macOS only (.dmg)
+#   v*-android      → Android only (.apk)
+#
+# Versioning: simple semver (v1.0.0, v1.1.0, v2.0.0 etc)
+# Each release publishes the latest stable artifacts for that platform.
+# Old release assets are kept but untagged releases are cleaned up.
 
 name: Release
 
@@ -17,46 +24,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ──────────────────────────────────────────────
-  # Determine platform from tag
-  # ──────────────────────────────────────────────
+  # ── Detect platform from tag ──
   detect:
     runs-on: ubuntu-latest
     outputs:
       platform: ${{ steps.detect.outputs.platform }}
+      version: ${{ steps.detect.outputs.version }}
     steps:
       - id: detect
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG%%-*}"
           if [[ "$TAG" == *-android ]]; then
-            echo "platform=android" >> "$GITHUB_OUTPUT"
+            PLATFORM="android"
           elif [[ "$TAG" == *-macos ]]; then
-            echo "platform=macos" >> "$GITHUB_OUTPUT"
+            PLATFORM="macos"
           else
-            echo "platform=unknown" >> "$GITHUB_OUTPUT"
+            PLATFORM="both"
           fi
-          echo "Tag: $TAG → Platform: $(cat $GITHUB_OUTPUT | grep platform | cut -d= -f2)"
+          echo "platform=$PLATFORM" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Tag: $TAG → Version: $VERSION → Platform: $PLATFORM"
 
-  # ──────────────────────────────────────────────
-  # Android build (tag: v*-android)
-  # ──────────────────────────────────────────────
+  # ── Android build (tag: v*-android or v*) ──
   build-native:
     needs: detect
-    if: needs.detect.outputs.platform == 'android'
+    if: needs.detect.outputs.platform == 'android' || needs.detect.outputs.platform == 'both'
     uses: ./.github/workflows/build-native-lib.yml
 
   build-android:
     needs: [detect, build-native]
-    if: needs.detect.outputs.platform == 'android'
+    if: needs.detect.outputs.platform == 'android' || needs.detect.outputs.platform == 'both'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+        distribution: temurin
+        java-version: 17
 
       - name: Download native lib artifact
         uses: actions/download-artifact@v4
@@ -68,17 +74,15 @@ jobs:
         run: |
           cd native-libs
           unzip -o trusttunnel-native-lib.zip -d ./extracted
-
           mkdir -p ../secular-android/app/src/main/jniLibs
-
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
             SRC="extracted/jni/$abi/libtrusttunnel_android.so"
             if [ -f "$SRC" ]; then
               mkdir -p "../secular-android/app/src/main/jniLibs/$abi"
               cp "$SRC" "../secular-android/app/src/main/jniLibs/$abi/"
-              echo "✓ Installed libtrusttunnel_android.so for $abi ($(stat -c%s "$SRC") bytes)"
+              echo "✓ $abi ($(stat -c%s "$SRC") bytes)"
             else
-              echo "✗ Missing libtrusttunnel_android.so for $abi"
+              echo "✗ Missing $abi"
             fi
           done
 
@@ -89,8 +93,7 @@ jobs:
           key: gradle-${{ hashFiles('secular-android/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('secular-android/**/*.kt', 'secular-android/**/*.xml', 'secular-android/**/*.kts') }}
 
       - name: Decode release keystore
-        run: |
-          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > secular-android/app/secular-release.jks
+        run: echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > secular-android/app/secular-release.jks
 
       - name: Build Release APK
         working-directory: ./secular-android
@@ -100,32 +103,20 @@ jobs:
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          java -version 2>&1
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --no-build-cache --rerun-tasks 2>&1
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Copy APK to workspace root
-        run: |
-          find secular-android -name "*.apk" 2>/dev/null | while read apk; do
-            echo "APK: $apk ($(stat -c%s "$apk") bytes)"
-            cp "$apk" /home/runner/work/secular/secular/
-          done
-
-      - name: Upload Android artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: secular-android
-          path: |
-            secular-android/app/build/outputs/apk/**/*.apk
-            ./*.apk
-          retention-days: 30
+          path: secular-android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
 
-  # ──────────────────────────────────────────────
-  # macOS build (tag: v*-macos)
-  # ──────────────────────────────────────────────
+  # ── macOS build (tag: v*-macos or v*) ──
   build-macos:
     needs: detect
-    if: needs.detect.outputs.platform == 'macos'
+    if: needs.detect.outputs.platform == 'macos' || needs.detect.outputs.platform == 'both'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -138,18 +129,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install frontend dependencies
-        working-directory: ./secular-desktop
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: ./secular-desktop
-        run: npm run build
-
-      - name: Install Tauri CLI
-        working-directory: ./secular-desktop
-        run: npm install @tauri-apps/cli@2.11.2
-
       - name: Cache Rust dependencies
         uses: actions/cache@v4
         with:
@@ -157,24 +136,23 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             secular-desktop/src-tauri/target
-          key: macos-cargo-${{ hashFiles('secular-desktop/src-tauri/Cargo.lock') }}
+          key: macos-cargo-${{ hashFiles('secular-desktop/src-tauri/Cargo.lock') }}-${{ github.sha }}
           restore-keys: |
-            macos-cargo-
+            macos-cargo-${{ hashFiles('secular-desktop/src-tauri/Cargo.lock') }}
 
-      - name: Build Tauri app (macOS ARM64 .app + .dmg)
+      - name: Install dependencies + Tauri CLI
+        working-directory: ./secular-desktop
+        run: |
+          npm ci
+          npm install @tauri-apps/cli@2.11.2
+
+      - name: Build Tauri app (macOS ARM64)
         working-directory: ./secular-desktop
         run: npx tauri build --target aarch64-apple-darwin 2>&1
 
-      - name: Build Tauri app (macOS x86_64 .app + .dmg)
+      - name: Build Tauri app (macOS x86_64)
         working-directory: ./secular-desktop
         run: npx tauri build --target x86_64-apple-darwin 2>&1
-
-      - name: List build outputs
-        run: |
-          echo "=== Bundle outputs ==="
-          find secular-desktop/src-tauri/target -path "*/bundle/*" -type f \( -name "*.dmg" -o -name "*.app" \) 2>/dev/null | while read f; do
-            echo "  $f ($(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null) bytes)"
-          done
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -182,63 +160,38 @@ jobs:
           name: secular-macos
           path: |
             secular-desktop/src-tauri/target/*/release/bundle/dmg/*.dmg
-            secular-desktop/src-tauri/target/*/release/bundle/macos/*.app
-          retention-days: 30
+          retention-days: 90
 
-  # ──────────────────────────────────────────────
-  # Release: publish artifacts to GitHub Release
-  # ──────────────────────────────────────────────
-  release-android:
-    needs: [detect, build-android]
-    if: needs.detect.outputs.platform == 'android'
+  # ── Publish release ──
+  release:
+    needs: [detect, build-android, build-macos]
+    if: |
+      always() &&
+      (needs.build-android.result == 'success' || needs.build-macos.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: secular-android
           path: ./artifacts
-      - run: find ./artifacts -type f -name "*.apk" | sort
-      - name: Rename APK artifact
+
+      - name: List artifacts
+        run: find ./artifacts -type f | sort
+
+      - name: Prepare release files
         run: |
           APK=$(find ./artifacts -name "*.apk" -type f | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" ./secular-android-release.apk
-            echo "Copied: $APK"
-          else
-            echo "No APK found"
-            exit 1
-          fi
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: secular-android-release.apk
-
-  release-macos:
-    needs: [detect, build-macos]
-    if: needs.detect.outputs.platform == 'macos'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: secular-macos
-          path: ./artifacts
-      - run: find ./artifacts -type f \( -name "*.dmg" -o -name "*.app" \) | sort
-      - name: Rename artifacts
-        run: |
           DMG=$(find ./artifacts -name "*.dmg" -type f | head -1)
-          if [ -n "$DMG" ]; then
-            cp "$DMG" ./Secular.dmg
-            echo "DMG: $DMG"
-          fi
-          APP=$(find ./artifacts -name "*.app" -type f | head -1)
-          if [ -n "$APP" ]; then
-            # .app is a directory, zip it
-            cd artifacts
-            zip -r ../Secular-macos.zip "$(basename "$APP")"
-            cd ..
-            echo "APP: $APP"
-          fi
+          echo "APK: $APK"
+          echo "DMG: $DMG"
+          [ -n "$APK" ] && cp "$APK" ./secular-android.apk
+          [ -n "$DMG" ] && cp "$DMG" ./Secular-macos.dmg
+
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.detect.outputs.version }}
+          name: ${{ needs.detect.outputs.version }}
           files: |
-            Secular.dmg
-            Secular-macos.zip
+            secular-android.apk
+            Secular-macos.dmg
+          fail_on_unmatched_files: false
+          generate_release_notes: true
