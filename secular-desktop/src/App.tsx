@@ -1274,6 +1274,7 @@ const App: React.FC = () => {
         skip_verification: false,
         anti_dpi: false,
         change_system_dns: true,
+        bypass_domains: [],
       },
     });
     setIsNewServer(true);
