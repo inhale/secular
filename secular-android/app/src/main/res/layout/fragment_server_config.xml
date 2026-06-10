@@ -214,6 +214,28 @@
                 android:textColor="@color/text_primary"
                 android:buttonTint="@color/accent" />
 
+            <!-- Bypass List -->
+            <TextView style="@style/FieldLabel" android:text="Bypass List" android:layout_marginTop="20dp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Domains and IPs that skip the VPN tunnel"
+                android:textSize="11sp"
+                android:textColor="@color/text_dim" />
+            <EditText
+                android:id="@+id/field_bypass_domains"
+                style="@style/FieldInput"
+                android:layout_marginTop="6dp"
+                android:hint="One domain or IP per line"
+                android:inputType="textMultiLine"
+                android:gravity="top"
+                android:minHeight="80dp"
+                android:fontFamily="monospace"
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.6"
+                android:textColorHint="#30FFFFFF" />
+
             <!-- SAVE Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_save"

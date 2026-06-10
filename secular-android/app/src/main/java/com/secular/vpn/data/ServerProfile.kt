@@ -18,6 +18,7 @@ data class ServerProfile(
     @SerializedName("upstream_protocol") val upstreamProtocol: String = "http2",  // "http2" | "http3"
     @SerializedName("anti_dpi") val antiDpi: Boolean = false,
     @SerializedName("dns_upstreams") val dnsUpstreams: List<String> = emptyList(),
+    @SerializedName("bypass_domains") val bypassDomains: List<String> = emptyList(), // domains/IPs excluded from tunnel
 ) {
     val ipAddress: String
         get() = addresses.firstOrNull()?.substringBefore(":") ?: ""

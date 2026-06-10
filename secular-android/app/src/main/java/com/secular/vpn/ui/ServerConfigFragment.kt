@@ -46,8 +46,10 @@ class ServerConfigFragment : Fragment() {
     private lateinit var btnTogglePassword: ImageButton
     private lateinit var btnDelete: ImageButton
     private lateinit var headerTitle: TextView
+    private lateinit var fieldBypassDomains: EditText
 
     private var passwordVisible = false
+    private var bypassDomains: List<String> = emptyList()
 
     private val certPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -85,6 +87,7 @@ class ServerConfigFragment : Fragment() {
         btnTogglePassword = view.findViewById(R.id.btn_toggle_password)
         btnDelete = view.findViewById(R.id.btn_delete)
         headerTitle = view.findViewById(R.id.config_header_title)
+        fieldBypassDomains = view.findViewById(R.id.field_bypass_domains)
 
         // Setup protocol dropdown
         val protocols = arrayOf("HTTP/2", "QUIC")
@@ -175,6 +178,11 @@ class ServerConfigFragment : Fragment() {
                     certFileName.setTextColor(resources.getColor(R.color.text_primary, null))
                 }
 
+                // Bypass domains
+                if (server.bypassDomains.isNotEmpty()) {
+                    fieldBypassDomains.setText(server.bypassDomains.joinToString("\n"))
+                }
+
                 if (view != null) {
                     headerTitle.text = server.name
                 }
@@ -196,6 +204,9 @@ class ServerConfigFragment : Fragment() {
         val dnsServers = fieldDns.text.toString().lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+        val bypassDomains = fieldBypassDomains.text.toString().lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
 
         if (name.isEmpty()) {
             Toast.makeText(requireContext(), "Server name is required", Toast.LENGTH_SHORT).show()
@@ -212,7 +223,8 @@ class ServerConfigFragment : Fragment() {
             hasIpv6 = ipv6,
             upstreamProtocol = protocol,
             dnsUpstreams = dnsServers,
-            certificate = certFilePath ?: ""
+            certificate = certFilePath ?: "",
+            bypassDomains = bypassDomains,
         )
 
         lifecycleScope.launch {

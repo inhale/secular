@@ -32,9 +32,11 @@ pub struct AppState {
     pub tunnel_pid: Mutex<u32>,
 }
 
-/// Server config matching Android ServerProfile / TrustTunnel TOML
+/// Server config matching Android ServerProfile / TrustTunnel TOML spec
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
+    /// Display name for this server profile
+    pub name: String,
     /// IP:port address (e.g. "185.103.24.4:443")
     pub address: String,
     /// SNI hostname for TLS handshake
@@ -45,11 +47,11 @@ pub struct ServerConfig {
     pub password: String,
     /// Protocol: "http2" | "http3"
     pub upstream_protocol: String,
-    /// DNS upstreams
+    /// DNS upstreams (advanced formats: tls://, https://, quic://, sdns://)
     pub dns_upstreams: Vec<String>,
     /// Allow IPv6 traffic
     pub has_ipv6: bool,
-    /// Certificate PEM or path
+    /// Certificate PEM (inline) or file path
     pub certificate: String,
     /// Skip TLS verification
     pub skip_verification: bool,
@@ -57,11 +59,15 @@ pub struct ServerConfig {
     pub anti_dpi: bool,
     /// Change system DNS to route through tunnel
     pub change_system_dns: bool,
+    /// Domains/IPs to bypass (exclude from VPN tunnel)
+    /// Supports: domain.com, *.domain.com, 1.2.3.4, 1.2.3.4:443, *:80
+    pub bypass_domains: Vec<String>,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
+            name: String::new(),
             address: String::new(),
             hostname: String::new(),
             username: String::new(),
@@ -73,12 +79,15 @@ impl Default for ServerConfig {
             skip_verification: false,
             anti_dpi: false,
             change_system_dns: true,
+            bypass_domains: Vec::new(),
         }
     }
 }
 
 impl ServerConfig {
     /// Generate TrustTunnel TOML config string (matches Android toTrustTunnelToml())
+    /// Follows the TrustTunnel Client CLI configuration spec:
+    /// https://github.com/TrustTunnel/TrustTunnelClient/blob/master/trusttunnel/README.md
     pub fn to_toml(&self) -> String {
         let sni = if self.hostname.is_empty() {
             self.address.split(':').next().unwrap_or("")
@@ -94,7 +103,7 @@ impl ServerConfig {
 
         let proto = match self.upstream_protocol.as_str() {
             "http3" => "http3",
-            _ => "auto",
+            _ => "http2",
         };
 
         let dns_list = if self.dns_upstreams.is_empty() {
@@ -106,27 +115,40 @@ impl ServerConfig {
                 .join(", ")
         };
 
-        let mut toml = String::new();
-        toml.push_str("vpn_mode = \"general\"\n");
-        toml.push_str("loglevel = \"trace\"\n");
-        toml.push_str("killswitch_enabled = false\n");
-        toml.push_str("post_quantum_group_enabled = false\n\n");
-        toml.push_str("[listener.tun]\n");
-        if self.has_ipv6 {
-            toml.push_str("included_routes = [\"0.0.0.0/0\", \"::/0\"]\n");
-        } else {
-            toml.push_str("included_routes = [\"0.0.0.0/0\"]\n");
-        }
-        // Exclude VPN server IP and Tailscale subnet from tunnel to avoid routing loops
+        // Exclusion routes: Tailscale CGNAT + server IP to prevent routing loops
         let server_ip = self.address.split(':').next().unwrap_or("");
         let mut excludes = vec!["100.64.0.0/10".to_string()]; // Tailscale CGNAT range
         if !server_ip.is_empty() {
             excludes.push(format!("{}/32", server_ip));
         }
         let excl_str = excludes.iter().map(|e| format!("\"{}\"", e)).collect::<Vec<_>>().join(", ");
-        toml.push_str(&format!("excluded_routes = [{}]\n", excl_str));
-        toml.push_str("mtu_size = 1500\n");
-        toml.push_str(&format!("change_system_dns = {}\n\n", self.change_system_dns));
+
+        // Build bypass/exclusion entries for TrustTunnel's top-level exclusions
+        let bypass_entries: Vec<String> = self.bypass_domains.iter()
+            .map(|d| format!("\"{}\"", d))
+            .collect();
+
+        let mut toml = String::new();
+
+        // Top-level settings
+        toml.push_str("vpn_mode = \"general\"\n");
+        toml.push_str("loglevel = \"trace\"\n");
+        toml.push_str("killswitch_enabled = false\n");
+        toml.push_str("post_quantum_group_enabled = false\n");
+
+        // DNS upstreams (legacy top-level field, kept for compatibility)
+        if !self.dns_upstreams.is_empty() {
+            toml.push_str(&format!("dns_upstreams = [{}]\n", dns_list));
+        }
+
+        // Exclusions: domains/IPs that bypass the VPN tunnel
+        if !bypass_entries.is_empty() {
+            toml.push_str(&format!("exclusions = [{}]\n", bypass_entries.join(", ")));
+        }
+
+        toml.push('\n');
+
+        // [endpoint] section
         toml.push_str("[endpoint]\n");
         toml.push_str(&format!("hostname = \"{}\"\n", sni));
         toml.push_str(&format!("addresses = [{}]\n", addr));
@@ -141,6 +163,19 @@ impl ServerConfig {
         }
         toml.push_str(&format!("skip_verification = {}\n", self.skip_verification));
         toml.push_str(&format!("anti_dpi = {}\n", self.anti_dpi));
+        toml.push('\n');
+
+        // [listener.tun] section
+        toml.push_str("[listener.tun]\n");
+        toml.push_str("change_system_dns = true\n");
+        if self.has_ipv6 {
+            toml.push_str("included_routes = [\"0.0.0.0/0\", \"::/0\"]\n");
+        } else {
+            toml.push_str("included_routes = [\"0.0.0.0/0\"]\n");
+        }
+        toml.push_str(&format!("excluded_routes = [{}]\n", excl_str));
+        toml.push_str("mtu_size = 1280\n");
+
         toml
     }
 }

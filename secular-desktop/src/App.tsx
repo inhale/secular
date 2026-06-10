@@ -17,7 +17,7 @@ interface TrayStatePayload {
   upload_pkts?: number;
 }
 
-/** Server config matching Android ServerProfile / TrustTunnel TOML */
+/** Server config matching Android ServerProfile / TrustTunnel TOML spec */
 interface ServerConfig {
   /** Display name from tt:// link (may be empty) */
   name: string;
@@ -43,6 +43,9 @@ interface ServerConfig {
   anti_dpi: boolean;
   /** Change system DNS to route through tunnel */
   change_system_dns: boolean;
+  /** Domains/IPs to bypass (not routed through VPN tunnel).
+   *  Supports: domain.com, *.domain.com, 1.2.3.4, 1.2.3.4:443, *:80 */
+  bypass_domains: string[];
 }
 
 interface ServerInfo {
@@ -383,7 +386,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
     }
     const host = trimmed.replace('secular://', '').split(':')[0] || trimmed;
     const port = parseInt(trimmed.split(':')[1], 10) || 443;
-    onAddServer({ name: '', address: `${host}:${port}`, hostname: host, username: '', password: '', upstream_protocol: 'http2', dns_upstreams: ['9.9.9.9', '149.112.112.112'], has_ipv6: false, certificate: '', skip_verification: false, anti_dpi: false, change_system_dns: true });
+    onAddServer({ name: '', address: `${host}:${port}`, hostname: host, username: '', password: '', upstream_protocol: 'http2', dns_upstreams: ['9.9.9.9', '149.112.112.112'], has_ipv6: false, certificate: '', skip_verification: false, anti_dpi: false, change_system_dns: true, bypass_domains: [] });
     setLink('');
     onNav('dashboard');
   }, [onAddServer, onImportConfig, onNav]);
@@ -466,7 +469,7 @@ const AddServer: React.FC<AddServerProps> = ({ onNav, onAddServer, onEditNewServ
   );
 };
 
-/** TOML parser matching Android TomlFileParser — handles [endpoint] sections, triple-quoted strings, arrays */
+/** TOML parser matching Android TomlFileParser — handles [endpoint] sections, triple-quoted strings, arrays, top-level exclusions */
 function parseTomlConfig(content: string): ServerConfig {
   const config: ServerConfig = {
     name: '',
@@ -481,6 +484,7 @@ function parseTomlConfig(content: string): ServerConfig {
     skip_verification: false,
     anti_dpi: false,
     change_system_dns: true,
+    bypass_domains: [],
   };
   const fields: Record<string, string> = {};
   const lines = content.split('\n');
@@ -557,6 +561,14 @@ function parseTomlConfig(content: string): ServerConfig {
   config.change_system_dns = (fields['change_system_dns'] || 'true') === 'true';
   config.certificate = fields['certificate'] || fields['endpoint.certificate'] || '';
   config.name = fields['name'] || fields['endpoint.name'] || '';
+
+  // Parse top-level exclusions (bypass domains) — TrustTunnel format: exclusions = ["domain.com", "*.example.com"]
+  const exclRaw = fields['exclusions'] || '';
+  if (exclRaw) {
+    const cleaned = exclRaw.replace(/^\[|\]$/g, '').replace(/"/g, '').replace(/'/g, '');
+    config.bypass_domains = cleaned.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+  }
+
   return config;
 }
 
@@ -583,6 +595,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
     skip_verification: server.config.skip_verification ?? false,
     anti_dpi: server.config.anti_dpi ?? false,
     change_system_dns: server.config.change_system_dns ?? true,
+    bypass_domains: server.config.bypass_domains || [],
   };
   const [name, setName] = useState(server.name);
   const [address, setAddress] = useState(safeConfig.address);
@@ -594,6 +607,8 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
   const [dns, setDns] = useState(safeConfig.dns_upstreams.join('\n'));
   const [hasIpv6, setHasIpv6] = useState(safeConfig.has_ipv6);
   const [changeDns, setChangeDns] = useState(safeConfig.change_system_dns);
+  const [bypassDomains, setBypassDomains] = useState<string[]>(safeConfig.bypass_domains);
+  const [newBypass, setNewBypass] = useState('');
   const [protocolOpen, setProtocolOpen] = useState(false);
 
   const handleSave = () => {
@@ -618,6 +633,7 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
         skip_verification: server.config.skip_verification,
         anti_dpi: server.config.anti_dpi,
         change_system_dns: changeDns,
+        bypass_domains: bypassDomains,
       },
     });
     onNav('dashboard');
@@ -626,6 +642,18 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
   const handleDelete = () => {
     onDelete(server.id);
     onNav('dashboard');
+  };
+
+  const addBypass = () => {
+    const d = newBypass.trim();
+    if (d && !bypassDomains.includes(d)) {
+      setBypassDomains([...bypassDomains, d]);
+    }
+    setNewBypass('');
+  };
+
+  const removeBypass = (idx: number) => {
+    setBypassDomains(bypassDomains.filter((_, i) => i !== idx));
   };
 
   const protocols = ['HTTP/2', 'QUIC'];
@@ -756,6 +784,30 @@ const ServerConfigScreen: React.FC<ServerConfigScreenProps> = ({ server, isNew, 
               <span className="toggle-slider" />
             </div>
           </label>
+        </div>
+
+        {/* Bypass List — domains/IPs excluded from VPN */}
+        <div className="config-field">
+          <div className="config-field-label">BYPASS LIST</div>
+          <div className="config-field-hint">Domains and IPs that skip the VPN tunnel</div>
+          <div className="bypass-list">
+            {bypassDomains.map((domain, idx) => (
+              <div key={idx} className="bypass-item">
+                <span className="bypass-domain">{domain}</span>
+                <button className="bypass-remove" onClick={() => removeBypass(idx)}>×</button>
+              </div>
+            ))}
+          </div>
+          <div className="bypass-add-row">
+            <input
+              className="config-field-input bypass-input"
+              value={newBypass}
+              onChange={e => setNewBypass(e.target.value)}
+              placeholder="example.com, *.example.com, 1.2.3.4"
+              onKeyDown={e => e.key === 'Enter' && addBypass()}
+            />
+            <button className="bypass-add-btn" onClick={addBypass}>Add</button>
+          </div>
         </div>
 
         <div className="config-save-row">
@@ -901,8 +953,13 @@ function loadServers(): ServerInfo[] {
               skip_verification: false,
               anti_dpi: false,
               change_system_dns: true,
+              bypass_domains: [],
             },
           };
+        }
+        // Ensure bypass_domains exists on existing configs
+        if (c.bypass_domains === undefined) {
+          return { ...s, config: { ...s.config, bypass_domains: [] } };
         }
         return s;
       });

@@ -126,6 +126,9 @@ object DeepLinkParser {
             dnsUpstreams = parseList(
                 fields["dns_upstreams"] ?: fields["endpoint.dns_upstreams"]
                     ?: fields["endpoints.dns_upstreams"] ?: ""
+            ),
+            bypassDomains = parseList(
+                fields["exclusions"] ?: fields["bypass_domains"] ?: ""
             )
         )
     }

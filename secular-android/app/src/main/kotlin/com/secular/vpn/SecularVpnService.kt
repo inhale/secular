@@ -101,18 +101,34 @@ class SecularVpnService : VpnService() {
         fun toTrustTunnelToml(): String {
             val sb = StringBuilder()
 
-            // Top-level settings
+            // Top-level settings (matching TrustTunnel spec)
             sb.appendLine("vpn_mode = \"general\"")
             sb.appendLine("loglevel = \"debug\"")
             sb.appendLine("killswitch_enabled = false")
             sb.appendLine("post_quantum_group_enabled = false")
+
+            // Legacy dns_upstreams (empty, use [endpoint].dns_upstreams instead)
+            sb.appendLine("dns_upstreams = []")
+
+            // Exclusions: domains/IPs that bypass the VPN tunnel
+            if (bypassDomains.isNotEmpty()) {
+                val exclStr = bypassDomains.joinToString(", ") { "\"$it\"" }
+                sb.appendLine("exclusions = [$exclStr]")
+            }
+
             sb.appendLine()
 
             // [listener.tun]
             sb.appendLine("[listener.tun]")
             sb.appendLine("included_routes = [\"0.0.0.0/0\", \"::/0\"]")
-            sb.appendLine("excluded_routes = []")
-            sb.appendLine("mtu_size = 1500")
+            val serverIp = addresses.firstOrNull()?.substringBefore(":") ?: ""
+            val excludes = mutableListOf("100.64.0.0/10") // Tailscale CGNAT range
+            if (serverIp.isNotEmpty()) {
+                excludes.add("$serverIp/32")
+            }
+            val exclStr = excludes.joinToString(", ") { "\"$it\"" }
+            sb.appendLine("excluded_routes = [$exclStr]")
+            sb.appendLine("mtu_size = 1280")  // TrustTunnel default, not 1500
             sb.appendLine("change_system_dns = false")
             sb.appendLine()
 
@@ -136,7 +152,7 @@ class SecularVpnService : VpnService() {
 
             val proto = when (upstreamProtocol) {
                 "http3" -> "http3"
-                else -> "auto"
+                else -> "http2"  // TrustTunnel uses "http2", not "auto"
             }
             sb.appendLine("upstream_protocol = \"$proto\"")
 

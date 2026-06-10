@@ -61,6 +61,11 @@ object TomlFileParser {
                     ?: fields["endpoints.dns_upstreams"] ?: ""
             )
 
+            // Parse exclusions (bypass domains) from top-level TrustTunnel config
+            val bypassDomains = parseDnsUpstreams(
+                fields["exclusions"] ?: ""
+            )
+
             ServerProfile(
                 name = name,
                 hostname = hostname,
@@ -73,7 +78,8 @@ object TomlFileParser {
                 certificate = certificate,
                 upstreamProtocol = upstreamProtocol,
                 antiDpi = antiDpi,
-                dnsUpstreams = dnsUpstreams
+                dnsUpstreams = dnsUpstreams,
+                bypassDomains = bypassDomains
             )
         } catch (e: Exception) {
             null
