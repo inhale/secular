@@ -39,7 +39,7 @@ Secular uses a light, minimalist design inspired by the paragraph sign (§).
 ## Monorepo Structure
 
 ```
-├── legacy/secular-core/    # DEPRECATED: Rust protocol implementation (archived)
+├── legacy/secular-core/    # Archived Rust protocol implementation (deprecated)
 ├── secular-desktop/        # Tauri v2 desktop app (macOS, Windows)
 │   ├── src-tauri/          # Rust backend (TrustTunnel CLI integration)
 │   └── src/                # React/TypeScript frontend

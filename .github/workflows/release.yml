@@ -184,12 +184,14 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p ./release
-          APK=$(find ./artifacts -name "*.apk" -type f | head -1)
-          DMG=$(find ./artifacts -name "*.dmg" -type f | head -1)
-          echo "APK: $APK"
-          echo "DMG: $DMG"
-          [ -n "$APK" ] && cp "$APK" ./release/secular-android.apk
-          [ -n "$DMG" ] && cp "$DMG" ./release/Secular-macos.dmg
+          # Upload all APKs
+          while IFS= read -r f; do
+            [ -n "$f" ] && cp "$f" "./release/$(basename "$f")"
+          done < <(find ./artifacts -name "*.apk" -type f)
+          # Upload all DMGs (ARM + x86_64)
+          while IFS= read -r f; do
+            [ -n "$f" ] && cp "$f" "./release/$(basename "$f")"
+          done < <(find ./artifacts -name "*.dmg" -type f)
           echo "Files prepared:"
           ls -la ./release/
 
