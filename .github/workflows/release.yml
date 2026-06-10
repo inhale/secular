@@ -167,6 +167,7 @@ jobs:
     needs: [detect, build-android, build-macos]
     if: |
       always() &&
+      !cancelled() &&
       (needs.build-android.result == 'success' || needs.build-macos.result == 'success')
     runs-on: ubuntu-latest
     steps:
@@ -179,19 +180,20 @@ jobs:
 
       - name: Prepare release files
         run: |
+          mkdir -p ./release
           APK=$(find ./artifacts -name "*.apk" -type f | head -1)
           DMG=$(find ./artifacts -name "*.dmg" -type f | head -1)
           echo "APK: $APK"
           echo "DMG: $DMG"
-          [ -n "$APK" ] && cp "$APK" ./secular-android.apk
-          [ -n "$DMG" ] && cp "$DMG" ./Secular-macos.dmg
+          [ -n "$APK" ] && cp "$APK" ./release/secular-android.apk
+          [ -n "$DMG" ] && cp "$DMG" ./release/Secular-macos.dmg
+          echo "Files prepared:"
+          ls -la ./release/
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.detect.outputs.version }}
+          tag_name: ${{ github.ref_name }}
           name: ${{ needs.detect.outputs.version }}
-          files: |
-            secular-android.apk
-            Secular-macos.dmg
+          files: ./release/*
           fail_on_unmatched_files: false
           generate_release_notes: true
