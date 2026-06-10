@@ -95,7 +95,8 @@ class SecularVpnService : VpnService() {
         @SerializedName("certificate") val certificate: String = "",
         @SerializedName("skip_verification") val skipVerification: Boolean = true,
         @SerializedName("anti_dpi") val antiDpi: Boolean = false,
-        @SerializedName("client_random") val clientRandom: String = ""
+        @SerializedName("client_random") val clientRandom: String = "",
+        @SerializedName("bypass_domains") val bypassDomains: List<String> = emptyList()
     ) {
         fun toTrustTunnelToml(): String {
             val sb = StringBuilder()
